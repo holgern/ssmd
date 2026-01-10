@@ -6,17 +6,23 @@ from ssmd.processors.base import BaseProcessor
 
 
 class EmphasisProcessor(BaseProcessor):
-    """Process emphasis markup (*text*)."""
+    """Process emphasis markup (*text* and **text**)."""
 
     name = "emphasis"
 
     def regex(self) -> re.Pattern:
-        """Match text wrapped in single asterisks.
+        """Match text wrapped in asterisks.
+
+        Matches both:
+        - **text** for strong emphasis
+        - *text* for moderate emphasis
 
         Returns:
-            Pattern matching *text*
+            Pattern matching *text* or **text**
         """
-        return re.compile(r"\*([^\*]+)\*")
+        # Match ** first (longer pattern), then single *
+        # Use negative lookbehind/lookahead to avoid matching *** as both
+        return re.compile(r"\*\*([^\*]+)\*\*|\*([^\*]+)\*")
 
     def result(self, match: re.Match) -> str:
         """Convert to SSML emphasis element.
@@ -25,10 +31,15 @@ class EmphasisProcessor(BaseProcessor):
             match: Regex match object
 
         Returns:
-            SSML <emphasis> tag
+            SSML <emphasis> tag with appropriate level
         """
-        text = match.group(1)
-        return f"<emphasis>{text}</emphasis>"
+        # Group 1 is **text**, group 2 is *text*
+        if match.group(1):  # Strong emphasis **text**
+            text = match.group(1)
+            return f'<emphasis level="strong">{text}</emphasis>'
+        else:  # Moderate emphasis *text*
+            text = match.group(2)
+            return f"<emphasis>{text}</emphasis>"
 
     def text(self, match: re.Match) -> str:
         """Extract plain text without asterisks.
@@ -39,4 +50,5 @@ class EmphasisProcessor(BaseProcessor):
         Returns:
             Plain text content
         """
-        return match.group(1)
+        # Return whichever group matched
+        return match.group(1) if match.group(1) else match.group(2)

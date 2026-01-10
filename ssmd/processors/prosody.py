@@ -49,12 +49,16 @@ class ProsodyProcessor(BaseProcessor):
             Pattern matching all prosody shortcuts
         """
         # Combine all patterns (order matters: longer patterns first!)
+        # Must not be preceded/followed by alphanumeric to avoid matching
+        # hyphens in words/numbers like "555-1234" or "say-as"
         return re.compile(
+            r"(?<![a-zA-Z0-9])"  # Not preceded by alphanumeric
             r"(~~|--|\+\+|-|\+|"  # Volume
             r"&lt;&lt;|&lt;|&gt;&gt;|&gt;|"  # Rate (XML escaped)
             r"__|\^\^|_|\^)"  # Pitch
-            r"([^~\-+<>_^]+)"  # Content (non-greedy)
+            r"([^~\-+<>_^]+?)"  # Content (non-greedy)
             r"\1"  # Same closing marker
+            r"(?![a-zA-Z0-9])"  # Not followed by alphanumeric
         )
 
     def result(self, match: re.Match) -> str:

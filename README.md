@@ -7,13 +7,12 @@ maintainable.
 
 ## Features
 
-✨ **Markdown-like syntax** - More intuitive than raw SSML  
-🎯 **Full SSML support** - All major SSML features covered  
-🔄 **Bidirectional** - Convert SSMD→SSML or strip to plain text  
-📝 **TTS streaming** - Iterate through sentences for real-time TTS  
-🎛️ **TTS capabilities** - Auto-filter features based on engine support  
-🎨 **Extensible** - Custom extensions for platform-specific features  
-🧪 **Spec-driven** - Follows the official SSMD specification
+✨ **Markdown-like syntax** - More intuitive than raw SSML 🎯 **Full SSML support** -
+All major SSML features covered 🔄 **Bidirectional** - Convert SSMD→SSML or strip to
+plain text 📝 **TTS streaming** - Iterate through sentences for real-time TTS 🎛️ **TTS
+capabilities** - Auto-filter features based on engine support 🎨 **Extensible** - Custom
+extensions for platform-specific features 🧪 **Spec-driven** - Follows the official SSMD
+specification
 
 ## Installation
 
@@ -108,7 +107,8 @@ print(doc.plain_text)  # Stripped plain text
 
 ### TTS Engine Capabilities
 
-SSMD can automatically filter SSML features based on your TTS engine's capabilities. This ensures compatibility by stripping unsupported tags to plain text.
+SSMD can automatically filter SSML features based on your TTS engine's capabilities.
+This ensures compatibility by stripping unsupported tags to plain text.
 
 #### Using Presets
 
@@ -124,6 +124,7 @@ ssml = parser.to_ssml("*Hello* [world](en)!")
 ```
 
 **Available Presets:**
+
 - `minimal` - Plain text only (no SSML)
 - `pyttsx3` - Minimal support (basic prosody only)
 - `espeak` - Moderate support (breaks, language, prosody, phonemes)
@@ -176,12 +177,12 @@ for sentence in doc:
 
 Same input: `*Hello* world... [this is loud](v: 5)!`
 
-| Engine | Output |
-|--------|--------|
-| minimal | `<speak>Hello world... this is loud!</speak>` |
-| pyttsx3 | `<speak>Hello world... <prosody volume="x-loud">this is loud</prosody>!</speak>` |
-| espeak | `<speak>Hello world<break time="1000ms"/> <prosody volume="x-loud">this is loud</prosody>!</speak>` |
-| google | `<speak><p><emphasis>Hello</emphasis> world<break time="1000ms"/> <prosody volume="x-loud">this is loud</prosody>!</p></speak>` |
+| Engine  | Output                                                                                                                          |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| minimal | `<speak>Hello world... this is loud!</speak>`                                                                                   |
+| pyttsx3 | `<speak>Hello world... <prosody volume="x-loud">this is loud</prosody>!</speak>`                                                |
+| espeak  | `<speak>Hello world<break time="1000ms"/> <prosody volume="x-loud">this is loud</prosody>!</speak>`                             |
+| google  | `<speak><p><emphasis>Hello</emphasis> world<break time="1000ms"/> <prosody volume="x-loud">this is loud</prosody>!</p></speak>` |
 
 See `examples/tts_with_capabilities.py` for a complete demonstration.
 

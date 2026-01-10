@@ -40,6 +40,7 @@ from collections.abc import Iterator
 
 from ssmd.converter import Converter
 from ssmd.document import SSMDDocument
+from ssmd.ssml_parser import SSMLParser
 from ssmd.capabilities import (
     TTSCapabilities,
     get_preset,
@@ -75,8 +76,8 @@ class SSMD:
 
     def __init__(
         self,
-        config: Optional[dict[str, Any]] = None,
-        capabilities: Optional[TTSCapabilities | str] = None,
+        config: dict[str, Any] | None = None,
+        capabilities: TTSCapabilities | str | None = None,
     ):
         """Initialize SSMD converter with optional configuration.
 
@@ -246,11 +247,32 @@ def strip_ssmd(ssmd_text: str, **config) -> str:
     return SSMD(config).strip(ssmd_text)
 
 
+def from_ssml(ssml_text: str, **config) -> str:
+    """Convert SSML to SSMD format (reverse conversion).
+
+    Args:
+        ssml_text: SSML XML string
+        **config: Optional configuration parameters
+
+    Returns:
+        SSMD markdown string
+
+    Example:
+        >>> ssml = '<speak><emphasis>Hello</emphasis> world</speak>'
+        >>> ssmd.from_ssml(ssml)
+        '*Hello* world'
+    """
+    parser = SSMLParser(config)
+    return parser.to_ssmd(ssml_text)
+
+
 __all__ = [
     "SSMD",
     "SSMDDocument",
     "to_ssml",
     "strip_ssmd",
+    "from_ssml",
+    "SSMLParser",
     "TTSCapabilities",
     "get_preset",
     # Capability presets
