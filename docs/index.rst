@@ -50,7 +50,7 @@ Quick Example
    # → *Hello*
 
    # Strip markup for plain text
-   plain = ssmd.strip_ssmd("Hello *world* @marker!")
+   plain = ssmd.to_text("Hello *world* @marker!")
    # → Hello world!
 
 Table of Contents

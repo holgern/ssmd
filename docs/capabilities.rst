@@ -29,13 +29,13 @@ The easiest way is to use a built-in preset:
 
 .. code-block:: python
 
-   from ssmd import SSMD
+   from ssmd import Document
 
    # Configure for your TTS engine
-   parser = SSMD(capabilities='espeak')
+   doc = Document("*Hello* [world](fr)!", capabilities='espeak')
 
    # Unsupported features are automatically removed
-   ssml = parser.to_ssml("*Hello* [world](fr)!")
+   ssml = doc.to_ssml()
    # eSpeak doesn't support emphasis or language
    # Output: <speak>Hello world!</speak>
 
@@ -49,7 +49,7 @@ Plain text only, no SSML features:
 
 .. code-block:: python
 
-   parser = SSMD(capabilities='minimal')
+   doc = Document(capabilities='minimal')
 
 **Supported:** None (all stripped to text)
 
@@ -60,7 +60,7 @@ For the pyttsx3 library (offline TTS):
 
 .. code-block:: python
 
-   parser = SSMD(capabilities='pyttsx3')
+   doc = Document(capabilities='pyttsx3')
 
 **Supported:**
 
@@ -84,7 +84,7 @@ For eSpeak/eSpeak-NG:
 
 .. code-block:: python
 
-   parser = SSMD(capabilities='espeak')
+   doc = Document(capabilities='espeak')
 
 **Supported:**
 
@@ -109,9 +109,9 @@ For cloud TTS services with full SSML support:
 
 .. code-block:: python
 
-   parser = SSMD(capabilities='google')
+   doc = Document(capabilities='google')
    # or
-   parser = SSMD(capabilities='azure')
+   doc = Document(capabilities='azure')
 
 **Supported:** All standard SSML features
 
@@ -137,7 +137,7 @@ For Amazon Polly with extensions:
 
 .. code-block:: python
 
-   parser = SSMD(capabilities='polly')
+   doc = Document(capabilities='polly')
 
 **Supported:** All features including:
 
@@ -152,7 +152,7 @@ All features enabled (no filtering):
 
 .. code-block:: python
 
-   parser = SSMD(capabilities='full')
+   doc = Document(capabilities='full')
 
 Use this when you know your engine supports everything or want to test.
 
@@ -166,7 +166,7 @@ Basic Example
 
 .. code-block:: python
 
-   from ssmd import SSMD, TTSCapabilities
+   from ssmd import Document, TTSCapabilities
 
    # Create custom capability profile
    caps = TTSCapabilities(
@@ -182,7 +182,7 @@ Basic Example
        substitution=False,  # No substitution
    )
 
-   parser = SSMD(capabilities=caps)
+   doc = Document(capabilities=caps)
 
 Partial Prosody Support
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -191,7 +191,7 @@ Some engines support only certain prosody attributes:
 
 .. code-block:: python
 
-   from ssmd import TTSCapabilities, ProsodySupport
+   from ssmd import TTSCapabilities, ProsodySupport, Document
 
    caps = TTSCapabilities(
        prosody=ProsodySupport(
@@ -201,10 +201,10 @@ Some engines support only certain prosody attributes:
        )
    )
 
-   parser = SSMD(capabilities=caps)
+   doc = Document(capabilities=caps)
 
    # Pitch will be stripped, but volume and rate preserved
-   ssml = parser.to_ssml('[text](v: 5, r: 4, p: 5)')
+   ssml = doc.to_ssml('[text](v: 5, r: 4, p: 5)')
    # → <prosody volume="x-loud" rate="fast">text</prosody>
 
 Extension Support
@@ -221,9 +221,9 @@ Control platform-specific extensions:
        }
    )
 
-   parser = SSMD(capabilities=caps)
+   doc = Document(capabilities=caps)
 
-   ssml = parser.to_ssml('[secret](ext: whisper)')
+   ssml = doc.to_ssml('[secret](ext: whisper)')
    # → <amazon:effect name="whispered">secret</amazon:effect>
 
 Capability Comparison
@@ -263,22 +263,19 @@ Capability filtering works seamlessly with document streaming:
 
 .. code-block:: python
 
-   from ssmd import SSMD
+   from ssmd import Document
 
-   # Create parser for specific engine
-   parser = SSMD(capabilities='espeak')
-
-   # Load document
-   doc = parser.load("""
+   # Create document for specific engine
+   doc = Document("""
    # Welcome
    *Hello* world!
    [Bonjour](fr) everyone!
    This is +loud+.
-   """)
+   """, capabilities='espeak', auto_sentence_tags=True)
 
    # All sentences are pre-filtered for eSpeak
-   for sentence in doc:
-       tts_engine.speak(sentence)
+   for sentence_doc in doc.sentences(as_documents=True):
+       tts_engine.speak(sentence_doc.to_ssml())
        # Emphasis and language are already removed
        # Prosody is preserved
 
@@ -289,14 +286,13 @@ Test what gets filtered:
 
 .. code-block:: python
 
-   from ssmd import SSMD
+   from ssmd import to_ssml
 
    engines = ['minimal', 'pyttsx3', 'espeak', 'google', 'polly']
    text = "*Emphasis* ...500ms [language](fr) +loud+"
 
    for engine in engines:
-       parser = SSMD(capabilities=engine)
-       ssml = parser.to_ssml(text)
+       ssml = to_ssml(text, capabilities=engine)
        print(f"{engine:10} → {ssml}")
 
 Output:
@@ -324,10 +320,10 @@ Example:
 .. code-block:: python
 
    # With emphasis support disabled
-   parser = SSMD(capabilities='minimal')
+   from ssmd import to_ssml
 
    # Emphasis markup is removed, text preserved
-   ssml = parser.to_ssml("This is *very important* info")
+   ssml = to_ssml("This is *very important* info", capabilities='minimal')
    # → <speak>This is very important info</speak>
 
 Best Practices
@@ -363,16 +359,16 @@ Complete example with capability detection:
 
 .. code-block:: python
 
-   from ssmd import SSMD
+   from ssmd import Document
 
    class TTSHandler:
        def __init__(self, engine_name):
            self.engine_name = engine_name
-           self.parser = SSMD(capabilities=engine_name)
 
        def speak(self, ssmd_text):
            # Convert with automatic filtering
-           ssml = self.parser.to_ssml(ssmd_text)
+           doc = Document(ssmd_text, capabilities=self.engine_name)
+           ssml = doc.to_ssml()
 
            # Send to TTS engine
            self.engine.speak(ssml)

@@ -7,10 +7,12 @@ This example demonstrates how to use SSMD to:
 4. Track progress and handle pauses
 """
 
-from ssmd import SSMD
+import re
+
+from ssmd import Document
 
 
-def read_story_chapter():
+def read_story_chapter() -> str:
     """Example story chapter with SSMD markup."""
     story = """
 # Chapter 3: The Discovery
@@ -38,51 +40,51 @@ She knew @moment_of_truth that her life would never be the same again ...2s
     return story
 
 
-def main():
+def main() -> None:
     """Main demo showing TTS document processing."""
     print("=" * 80)
     print("📖 SSMD Story Reader Demo")
     print("=" * 80)
 
-    # Create parser optimized for storytelling
-    parser = SSMD(
-        {
-            "auto_sentence_tags": True,  # Wrap each sentence in <s>
-            "output_speak_tag": False,  # Sentences don't need outer <speak>
-            "heading_levels": {
-                1: [("emphasis", "strong"), ("pause", "500ms")],  # Chapter titles
-                2: [("emphasis", "moderate"), ("pause", "300ms")],  # Sections
-            },
-        }
-    )
+    # Create document optimized for storytelling
+    config = {
+        "auto_sentence_tags": True,  # Wrap each sentence in <s>
+        "output_speak_tag": True,  # Include <speak> wrapper
+        "heading_levels": {
+            1: [("emphasis", "strong"), ("pause", "500ms")],  # Chapter titles
+            2: [("emphasis", "moderate"), ("pause", "300ms")],  # Sections
+        },
+    }
 
     # Load story
     story = read_story_chapter()
-    doc = parser.load(story)
+    doc = Document(story, config=config)
 
     print(f"\n📚 Story loaded: {len(doc)} sentences")
-    print(f"📝 Plain text: {len(doc.plain_text)} characters\n")
+    print(f"📝 Plain text: {len(doc.to_text())} characters\n")
 
     # Show plain text version
     print("-" * 80)
     print("PLAIN TEXT VERSION:")
     print("-" * 80)
-    print(doc.plain_text)
+    print(doc.to_text())
     print("-" * 80)
 
     # Simulate TTS reading with progress tracking
     print("\n🎙️  Reading story aloud...")
     print("=" * 80)
 
-    for i, sentence in enumerate(doc, 1):
+    for i in range(len(doc)):
+        sentence = doc[i]
+
         # Calculate progress
-        progress = (i / len(doc)) * 100
+        progress = ((i + 1) / len(doc)) * 100
         bar_length = 40
-        filled = int(bar_length * i // len(doc))
+        filled = int(bar_length * (i + 1) // len(doc))
         bar = "█" * filled + "░" * (bar_length - filled)
 
         # Show progress
-        print(f"\n[{i:2d}/{len(doc):2d}] {bar} {progress:5.1f}%")
+        print(f"\n[{i + 1:2d}/{len(doc):2d}] {bar} {progress:5.1f}%")
 
         # Show SSML (truncated for display)
         ssml_preview = sentence[:70] + "..." if len(sentence) > 70 else sentence
@@ -117,21 +119,20 @@ def main():
     # Show how to get specific metadata
     print("\n📊 Document Statistics:")
     print(f"   Total sentences: {len(doc)}")
-    print(f"   Characters (plain): {len(doc.plain_text)}")
-    print(f"   Characters (SSML): {len(doc.ssml)}")
-    print(f"   SSML overhead: {len(doc.ssml) - len(doc.plain_text)} chars")
+    print(f"   Characters (plain): {len(doc.to_text())}")
+    print(f"   Characters (SSML): {len(doc.to_ssml())}")
+    print(f"   SSML overhead: {len(doc.to_ssml()) - len(doc.to_text())} chars")
 
     # Show how you might use this for chapter navigation
     print("\n📑 Chapter Navigation Pattern:")
     print("   You can split by headings and create bookmarks:")
 
     chapter_starts = []
-    for i, sentence in enumerate(doc):
+    for i in range(len(doc)):
+        sentence = doc[i]
         if '<emphasis level="strong">' in sentence:  # Heading 1
             chapter_starts.append(i)
             # Extract chapter name (simple approach)
-            import re
-
             match = re.search(r'<emphasis level="strong">([^<]+)</emphasis>', sentence)
             if match:
                 print(f"   - Sentence {i}: {match.group(1)}")

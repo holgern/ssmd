@@ -12,13 +12,10 @@ pyttsx3 (Offline TTS)
 .. code-block:: python
 
    import pyttsx3
-   from ssmd import SSMD
+   from ssmd import Document
 
    # Initialize TTS engine
    engine = pyttsx3.init()
-
-   # Create SSMD parser with pyttsx3 capabilities
-   parser = SSMD(capabilities='pyttsx3')
 
    # Create content with SSMD
    text = """
@@ -28,8 +25,11 @@ pyttsx3 (Offline TTS)
    This is >>very fast>>.
    """
 
+   # Create document with pyttsx3 capabilities
+   doc = Document(text, capabilities='pyttsx3')
+
    # Convert to SSML
-   ssml = parser.to_ssml(text)
+   ssml = doc.to_ssml()
 
    # Speak (pyttsx3 handles SSML natively)
    engine.say(ssml)
@@ -41,13 +41,10 @@ Google Text-to-Speech
 .. code-block:: python
 
    from google.cloud import texttospeech
-   from ssmd import SSMD
+   from ssmd import Document
 
    # Initialize Google TTS client
    client = texttospeech.TextToSpeechClient()
-
-   # Create SSMD parser with Google capabilities
-   parser = SSMD(capabilities='google')
 
    # Create content
    text = """
@@ -56,8 +53,11 @@ Google Text-to-Speech
    Please wait ...1s for the next message.
    """
 
+   # Create document with Google capabilities
+   doc = Document(text, capabilities='google')
+
    # Convert to SSML
-   ssml = parser.to_ssml(text)
+   ssml = doc.to_ssml()
 
    # Prepare TTS request
    synthesis_input = texttospeech.SynthesisInput(ssml=ssml)
@@ -86,13 +86,10 @@ Amazon Polly
 .. code-block:: python
 
    import boto3
-   from ssmd import SSMD
+   from ssmd import Document
 
    # Initialize Polly client
    polly = boto3.client('polly')
-
-   # Create SSMD parser with Polly capabilities
-   parser = SSMD(capabilities='polly')
 
    # Create content with Amazon extensions
    text = """
@@ -101,8 +98,11 @@ Amazon Polly
    Back to normal voice.
    """
 
+   # Create document with Polly capabilities
+   doc = Document(text, capabilities='polly')
+
    # Convert to SSML
-   ssml = parser.to_ssml(text)
+   ssml = doc.to_ssml()
 
    # Generate speech
    response = polly.synthesize_speech(
@@ -124,7 +124,7 @@ Sentence-by-Sentence Processing
 
 .. code-block:: python
 
-   from ssmd import SSMD
+   from ssmd import Document
    import time
 
    # Mock TTS engine for demonstration
@@ -134,10 +134,9 @@ Sentence-by-Sentence Processing
            time.sleep(0.5)  # Simulate speech duration
 
    engine = TTSEngine()
-   parser = SSMD({'auto_sentence_tags': True})
 
    # Long document
-   document = """
+   document_text = """
    # Chapter 1: The Beginning
 
    It was a dark and stormy night.
@@ -150,14 +149,15 @@ Sentence-by-Sentence Processing
    What could it be?
    """
 
-   # Load and stream sentences
-   doc = parser.load(document)
+   # Create document with automatic sentence splitting
+   doc = Document(document_text, auto_sentence_tags=True)
 
    print(f"Total sentences: {len(doc)}")
 
-   for i, sentence in enumerate(doc, 1):
+   # Stream sentences
+   for i, sentence_doc in enumerate(doc.sentences(as_documents=True), 1):
        print(f"\n[{i}/{len(doc)}]")
-       engine.speak(sentence)
+       engine.speak(sentence_doc.to_ssml())
 
    print("\nPlayback complete!")
 
@@ -167,7 +167,7 @@ Async TTS Streaming
 .. code-block:: python
 
    import asyncio
-   from ssmd import SSMD
+   from ssmd import Document
 
    class AsyncTTSEngine:
        async def speak(self, ssml):
@@ -178,20 +178,18 @@ Async TTS Streaming
    async def stream_document(doc):
        engine = AsyncTTSEngine()
 
-       for i, sentence in enumerate(doc, 1):
+       for i, sentence_doc in enumerate(doc.sentences(as_documents=True), 1):
            print(f"\n[Sentence {i}/{len(doc)}]")
-           await engine.speak(sentence)
+           await engine.speak(sentence_doc.to_ssml())
 
    async def main():
-       parser = SSMD({'auto_sentence_tags': True})
-
        text = """
        Welcome to async TTS.
        Each sentence is processed independently.
        This allows for smooth streaming.
        """
 
-       doc = parser.load(text)
+       doc = Document(text, auto_sentence_tags=True)
        await stream_document(doc)
 
    # Run
@@ -202,22 +200,23 @@ Interactive Story Reader
 
 .. code-block:: python
 
-   from ssmd import SSMD
+   from ssmd import Document
    import pyttsx3
 
    class StoryReader:
        def __init__(self, tts_engine='pyttsx3'):
-           self.parser = SSMD({
-               'capabilities': tts_engine,
-               'auto_sentence_tags': True,
-           })
+           self.capabilities = tts_engine
            self.engine = pyttsx3.init()
            self.current_doc = None
            self.current_index = 0
 
        def load_story(self, ssmd_text):
            """Load a story from SSMD text."""
-           self.current_doc = self.parser.load(ssmd_text)
+           self.current_doc = Document(
+               ssmd_text,
+               capabilities=self.capabilities,
+               auto_sentence_tags=True
+           )
            self.current_index = 0
 
        def play(self):
@@ -226,11 +225,13 @@ Interactive Story Reader
                print("No story loaded")
                return
 
-           while self.current_index < len(self.current_doc):
-               sentence = self.current_doc[self.current_index]
-               print(f"\n[{self.current_index + 1}/{len(self.current_doc)}]")
+           sentences = list(self.current_doc.sentences(as_documents=True))
 
-               self.engine.say(sentence)
+           while self.current_index < len(sentences):
+               sentence_doc = sentences[self.current_index]
+               print(f"\n[{self.current_index + 1}/{len(sentences)}]")
+
+               self.engine.say(sentence_doc.to_ssml())
                self.engine.runAndWait()
 
                self.current_index += 1
@@ -246,7 +247,8 @@ Interactive Story Reader
            """Get reading progress."""
            if not self.current_doc:
                return 0
-           return (self.current_index / len(self.current_doc)) * 100
+           total_sentences = len(list(self.current_doc.sentences()))
+           return (self.current_index / total_sentences) * 100 if total_sentences > 0 else 0
 
    # Usage
    story = """
@@ -274,14 +276,13 @@ SSMD CMS with Database
 
 .. code-block:: python
 
-   from ssmd import SSMD
+   from ssmd import Document, to_ssml
    import sqlite3
    from datetime import datetime
 
    class SSMDContentManager:
        def __init__(self, db_path='content.db'):
            self.db = sqlite3.connect(db_path)
-           self.parser = SSMD()
            self._setup_db()
 
        def _setup_db(self):
@@ -299,7 +300,7 @@ SSMD CMS with Database
 
        def create(self, title, ssmd_text):
            """Create new content."""
-           ssml = self.parser.to_ssml(ssmd_text)
+           ssml = to_ssml(ssmd_text)
            now = datetime.now()
 
            self.db.execute('''
@@ -311,7 +312,7 @@ SSMD CMS with Database
 
        def update(self, content_id, ssmd_text):
            """Update existing content."""
-           ssml = self.parser.to_ssml(ssmd_text)
+           ssml = to_ssml(ssmd_text)
            now = datetime.now()
 
            self.db.execute('''
@@ -361,11 +362,11 @@ Language-Aware TTS
 
 .. code-block:: python
 
-   from ssmd import SSMD
+   from ssmd import Document, to_ssml
 
    class MultilingualTTS:
        def __init__(self):
-           self.parser = SSMD(capabilities='google')
+           self.capabilities = 'google'
 
        def create_multilingual_content(self, messages):
            """Create content with multiple languages."""
@@ -381,7 +382,7 @@ Language-Aware TTS
 
        def speak_multilingual(self, messages):
            ssmd_text = self.create_multilingual_content(messages)
-           ssml = self.parser.to_ssml(ssmd_text)
+           ssml = to_ssml(ssmd_text, capabilities=self.capabilities)
            return ssml
 
    # Usage
@@ -402,16 +403,11 @@ Podcast Generator
 
 .. code-block:: python
 
-   from ssmd import SSMD
+   from ssmd import Document
    from pathlib import Path
 
    class PodcastGenerator:
        def __init__(self, output_dir='podcasts'):
-           self.parser = SSMD({
-               'capabilities': 'polly',
-               'auto_sentence_tags': True,
-               'pretty_print': True,
-           })
            self.output_dir = Path(output_dir)
            self.output_dir.mkdir(exist_ok=True)
 
@@ -432,8 +428,16 @@ Podcast Generator
            [Outro music](@outro_music.mp3)
            """
 
+           # Create document with Polly capabilities
+           doc = Document(
+               enhanced_script,
+               capabilities='polly',
+               auto_sentence_tags=True,
+               pretty_print=True
+           )
+
            # Convert to SSML
-           ssml = self.parser.to_ssml(enhanced_script)
+           ssml = doc.to_ssml()
 
            # Save SSML
            output_file = self.output_dir / f"episode_{episode_number}.ssml"
@@ -467,19 +471,16 @@ SSMD Linter
 
 .. code-block:: python
 
-   from ssmd import SSMD
+   from ssmd import to_ssml
 
    class SSMDLinter:
-       def __init__(self):
-           self.parser = SSMD()
-
        def lint(self, ssmd_text):
            """Validate SSMD and provide feedback."""
            issues = []
 
            # Try to convert
            try:
-               ssml = self.parser.to_ssml(ssmd_text)
+               ssml = to_ssml(ssmd_text)
            except Exception as e:
                issues.append(f"Conversion error: {e}")
                return issues
@@ -519,13 +520,13 @@ Voice Assistant with SSMD
 
 .. code-block:: python
 
-   from ssmd import SSMD
+   from ssmd import to_ssml
    import random
 
    class VoiceAssistant:
        def __init__(self, name="Assistant", tts_engine='google'):
            self.name = name
-           self.parser = SSMD(capabilities=tts_engine)
+           self.capabilities = tts_engine
 
        def greet(self, user_name=None):
            greetings = [
@@ -541,16 +542,16 @@ Voice Assistant with SSMD
            else:
                message = greeting
 
-           return self.parser.to_ssml(message)
+           return to_ssml(message, capabilities=self.capabilities)
 
        def error(self, message):
-           return self.parser.to_ssml(f"--Sorry-- ...300ms {message}")
+           return to_ssml(f"--Sorry-- ...300ms {message}", capabilities=self.capabilities)
 
        def success(self, message):
-           return self.parser.to_ssml(f"*Great*! {message}")
+           return to_ssml(f"*Great*! {message}", capabilities=self.capabilities)
 
        def thinking(self):
-           return self.parser.to_ssml("...500ms Let me think ...500ms")
+           return to_ssml("...500ms Let me think ...500ms", capabilities=self.capabilities)
 
        def announce(self, title, message):
            ssmd = f"""
@@ -560,7 +561,7 @@ Voice Assistant with SSMD
 
            {message}
            """
-           return self.parser.to_ssml(ssmd)
+           return to_ssml(ssmd, capabilities=self.capabilities)
 
    # Usage
    assistant = VoiceAssistant(name="Jarvis")

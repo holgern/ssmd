@@ -2,15 +2,15 @@
 
 import pytest
 
-from ssmd import SSMD, TTSCapabilities
+from ssmd import Document, TTSCapabilities
 
 
 def test_capability_emphasis_disabled():
     """Test that emphasis is stripped when not supported."""
     caps = TTSCapabilities(emphasis=False)
-    parser = SSMD(capabilities=caps)
+    doc = Document("Hello *world*!", capabilities=caps)
 
-    result = parser.to_ssml("Hello *world*!")
+    result = doc.to_ssml()
     # Should strip emphasis markup
     assert "<emphasis>" not in result
     assert "world" in result
@@ -19,9 +19,9 @@ def test_capability_emphasis_disabled():
 def test_capability_prosody_disabled():
     """Test that prosody is stripped when not supported."""
     caps = TTSCapabilities(prosody=False)
-    parser = SSMD(capabilities=caps)
+    doc = Document("++loud text++", capabilities=caps)
 
-    result = parser.to_ssml("++loud text++")
+    result = doc.to_ssml()
     # Should strip prosody markup
     assert "<prosody" not in result
     assert "loud text" in result
@@ -30,9 +30,9 @@ def test_capability_prosody_disabled():
 def test_capability_break_disabled():
     """Test that breaks are stripped when not supported."""
     caps = TTSCapabilities(break_tags=False)
-    parser = SSMD(capabilities=caps)
+    doc = Document("Hello ...500ms world", capabilities=caps)
 
-    result = parser.to_ssml("Hello ...500ms world")
+    result = doc.to_ssml()
     # Should strip break tags
     assert "<break" not in result
     assert "Hello" in result and "world" in result
@@ -41,9 +41,9 @@ def test_capability_break_disabled():
 def test_capability_language_disabled():
     """Test that language tags are stripped when not supported."""
     caps = TTSCapabilities(language=False)
-    parser = SSMD(capabilities=caps)
+    doc = Document("[Bonjour](fr) world", capabilities=caps)
 
-    result = parser.to_ssml("[Bonjour](fr) world")
+    result = doc.to_ssml()
     # Should strip language tags
     assert "<lang" not in result
     assert "Bonjour" in result
@@ -52,9 +52,9 @@ def test_capability_language_disabled():
 def test_capability_audio_disabled():
     """Test that audio tags are stripped when not supported."""
     caps = TTSCapabilities(audio=False)
-    parser = SSMD(capabilities=caps)
+    doc = Document("[sound](https://example.com/beep.mp3)", capabilities=caps)
 
-    result = parser.to_ssml("[sound](https://example.com/beep.mp3)")
+    result = doc.to_ssml()
     # Should strip audio tags
     assert "<audio" not in result
     assert "sound" in result
@@ -63,9 +63,9 @@ def test_capability_audio_disabled():
 def test_capability_substitution_disabled():
     """Test that substitution tags are stripped when not supported."""
     caps = TTSCapabilities(substitution=False)
-    parser = SSMD(capabilities=caps)
+    doc = Document("[H2O](sub: water)", capabilities=caps)
 
-    result = parser.to_ssml("[H2O](sub: water)")
+    result = doc.to_ssml()
     # Should strip sub tags
     assert "<sub" not in result
     assert "H2O" in result
@@ -73,23 +73,25 @@ def test_capability_substitution_disabled():
 
 def test_preset_espeak():
     """Test eSpeak preset (limited capabilities)."""
-    parser = SSMD(capabilities="espeak")
+    doc = Document(capabilities="espeak")
 
     # eSpeak doesn't support emphasis
-    result = parser.to_ssml("Hello *world*!")
+    doc = Document("Hello *world*!", capabilities="espeak")
+    result = doc.to_ssml()
     assert "<emphasis>" not in result
 
     # But it supports breaks
-    result = parser.to_ssml("Hello ...500ms world")
+    doc = Document("Hello ...500ms world", capabilities="espeak")
+    result = doc.to_ssml()
     assert "<break" in result
 
 
 def test_preset_pyttsx3():
     """Test pyttsx3 preset (minimal SSML)."""
-    parser = SSMD(capabilities="pyttsx3")
+    doc = Document("Hello *world* ...500ms [bonjour](fr)!", capabilities="pyttsx3")
 
     # pyttsx3 has very minimal SSML support
-    result = parser.to_ssml("Hello *world* ...500ms [bonjour](fr)!")
+    result = doc.to_ssml()
 
     # Should strip most features
     assert "<emphasis>" not in result
@@ -103,10 +105,10 @@ def test_preset_pyttsx3():
 
 def test_preset_google():
     """Test Google TTS preset (full support)."""
-    parser = SSMD(capabilities="google")
+    doc = Document("Hello *world* ...500ms [bonjour](fr)!", capabilities="google")
 
     # Google supports most features
-    result = parser.to_ssml("Hello *world* ...500ms [bonjour](fr)!")
+    result = doc.to_ssml()
 
     assert "<emphasis>" in result
     assert "<break" in result
@@ -116,9 +118,13 @@ def test_preset_google():
 def test_mixed_config_and_capabilities():
     """Test combining custom config with capabilities."""
     caps = TTSCapabilities(emphasis=False)
-    parser = SSMD(config={"auto_sentence_tags": True}, capabilities=caps)
+    doc = Document(
+        "Hello *world*!\nHow are you?",
+        config={"auto_sentence_tags": True},
+        capabilities=caps,
+    )
 
-    result = parser.to_ssml("Hello *world*!\nHow are you?")
+    result = doc.to_ssml()
 
     # Should have sentence tags (from config)
     assert "<s>" in result or "<p>" in result
@@ -139,8 +145,6 @@ def test_custom_capabilities():
         say_as=False,  # No say-as
     )
 
-    parser = SSMD(capabilities=caps)
-
     text = """
     Hello *world*!
     Pause here ...500ms please.
@@ -149,7 +153,8 @@ def test_custom_capabilities():
     The number is [123](as: cardinal).
     """
 
-    result = parser.to_ssml(text)
+    doc = Document(text, capabilities=caps)
+    result = doc.to_ssml()
 
     # Supported features
     assert "<emphasis>" in result
@@ -171,14 +176,14 @@ def test_prosody_partial_support():
         prosody_pitch=False,  # Doesn't support pitch
     )
 
-    parser = SSMD(capabilities=caps)
-
     # Volume should work
-    result = parser.to_ssml("++loud++")
+    doc = Document("++loud++", capabilities=caps)
+    result = doc.to_ssml()
     assert "<prosody" in result or "loud" in result
 
     # Rate should be stripped (not supported)
-    result = parser.to_ssml(">>fast>>")
+    doc = Document(">>fast>>", capabilities=caps)
+    result = doc.to_ssml()
     # Should strip rate markup
     assert "fast" in result
 
@@ -187,22 +192,20 @@ def test_extension_filtering():
     """Test that extensions are filtered based on capabilities."""
     caps = TTSCapabilities(extensions={"whisper": True, "drc": False})
 
-    parser = SSMD(capabilities=caps)
-
     # Whisper is supported
-    result = parser.to_ssml("[quiet](ext: whisper)")
+    doc = Document("[quiet](ext: whisper)", capabilities=caps)
+    result = doc.to_ssml()
     assert "whisper" in result or "quiet" in result
 
     # DRC is not supported (should strip to text)
-    result = parser.to_ssml("[compressed](ext: drc)")
+    doc = Document("[compressed](ext: drc)", capabilities=caps)
+    result = doc.to_ssml()
     assert "compressed" in result
     # Should not have DRC-specific tags
 
 
 def test_minimal_preset():
     """Test minimal preset (everything stripped)."""
-    parser = SSMD(capabilities="minimal")
-
     text = """
     # Heading
     Hello *world*!
@@ -211,7 +214,8 @@ def test_minimal_preset():
     ++Loud text++
     """
 
-    result = parser.to_ssml(text)
+    doc = Document(text, capabilities="minimal")
+    result = doc.to_ssml()
 
     # Should strip all markup
     assert "<emphasis>" not in result
@@ -234,10 +238,9 @@ def test_capability_preserves_text():
         language=False,
     )
 
-    parser = SSMD(capabilities=caps)
-
     text = "Hello *world* from [France](fr) with ++excitement++ ...500ms please!"
-    result = parser.to_ssml(text)
+    doc = Document(text, capabilities=caps)
+    result = doc.to_ssml()
 
     # All text should be preserved
     assert "Hello" in result

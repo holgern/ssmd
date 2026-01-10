@@ -21,15 +21,18 @@ Using the Convenience Function
    print(ssmd_text)
    # Output: *Hello* world
 
-Using the SSMD Class
-~~~~~~~~~~~~~~~~~~~~
+Using the Document Class
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: python
 
-   from ssmd import SSMD
+   from ssmd import Document
 
-   parser = SSMD()
-   ssmd_text = parser.from_ssml('<speak><emphasis>Hello</emphasis></speak>')
+   ssml = '<speak><emphasis>Hello</emphasis> world</speak>'
+   doc = Document.from_ssml(ssml)
+   ssmd_text = doc.to_ssmd()
+   print(ssmd_text)
+   # Output: *Hello* world
 
 Supported SSML Elements
 ------------------------
@@ -325,15 +328,14 @@ Configuration Options
 
 .. code-block:: python
 
-   from ssmd import SSMD
+   from ssmd import Document
 
-   parser = SSMD({
-       'capabilities': 'espeak',  # Filter based on TTS support
-   })
+   parser = Document(capabilities='espeak')
 
    # SSML features not supported by eSpeak will be simplified
    ssml = '<speak><emphasis>Hello</emphasis></speak>'
-   ssmd_text = parser.from_ssml(ssml)
+   doc = Document.from_ssml(ssml, capabilities='espeak')
+   ssmd_text = doc.to_ssmd()
    # eSpeak doesn't support emphasis, so output is just: Hello
 
 Use Cases
@@ -344,12 +346,15 @@ Migration from Raw SSML
 
 .. code-block:: python
 
+   from ssmd import Document
+
    # You have existing SSML files
    with open('old_ssml.xml') as f:
        ssml = f.read()
 
    # Convert to SSMD for easier editing
-   ssmd_text = ssmd.from_ssml(ssml)
+   doc = Document.from_ssml(ssml)
+   ssmd_text = doc.to_ssmd()
 
    with open('new_ssmd.txt', 'w') as f:
        f.write(ssmd_text)
@@ -359,15 +364,17 @@ SSML Editor Backend
 
 .. code-block:: python
 
+   from ssmd import Document
+
    # Load SSML for editing
    def load_document(ssml_file):
        with open(ssml_file) as f:
            ssml = f.read()
-       return ssmd.from_ssml(ssml)
+       return Document.from_ssml(ssml)
 
    # Save as SSML
-   def save_document(ssmd_text, ssml_file):
-       ssml = ssmd.to_ssml(ssmd_text)
+   def save_document(doc, ssml_file):
+       ssml = doc.to_ssml()
        with open(ssml_file, 'w') as f:
            f.write(ssml)
 
@@ -376,11 +383,13 @@ Testing and Validation
 
 .. code-block:: python
 
+   from ssmd import Document
+
    # Validate SSML by round-trip conversion
    def validate_ssml(ssml_text):
        try:
-           ssmd_text = ssmd.from_ssml(ssml_text)
-           restored_ssml = ssmd.to_ssml(ssmd_text)
+           doc = Document.from_ssml(ssml_text)
+           restored_ssml = doc.to_ssml()
            return True
        except Exception as e:
            print(f"Validation failed: {e}")

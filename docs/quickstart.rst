@@ -37,7 +37,7 @@ Remove all SSMD markup to get plain text:
 
    import ssmd
 
-   plain = ssmd.strip_ssmd("Hello *world* @marker!")
+   plain = ssmd.to_text("Hello *world* @marker!")
    print(plain)
    # Output: Hello world!
 
@@ -55,80 +55,89 @@ Convert SSML back to SSMD format:
    print(ssmd_text)
    # Output: *Hello* world
 
-Using the SSMD Class
---------------------
+Using the Document API
+----------------------
 
-For more control, create an SSMD parser instance:
+For building and managing TTS content, use the Document class:
 
-.. code-block:: python
-
-   from ssmd import SSMD
-
-   # Create parser with default settings
-   parser = SSMD()
-
-   # Convert to SSML
-   ssml = parser.to_ssml("Hello *world*!")
-
-   # Strip markup
-   plain = parser.strip("Hello *world*!")
-
-   # Convert from SSML
-   ssmd_text = parser.from_ssml('<speak><emphasis>Hello</emphasis></speak>')
-
-Configuration Options
-~~~~~~~~~~~~~~~~~~~~~
+Creating Documents
+~~~~~~~~~~~~~~~~~~
 
 .. code-block:: python
 
-   from ssmd import SSMD
+   from ssmd import Document
 
-   # Create parser with custom configuration
-   parser = SSMD({
-       'output_speak_tag': True,      # Wrap in <speak> tags (default: True)
-       'pretty_print': True,           # Format XML output (default: False)
-       'auto_sentence_tags': True,     # Wrap sentences in <s> (default: False)
-       'heading_levels': {
-           1: [('emphasis', 'strong'), ('pause', '300ms')],
-           2: [('emphasis', 'moderate')]
-       }
-   })
+   # Create an empty document
+   doc = Document()
 
-   text = """
-   # Main Title
-   This is a paragraph.
-   
-   ## Subtitle
-   Another paragraph here.
-   """
+   # Create with initial content
+   doc = Document("Hello *world*!")
 
-   ssml = parser.to_ssml(text)
+   # Create with configuration
+   doc = Document(
+       config={'auto_sentence_tags': True},
+       capabilities='pyttsx3'
+   )
+
+Building Documents
+~~~~~~~~~~~~~~~~~~
+
+.. code-block:: python
+
+   from ssmd import Document
+
+   # Build incrementally
+   doc = Document()
+   doc.add_sentence("Hello and *welcome*!")
+   doc.add_sentence("This is SSMD.")
+   doc.add_paragraph("Starting a new paragraph.")
+
+   # Method chaining
+   doc = Document() \
+       .add("Hello ") \
+       .add("*world*!") \
+       .add_sentence("Next sentence.")
+
+Exporting Documents
+~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: python
+
+   from ssmd import Document
+
+   doc = Document("Hello *world*!")
+
+   # Export to different formats
+   ssml = doc.to_ssml()      # SSML XML
+   markdown = doc.to_ssmd()  # SSMD markdown
+   text = doc.to_text()      # Plain text
+
+   # Access properties
+   print(doc.ssmd)           # Raw SSMD content
+   print(len(doc))           # Number of sentences
 
 TTS Streaming
 -------------
 
-Load documents for sentence-by-sentence processing:
+Iterate through documents sentence-by-sentence for TTS:
 
 .. code-block:: python
 
-   from ssmd import SSMD
+   from ssmd import Document
 
-   # Create parser
-   parser = SSMD({'auto_sentence_tags': True})
+   # Create document
+   doc = Document(config={'auto_sentence_tags': True})
 
-   # Load a document
-   doc = parser.load("""
-   # Chapter 1
-   Welcome to SSMD!
-   This is the first sentence.
-   This is the second sentence.
-   
-   # Chapter 2
-   Here's another chapter.
-   """)
+   # Build content
+   doc.add_paragraph("# Chapter 1")
+   doc.add_sentence("Welcome to SSMD!")
+   doc.add_sentence("This is the first sentence.")
+   doc.add_sentence("This is the second sentence.")
+   doc.add_paragraph("# Chapter 2")
+   doc.add_sentence("Here's another chapter.")
 
    # Iterate through sentences
-   for i, sentence in enumerate(doc, 1):
+   for i, sentence in enumerate(doc.sentences(), 1):
        print(f"Sentence {i}: {sentence}")
        # Your TTS engine here:
        # tts_engine.speak(sentence)
@@ -136,10 +145,54 @@ Load documents for sentence-by-sentence processing:
    # Access specific sentences
    print(f"Total: {len(doc)} sentences")
    print(f"First: {doc[0]}")
+   print(f"Last: {doc[-1]}")
 
-   # Get full document
-   print(doc.ssml)        # Complete SSML
-   print(doc.plain_text)  # Plain text
+Document Editing
+----------------
+
+Documents are mutable and support list-like operations:
+
+.. code-block:: python
+
+   from ssmd import Document
+
+   doc = Document("First. Second. Third.")
+
+   # Edit sentences
+   doc[0] = "Modified first sentence."
+   del doc[1]  # Remove second sentence
+
+   # String operations
+   doc.replace("sentence", "line")
+
+   # Insert content
+   doc.insert(0, "New opening sentence.")
+
+   # Clear all content
+   doc.clear()
+
+Advanced Document Operations
+-----------------------------
+
+.. code-block:: python
+
+   from ssmd import Document
+
+   # Load from SSML
+   doc = Document.from_ssml('<speak><emphasis>Hello</emphasis></speak>')
+
+   # Merge documents
+   doc1 = Document("First document.")
+   doc2 = Document("Second document.")
+   doc1.merge(doc2, separator="\n\n")
+
+   # Split into sentences
+   sentences = doc.split()  # Returns list of Document objects
+
+   # Iterate with Document objects
+   for sent_doc in doc.sentences(as_documents=True):
+       ssml = sent_doc.to_ssml()
+       ssmd = sent_doc.to_ssmd()
 
 Working with TTS Engines
 -------------------------
@@ -151,18 +204,17 @@ Using Presets
 
 .. code-block:: python
 
-   from ssmd import SSMD
+   from ssmd import Document
 
    # Use preset for eSpeak (limited SSML support)
-   parser = SSMD(capabilities='espeak')
-
-   ssml = parser.to_ssml("*Hello* [world](fr)!")
+   doc = Document("*Hello* [world](fr)!", capabilities='espeak')
+   ssml = doc.to_ssml()
    # eSpeak doesn't support emphasis or language switching
    # Output: <speak>Hello world!</speak>
 
    # Use preset for Google TTS (full support)
-   parser = SSMD(capabilities='google')
-   ssml = parser.to_ssml("*Hello* [world](fr)!")
+   doc = Document("*Hello* [world](fr)!", capabilities='google')
+   ssml = doc.to_ssml()
    # Output: <speak><emphasis>Hello</emphasis> <lang xml:lang="fr-FR">world</lang>!</speak>
 
 Available presets:
@@ -173,6 +225,23 @@ Available presets:
 * ``google`` / ``azure`` - Full SSML support
 * ``polly`` / ``amazon`` - Full + Amazon extensions
 * ``full`` - All features enabled
+
+Custom Capabilities
+~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: python
+
+   from ssmd import Document, TTSCapabilities
+
+   # Define exactly what your TTS engine supports
+   caps = TTSCapabilities(
+       emphasis=True,
+       break_tags=True,
+       prosody=False,  # No prosody support
+       language=True
+   )
+
+   doc = Document("*Hello* world!", capabilities=caps)
 
 Common Patterns
 ---------------

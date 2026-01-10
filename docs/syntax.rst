@@ -99,12 +99,7 @@ Use hash marks for headings (configurable):
 
 .. code-block:: python
 
-   parser = SSMD({
-       'heading_levels': {
-           1: [('emphasis', 'strong'), ('pause', '500ms')],
-           2: [('emphasis', 'moderate')]
-       }
-   })
+   from ssmd import Document
 
    text = """
    # Main Title
@@ -114,7 +109,12 @@ Use hash marks for headings (configurable):
    More content.
    """
 
-   ssml = parser.to_ssml(text)
+   doc = Document(text, heading_levels={
+       1: [('emphasis', 'strong'), ('pause', '500ms')],
+       2: [('emphasis', 'moderate')]
+   })
+
+   ssml = doc.to_ssml()
 
 Annotations
 -----------
@@ -348,7 +348,7 @@ Markers are removed when stripping to plain text:
 
 .. code-block:: python
 
-   ssmd.strip_ssmd('Click @here now')
+   ssmd.to_text('Click @here now')
    # → Click now
 
 Extensions

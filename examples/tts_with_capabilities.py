@@ -1,130 +1,174 @@
-#!/usr/bin/env python3
-"""Example: TTS capability-based filtering.
+"""Example: Using SSMD with TTS engine capabilities.
 
-This example demonstrates how SSMD automatically filters SSML features
-based on the TTS engine's capabilities, ensuring compatibility.
+This example demonstrates how SSMD automatically filters features
+based on your TTS engine's capabilities, ensuring compatibility.
 """
 
-from ssmd import SSMD, TTSCapabilities
-
-# Sample SSMD text with various features
-SAMPLE_TEXT = """
-# Welcome to SSMD
-
-This is a *powerful* text-to-speech system... with many features.
-
-[Command & Conquer](en) is a *classic* game.
-
-You can adjust [volume](v: 5) and [speed](r: 3) easily.
-
-Call us at [+1-555-1234](as: telephone) or visit our website.
-
-Some systems support [whispered text](ext: whisper) too!
-"""
+from ssmd import Document, TTSCapabilities
 
 
-def demo_preset(preset_name: str):
-    """Demonstrate a TTS preset capability.
+def demonstrate_capability_filtering() -> None:
+    """Show how different TTS engines handle the same content."""
 
-    Args:
-        preset_name: Name of the preset (espeak, pyttsx3, google, etc.)
+    # Sample SSMD content with various features
+    content = """
+    # Welcome
+    Hello and *welcome* to SSMD!
+
+    This is ++very exciting++ content.
+
+    Let's pause here ...500ms for effect.
+
+    [Bonjour](fr) everyone!
+
+    The number is [123](as: cardinal).
+
+    [Whispered text](ext: whisper) for Amazon Polly.
     """
-    print(f"\n{'=' * 70}")
-    print(f"Preset: {preset_name.upper()}")
-    print(f"{'=' * 70}")
 
-    parser = SSMD(capabilities=preset_name)
-    ssml = parser.to_ssml(SAMPLE_TEXT)
+    print("=" * 80)
+    print("SSMD TTS Capabilities Demo")
+    print("=" * 80)
+    print("\nSame SSMD content processed for different TTS engines:\n")
 
-    print(ssml)
+    # Show original SSMD
+    print("📝 Original SSMD content:")
+    print("-" * 80)
+    print(content.strip())
+    print("-" * 80)
+
+    # Engine 1: Minimal (plain text only)
+    print("\n\n1️⃣  MINIMAL ENGINE (no SSML support)")
+    print("-" * 80)
+    doc = Document(content, capabilities="minimal")
+    ssml = doc.to_ssml()
+    print(f"Output: {ssml[:200]}...")
+    print("\nNOTE: All markup stripped to plain text")
+
+    # Engine 2: pyttsx3 (very limited)
+    print("\n\n2️⃣  PYTTSX3 (minimal SSML support)")
+    print("-" * 80)
+    doc = Document(content, capabilities="pyttsx3")
+    ssml = doc.to_ssml()
+    print(f"Output: {ssml[:300]}...")
+    print("\nNOTE: Only basic prosody supported, most features stripped")
+
+    # Engine 3: eSpeak (moderate support)
+    print("\n\n3️⃣  ESPEAK (moderate SSML support)")
+    print("-" * 80)
+    doc = Document(content, capabilities="espeak")
+    ssml = doc.to_ssml()
+    print(f"Output: {ssml[:400]}...")
+    print("\nNOTE: Supports breaks, language, prosody, phonemes")
+
+    # Engine 4: Google TTS (full support)
+    print("\n\n4️⃣  GOOGLE TTS (full SSML support)")
+    print("-" * 80)
+    doc = Document(content, capabilities="google")
+    ssml = doc.to_ssml()
+    print(f"Output: {ssml[:500]}...")
+    print("\nNOTE: All standard SSML features supported")
+
+    # Engine 5: Amazon Polly (full + extensions)
+    print("\n\n5️⃣  AMAZON POLLY (full + extensions)")
+    print("-" * 80)
+    doc = Document(content, capabilities="polly")
+    ssml = doc.to_ssml()
+    print(f"Output: {ssml[:500]}...")
+    print("\nNOTE: All features + Amazon-specific extensions (whisper, DRC)")
+
+    print("\n" + "=" * 80)
 
 
-def demo_custom_capabilities():
-    """Demonstrate custom capability configuration."""
-    print(f"\n{'=' * 70}")
-    print("CUSTOM: Basic TTS with breaks only")
-    print(f"{'=' * 70}")
+def demonstrate_custom_capabilities() -> None:
+    """Show how to define custom TTS capabilities."""
 
-    # Create custom capabilities (only supports breaks and paragraphs)
+    print("\n\n" + "=" * 80)
+    print("Custom TTS Capabilities Demo")
+    print("=" * 80)
+
+    # Define a custom TTS with specific limitations
     custom_caps = TTSCapabilities(
-        emphasis=False,  # No emphasis
-        break_tags=True,  # Supports pauses
-        paragraph=True,  # Supports paragraphs
-        language=False,  # No language switching
-        phoneme=False,  # No phonetic pronunciation
-        substitution=False,  # No alias substitution
-        prosody=False,  # No volume/rate/pitch
-        say_as=False,  # No interpret-as
-        audio=False,  # No audio files
-        mark=False,  # No markers
-        sentence_tags=False,  # No sentence tags
-        heading_emphasis=False,  # No heading emphasis
+        emphasis=True,  # Supports <emphasis>
+        break_tags=True,  # Supports <break>
+        paragraph=True,  # Supports <p>
+        language=True,  # Supports <lang>
+        prosody=False,  # NO prosody support
+        say_as=False,  # NO say-as support
+        audio=False,  # NO audio files
+        mark=True,  # Supports <mark>
+        phoneme=False,  # NO phoneme support
     )
 
-    parser = SSMD(capabilities=custom_caps)
-    ssml = parser.to_ssml(SAMPLE_TEXT)
+    content = """
+    Hello *world*!
+    Pause here ...500ms please.
+    Say [bonjour](fr) to everyone.
+    This is ++very loud++ text.
+    The number is [123](as: cardinal).
+    Place a @marker here.
+    """
+
+    print("\n📝 SSMD content:")
+    print("-" * 80)
+    print(content.strip())
+    print("-" * 80)
+
+    print("\n\n🎛️  Custom TTS Engine Output:")
+    print("    Supports: emphasis, breaks, language, marks")
+    print("    Does NOT support: prosody, say-as, phonemes")
+    print("-" * 80)
+
+    doc = Document(content, capabilities=custom_caps)
+    ssml = doc.to_ssml()
 
     print(ssml)
+    print("-" * 80)
+
+    print("\n✅ Result:")
+    print("   - <emphasis> tags: KEPT")
+    print("   - <break> tags: KEPT")
+    print("   - <lang> tags: KEPT")
+    print("   - <mark> tags: KEPT")
+    print("   - <prosody> tags: STRIPPED (not supported)")
+    print("   - <say-as> tags: STRIPPED (not supported)")
+
+    print("\n" + "=" * 80)
 
 
-def demo_comparison():
-    """Compare output for different TTS engines side by side."""
-    print(f"\n{'=' * 70}")
-    print("COMPARISON: Same input, different TTS capabilities")
-    print(f"{'=' * 70}")
+def demonstrate_capability_aware_streaming() -> None:
+    """Show streaming TTS with capability filtering."""
 
-    simple_text = "*Hello* world... [this is loud](v: 5)!"
+    print("\n\n" + "=" * 80)
+    print("Capability-Aware Streaming Demo")
+    print("=" * 80)
 
-    engines = ["minimal", "pyttsx3", "espeak", "google"]
+    # Build a document for eSpeak
+    doc = Document(capabilities="espeak", config={"auto_sentence_tags": True})
 
-    for engine in engines:
-        parser = SSMD(capabilities=engine)
-        ssml = parser.to_ssml(simple_text)
+    doc.add_paragraph("# Story Time")
+    doc.add_sentence("Once upon a time, there was a *brave* knight.")
+    doc.add_sentence("He traveled ...300ms across distant lands.")
+    doc.add_sentence("[Bonjour](fr) said the French wizard.")
+    doc.add_sentence("This story is ++very exciting++!")
 
-        print(f"\n{engine.upper():>12}: {ssml}")
+    print(f"\n📖 Streaming {len(doc)} sentences to eSpeak TTS engine...")
+    print("    (emphasis and extensions are auto-stripped)")
+    print("-" * 80)
 
+    for i in range(len(doc)):
+        sentence_ssml = doc[i]
+        print(f"\n[{i + 1}/{len(doc)}] {sentence_ssml[:70]}...")
+        # In real code: tts_engine.speak(sentence)
 
-def demo_streaming_with_capabilities():
-    """Demonstrate streaming TTS with capability filtering."""
-    print(f"\n{'=' * 70}")
-    print("STREAMING: pyttsx3 engine (minimal SSML support)")
-    print(f"{'=' * 70}")
-
-    # pyttsx3 has minimal SSML support - most features will be stripped
-    parser = SSMD(capabilities="pyttsx3")
-    doc = parser.load(SAMPLE_TEXT)
-
-    print(f"Total sentences: {len(doc)}\n")
-
-    # Iterate through sentences for streaming
-    for i, sentence in enumerate(doc, 1):
-        plain = parser.strip(sentence)
-        print(f"[{i}/{len(doc)}] SSML: {sentence}")
-        print(f"{'':14} Text: {plain}\n")
+    print("\n" + "=" * 80)
 
 
 if __name__ == "__main__":
-    print("=" * 70)
-    print("SSMD TTS Capability Demonstration")
-    print("=" * 70)
-    print("\nThis demo shows how SSMD automatically filters unsupported SSML")
-    print("features based on the TTS engine's capabilities.")
+    demonstrate_capability_filtering()
+    demonstrate_custom_capabilities()
+    demonstrate_capability_aware_streaming()
 
-    # Demonstrate different presets
-    demo_preset("minimal")  # Plain text only
-    demo_preset("pyttsx3")  # Very limited SSML
-    demo_preset("espeak")  # Moderate SSML support
-    demo_preset("google")  # Full SSML support
-
-    # Custom capabilities
-    demo_custom_capabilities()
-
-    # Side-by-side comparison
-    demo_comparison()
-
-    # Streaming with capabilities
-    demo_streaming_with_capabilities()
-
-    print(f"\n{'=' * 70}")
-    print("Demo complete!")
-    print(f"{'=' * 70}")
+    print("\n\n🎉 All demos complete!")
+    print("\nSee ssmd/capabilities.py for available presets:")
+    print("   - minimal, pyttsx3, espeak, google, azure, polly, full")

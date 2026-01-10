@@ -6,34 +6,82 @@ This page documents the public API of the SSMD library.
 Core Classes
 ------------
 
-SSMD
-~~~~
+Document
+~~~~~~~~
 
-.. autoclass:: ssmd.SSMD
+The primary class for creating and managing SSMD/SSML documents.
+
+.. autoclass:: ssmd.Document
    :members:
    :undoc-members:
    :show-inheritance:
 
-SSMDDocument
-~~~~~~~~~~~~
+   **Construction Methods:**
 
-.. autoclass:: ssmd.SSMDDocument
-   :members:
-   :undoc-members:
-   :show-inheritance:
+   .. automethod:: __init__
+   .. automethod:: from_ssml
+   .. automethod:: from_text
+
+   **Building Methods:**
+
+   .. automethod:: add
+   .. automethod:: add_sentence
+   .. automethod:: add_paragraph
+
+   **Export Methods:**
+
+   .. automethod:: to_ssml
+   .. automethod:: to_ssmd
+   .. automethod:: to_text
+
+   **Properties:**
+
+   .. autoproperty:: ssmd
+   .. autoproperty:: config
+   .. autoproperty:: capabilities
+
+   **Iteration:**
+
+   .. automethod:: sentences
+   .. automethod:: __iter__
+   .. automethod:: __len__
+
+   **List-like Interface:**
+
+   .. automethod:: __getitem__
+   .. automethod:: __setitem__
+   .. automethod:: __delitem__
+   .. automethod:: __iadd__
+
+   **Editing Methods:**
+
+   .. automethod:: insert
+   .. automethod:: remove
+   .. automethod:: clear
+   .. automethod:: replace
+
+   **Advanced Methods:**
+
+   .. automethod:: merge
+   .. automethod:: split
+   .. automethod:: get_fragment
 
 TTSCapabilities
 ~~~~~~~~~~~~~~~
+
+Define TTS engine capabilities for automatic feature filtering.
 
 .. autoclass:: ssmd.TTSCapabilities
    :members:
    :undoc-members:
    :show-inheritance:
 
-ProsodySupport
-~~~~~~~~~~~~~~
+SSMLParser
+~~~~~~~~~~
 
-.. autoclass:: ssmd.ProsodySupport
+Parse SSML and convert to SSMD format.
+
+.. autoclass:: ssmd.SSMLParser
    :members:
    :undoc-members:
    :show-inheritance:
@@ -44,23 +92,46 @@ Convenience Functions
 to_ssml
 ~~~~~~~
 
+Convert SSMD markup to SSML.
+
 .. autofunction:: ssmd.to_ssml
 
-strip_ssmd
-~~~~~~~~~~
+to_text
+~~~~~~~
 
-.. autofunction:: ssmd.strip_ssmd
+Convert SSMD to plain text (strips all markup).
+
+.. autofunction:: ssmd.to_text
 
 from_ssml
 ~~~~~~~~~
 
+Convert SSML back to SSMD format.
+
 .. autofunction:: ssmd.from_ssml
+
+Capability Presets
+------------------
+
+Pre-configured capability sets for common TTS engines.
+
+.. autodata:: ssmd.MINIMAL_CAPABILITIES
+.. autodata:: ssmd.PYTTSX3_CAPABILITIES
+.. autodata:: ssmd.ESPEAK_CAPABILITIES
+.. autodata:: ssmd.GOOGLE_TTS_CAPABILITIES
+.. autodata:: ssmd.AZURE_TTS_CAPABILITIES
+.. autodata:: ssmd.AMAZON_POLLY_CAPABILITIES
+.. autodata:: ssmd.FULL_CAPABILITIES
+
+.. autofunction:: ssmd.get_preset
 
 Internal Modules
 ----------------
 
 Converter
 ~~~~~~~~~
+
+Internal SSMD to SSML conversion engine.
 
 .. automodule:: ssmd.converter
    :members:
@@ -70,13 +141,27 @@ Converter
 SSML Parser
 ~~~~~~~~~~~
 
+Internal SSML to SSMD parsing engine.
+
 .. automodule:: ssmd.ssml_parser
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Document Module
+~~~~~~~~~~~~~~~
+
+Document container implementation.
+
+.. automodule:: ssmd.document
    :members:
    :undoc-members:
    :show-inheritance:
 
 Processors
 ~~~~~~~~~~
+
+Processors transform SSMD syntax into SSML tags.
 
 .. automodule:: ssmd.processors.base
    :members:
@@ -121,6 +206,8 @@ Processors
 Annotations
 ~~~~~~~~~~~
 
+Annotation handlers for bracket syntax like ``[text](language)`` and ``[text](ph: phoneme)``.
+
 .. automodule:: ssmd.annotations.base
    :members:
    :undoc-members:
@@ -163,6 +250,8 @@ Annotations
 
 Utilities
 ~~~~~~~~~
+
+Helper functions for SSML processing.
 
 .. automodule:: ssmd.utils
    :members:

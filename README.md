@@ -13,8 +13,8 @@ maintainable.
 ## Features
 
 ✨ **Markdown-like syntax** - More intuitive than raw SSML 🎯 **Full SSML support** -
-All major SSML features covered 🔄 **Bidirectional** - Convert SSMD→SSML or strip to
-plain text 📝 **TTS streaming** - Iterate through sentences for real-time TTS 🎛️ **TTS
+All major SSML features covered 🔄 **Bidirectional** - Convert SSMD↔SSML or strip to
+plain text 📝 **Document-centric** - Build, edit, and export TTS documents 🎛️ **TTS
 capabilities** - Auto-filter features based on engine support 🎨 **Extensible** - Custom
 extensions for platform-specific features 🧪 **Spec-driven** - Follows the official SSMD
 specification
@@ -46,33 +46,35 @@ print(ssml)
 # Output: <speak>Hello <emphasis>world</emphasis>!</speak>
 
 # Strip SSMD markup for plain text
-plain = ssmd.strip_ssmd("Hello *world* @marker!")
+plain = ssmd.to_text("Hello *world* @marker!")
 print(plain)
 # Output: Hello world!
+
+# Convert SSML back to SSMD
+ssmd_text = ssmd.from_ssml('<speak><emphasis>Hello</emphasis></speak>')
+print(ssmd_text)
+# Output: *Hello*
 ```
 
-### Advanced Usage with Configuration
+### Document API - Build TTS Content Incrementally
 
 ```python
-from ssmd import SSMD
+from ssmd import Document
 
-# Create parser with custom config
-parser = SSMD({
-    'auto_sentence_tags': True,  # Wrap sentences in <s> tags
-    'pretty_print': False,        # Compact output
-    'heading_levels': {
-        1: [('emphasis', 'strong'), ('pause', '300ms')]
-    }
-})
+# Create a document and build it piece by piece
+doc = Document()
+doc.add_sentence("Hello and *welcome* to SSMD!")
+doc.add_sentence("This is a great tool for TTS.")
+doc.add_paragraph("Let's start a new paragraph here.")
 
-# Convert SSMD to SSML
-ssml = parser.to_ssml("""
-# Welcome
-Hello *world*!
-This is a test.
-""")
+# Export to different formats
+ssml = doc.to_ssml()      # SSML output
+markdown = doc.to_ssmd()  # SSMD markdown
+text = doc.to_text()      # Plain text
 
-print(ssml)
+# Access document content
+print(doc.ssmd)           # Raw SSMD content
+print(len(doc))           # Number of sentences
 ```
 
 ### TTS Streaming Integration
@@ -80,22 +82,24 @@ print(ssml)
 Perfect for streaming TTS where you process sentences one at a time:
 
 ```python
-from ssmd import SSMD
+from ssmd import Document
 
-# Load a long document
-parser = SSMD({'auto_sentence_tags': True})
-doc = parser.load("""
-# Chapter 1: Introduction
-Welcome to the *amazing* world of SSMD!
-This makes TTS content much easier to write.
+# Create document with configuration
+doc = Document(
+    config={'auto_sentence_tags': True},
+    capabilities='pyttsx3'  # Auto-filter for pyttsx3 support
+)
 
-# Chapter 2: Features
-You can use all kinds of markup.
-Including ...500ms pauses and [special pronunciations](ph: speSl).
-""")
+# Build the document
+doc.add_paragraph("# Chapter 1: Introduction")
+doc.add_sentence("Welcome to the *amazing* world of SSMD!")
+doc.add_sentence("This makes TTS content much easier to write.")
+doc.add_paragraph("# Chapter 2: Features")
+doc.add_sentence("You can use all kinds of markup.")
+doc.add_sentence("Including ...500ms pauses and [special pronunciations](ph: speSl).")
 
 # Iterate through sentences for TTS
-for i, sentence in enumerate(doc, 1):
+for i, sentence in enumerate(doc.sentences(), 1):
     print(f"Sentence {i}: {sentence}")
     # Your TTS engine here:
     # tts_engine.speak(sentence)
@@ -104,10 +108,30 @@ for i, sentence in enumerate(doc, 1):
 # Or access specific sentences
 print(f"Total sentences: {len(doc)}")
 print(f"First sentence: {doc[0]}")
+print(f"Last sentence: {doc[-1]}")
+```
 
-# Get full SSML or plain text
-print(doc.ssml)        # Complete SSML document
-print(doc.plain_text)  # Stripped plain text
+### Document Editing
+
+```python
+from ssmd import Document
+
+# Load from existing content
+doc = Document("First sentence. Second sentence. Third sentence.")
+
+# Edit like a list
+doc[0] = "Modified first sentence."
+del doc[1]  # Remove second sentence
+
+# String operations
+doc.replace("sentence", "line")
+
+# Merge documents
+doc2 = Document("Additional content.")
+doc.merge(doc2)
+
+# Split into individual sentences
+sentences = doc.split()  # Returns list of Document objects
 ```
 
 ### TTS Engine Capabilities
@@ -118,11 +142,11 @@ This ensures compatibility by stripping unsupported tags to plain text.
 #### Using Presets
 
 ```python
-from ssmd import SSMD
+from ssmd import Document
 
 # Use a preset for your TTS engine
-parser = SSMD(capabilities='pyttsx3')
-ssml = parser.to_ssml("*Hello* [world](en)!")
+doc = Document("*Hello* [world](en)!", capabilities='pyttsx3')
+ssml = doc.to_ssml()
 
 # pyttsx3 doesn't support emphasis or language tags, so they're stripped:
 # <speak>Hello world!</speak>
@@ -140,7 +164,7 @@ ssml = parser.to_ssml("*Hello* [world](en)!")
 #### Custom Capabilities
 
 ```python
-from ssmd import SSMD, TTSCapabilities
+from ssmd import Document, TTSCapabilities
 
 # Define exactly what your TTS supports
 caps = TTSCapabilities(
@@ -154,26 +178,24 @@ caps = TTSCapabilities(
     mark=False,          # No markers
 )
 
-parser = SSMD(capabilities=caps)
+doc = Document("*Hello* world!", capabilities=caps)
 ```
 
 #### Capability-Aware Streaming
 
 ```python
-from ssmd import SSMD
+from ssmd import Document
 
-# Create parser for specific TTS engine
-parser = SSMD(capabilities='espeak')
+# Create document for specific TTS engine
+doc = Document(capabilities='espeak')
 
-# Load document with auto-filtering
-doc = parser.load("""
-# Welcome
-*Hello* world!
-[Bonjour](fr) everyone!
-""")
+# Build content with various features
+doc.add_paragraph("# Welcome")
+doc.add_sentence("*Hello* world!")
+doc.add_sentence("[Bonjour](fr) everyone!")
 
 # All sentences are filtered for eSpeak compatibility
-for sentence in doc:
+for sentence in doc.sentences():
     # Features eSpeak doesn't support are automatically removed
     tts_engine.speak(sentence)
 ```
@@ -348,14 +370,14 @@ ssmd.to_ssml('I always wanted a @animal cat as a pet.')
 # → <speak>I always wanted a <mark name="animal"/> cat as a pet.</speak>
 
 # Markers are removed in plain text (with smart whitespace handling)
-ssmd.strip_ssmd('word @marker word')
+ssmd.to_text('word @marker word')
 # → "word word" (not "word  word")
 ```
 
 ### Headings
 
 ```python
-parser = SSMD({
+doc = Document(config={
     'heading_levels': {
         1: [('emphasis', 'strong'), ('pause', '300ms')],
         2: [('emphasis', 'moderate'), ('pause', '75ms')],
@@ -363,11 +385,13 @@ parser = SSMD({
     }
 })
 
-ssml = parser.to_ssml("""
+doc.add("""
 # Chapter 1
 ## Section 1.1
 ### Subsection
 """)
+
+ssml = doc.to_ssml()
 ```
 
 ### Extensions (Platform-Specific)
@@ -378,44 +402,16 @@ ssmd.to_ssml('[whispered text](ext: whisper)')
 # → <speak><amazon:effect name="whispered">whispered text</amazon:effect></speak>
 
 # Custom extensions
-parser = SSMD({
+doc = Document(config={
     'extensions': {
         'custom': lambda text: f'<custom-tag>{text}</custom-tag>'
     }
 })
 ```
 
-## Configuration Options
-
-```python
-SSMD({
-    # Processor control
-    'skip': ['emphasis', 'mark'],           # Skip specific processors
-
-    # Output formatting
-    'output_speak_tag': True,                # Wrap in <speak> tags
-    'pretty_print': False,                   # Pretty-print XML
-
-    # Features
-    'auto_sentence_tags': False,             # Auto-wrap sentences in <s>
-
-    # Heading configuration
-    'heading_levels': {
-        1: [('emphasis', 'strong'), ('pause', '300ms')],
-        # ... more levels
-    },
-
-    # Custom extensions
-    'extensions': {
-        'whisper': lambda text: f'<amazon:effect name="whispered">{text}</amazon:effect>',
-        # ... more extensions
-    }
-})
-```
-
 ## API Reference
 
-### Functions
+### Module Functions
 
 #### `ssmd.to_ssml(ssmd_text, **config)` → `str`
 
@@ -428,9 +424,9 @@ Convert SSMD markup to SSML.
 
 **Returns:** SSML string
 
-#### `ssmd.strip_ssmd(ssmd_text, **config)` → `str`
+#### `ssmd.to_text(ssmd_text, **config)` → `str`
 
-Remove SSMD markup, returning plain text.
+Convert SSMD to plain text (strips all markup).
 
 **Parameters:**
 
@@ -439,41 +435,83 @@ Remove SSMD markup, returning plain text.
 
 **Returns:** Plain text string
 
-### Classes
+#### `ssmd.from_ssml(ssml_text, **config)` → `str`
 
-#### `SSMD(config=None)`
+Convert SSML to SSMD format.
 
-Main converter class with configuration support.
+**Parameters:**
 
-**Methods:**
+- `ssml_text` (str): SSML XML string
+- `**config`: Optional configuration parameters
 
-- `to_ssml(ssmd_text)` → Convert to SSML
-- `strip(ssmd_text)` → Strip to plain text
-- `load(ssmd_text)` → Load as SSMDDocument for iteration
-- `sentences(ssmd_text)` → Generator yielding sentences
+**Returns:** SSMD markdown string
 
-#### `SSMDDocument`
+### Document Class
 
-Document container with sentence iteration support.
+#### `Document(content="", config=None, capabilities=None)`
+
+Main document container for building and managing TTS content.
+
+**Parameters:**
+
+- `content` (str): Optional initial SSMD content
+- `config` (dict): Configuration options
+- `capabilities` (TTSCapabilities | str): TTS capabilities preset or object
+
+**Building Methods:**
+
+- `add(text)` → Add text without separator (returns self for chaining)
+- `add_sentence(text)` → Add text with `\n` separator
+- `add_paragraph(text)` → Add text with `\n\n` separator
+
+**Export Methods:**
+
+- `to_ssml()` → Export to SSML string
+- `to_ssmd()` → Export to SSMD string
+- `to_text()` → Export to plain text
+
+**Class Methods:**
+
+- `Document.from_ssml(ssml, **config)` → Create from SSML
+- `Document.from_text(text, **config)` → Create from text
 
 **Properties:**
 
-- `ssml` → Full SSML output (lazy loaded)
-- `plain_text` → Plain text with markup stripped
+- `ssmd` → Raw SSMD content
+- `config` → Configuration dict
+- `capabilities` → TTS capabilities
 
-**Methods:**
+**List-like Interface:**
+
+- `len(doc)` → Number of sentences
+- `doc[i]` → Get sentence by index (SSML)
+- `doc[i] = text` → Replace sentence
+- `del doc[i]` → Delete sentence
+- `doc += text` → Append content
+
+**Iteration:**
 
 - `sentences()` → Iterator yielding SSML sentences
-- `get_sentence(index)` → Get specific sentence by index
-- `__len__()` → Total number of sentences
-- `__getitem__(index)` → Index access to sentences
-- `__iter__()` → Make document iterable
+- `sentences(as_documents=True)` → Iterator yielding Document objects
+
+**Editing Methods:**
+
+- `insert(index, text, separator="")` → Insert text at index
+- `remove(index)` → Remove sentence
+- `clear()` → Remove all content
+- `replace(old, new, count=-1)` → Replace text
+
+**Advanced Methods:**
+
+- `merge(other_doc, separator="\n\n")` → Merge another document
+- `split()` → Split into sentence Documents
+- `get_fragment(index)` → Get raw fragment by index
 
 ## Real-World TTS Example
 
 ```python
 import asyncio
-from ssmd import SSMD
+from ssmd import Document
 
 # Your TTS engine (example with pyttsx3, kokoro-tts, etc.)
 class TTSEngine:
@@ -486,15 +524,15 @@ class TTSEngine:
         """Wait for speech to complete."""
         pass
 
-async def read_document(ssmd_text: str, tts: TTSEngine):
+async def read_document(content: str, tts: TTSEngine):
     """Read an SSMD document sentence by sentence."""
-    parser = SSMD({'auto_sentence_tags': True})
-    doc = parser.load(ssmd_text)
+    doc = Document(content, config={'auto_sentence_tags': True})
 
     print(f"Reading document with {len(doc)} sentences...")
 
-    for i, sentence in enumerate(doc, 1):
-        print(f"[{i}/{len(doc)}] Speaking...")
+    for i in range(len(doc)):
+        sentence = doc[i]
+        print(f"[{i+1}/{len(doc)}] Speaking...")
         await tts.speak(sentence)
         await tts.wait_until_done()
 
@@ -563,7 +601,7 @@ with additional features inspired by the JavaScript implementation.
 `^^high^^`) ✅ Prosody explicit (`[text](vrp: 555)`, `[text](v: 5)`) ✅ Substitution
 (`[text](sub: alias)`) ✅ Say-as (`[text](as: telephone)`) ✅ Audio
 (`[desc](url.mp3 alt)`) ✅ Headings (`# ## ###`) ✅ Extensions (`[text](ext: whisper)`)
-✅ Auto-sentence tags (`<s>`)
+✅ Auto-sentence tags (`<s>`) ✅ **SSML ↔ SSMD bidirectional conversion**
 
 ## Related Projects
 
