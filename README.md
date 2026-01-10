@@ -7,11 +7,13 @@ maintainable.
 
 ## Features
 
-✨ **Markdown-like syntax** - More intuitive than raw SSML 🎯 **Full SSML support** -
-All major SSML features covered 🔄 **Bidirectional** - Convert SSMD→SSML or strip to
-plain text 📝 **TTS streaming** - Iterate through sentences for real-time TTS 🎨
-**Extensible** - Custom extensions for platform-specific features 🧪 **Spec-driven** -
-Follows the official SSMD specification
+✨ **Markdown-like syntax** - More intuitive than raw SSML  
+🎯 **Full SSML support** - All major SSML features covered  
+🔄 **Bidirectional** - Convert SSMD→SSML or strip to plain text  
+📝 **TTS streaming** - Iterate through sentences for real-time TTS  
+🎛️ **TTS capabilities** - Auto-filter features based on engine support  
+🎨 **Extensible** - Custom extensions for platform-specific features  
+🧪 **Spec-driven** - Follows the official SSMD specification
 
 ## Installation
 
@@ -103,6 +105,85 @@ print(f"First sentence: {doc[0]}")
 print(doc.ssml)        # Complete SSML document
 print(doc.plain_text)  # Stripped plain text
 ```
+
+### TTS Engine Capabilities
+
+SSMD can automatically filter SSML features based on your TTS engine's capabilities. This ensures compatibility by stripping unsupported tags to plain text.
+
+#### Using Presets
+
+```python
+from ssmd import SSMD
+
+# Use a preset for your TTS engine
+parser = SSMD(capabilities='pyttsx3')
+ssml = parser.to_ssml("*Hello* [world](en)!")
+
+# pyttsx3 doesn't support emphasis or language tags, so they're stripped:
+# <speak>Hello world!</speak>
+```
+
+**Available Presets:**
+- `minimal` - Plain text only (no SSML)
+- `pyttsx3` - Minimal support (basic prosody only)
+- `espeak` - Moderate support (breaks, language, prosody, phonemes)
+- `google` / `azure` / `microsoft` - Full SSML support
+- `polly` / `amazon` - Full support + Amazon extensions (whisper, DRC)
+- `full` - All features enabled
+
+#### Custom Capabilities
+
+```python
+from ssmd import SSMD, TTSCapabilities
+
+# Define exactly what your TTS supports
+caps = TTSCapabilities(
+    emphasis=False,      # No <emphasis> support
+    break_tags=True,     # Supports <break>
+    paragraph=True,      # Supports <p>
+    language=False,      # No language switching
+    prosody=True,        # Supports volume/rate/pitch
+    say_as=False,        # No <say-as>
+    audio=False,         # No audio files
+    mark=False,          # No markers
+)
+
+parser = SSMD(capabilities=caps)
+```
+
+#### Capability-Aware Streaming
+
+```python
+from ssmd import SSMD
+
+# Create parser for specific TTS engine
+parser = SSMD(capabilities='espeak')
+
+# Load document with auto-filtering
+doc = parser.load("""
+# Welcome
+*Hello* world!
+[Bonjour](fr) everyone!
+""")
+
+# All sentences are filtered for eSpeak compatibility
+for sentence in doc:
+    # Features eSpeak doesn't support are automatically removed
+    tts_engine.speak(sentence)
+```
+
+**Comparison of Engine Outputs:**
+
+Same input: `*Hello* world... [this is loud](v: 5)!`
+
+| Engine | Output |
+|--------|--------|
+| minimal | `<speak>Hello world... this is loud!</speak>` |
+| pyttsx3 | `<speak>Hello world... <prosody volume="x-loud">this is loud</prosody>!</speak>` |
+| espeak | `<speak>Hello world<break time="1000ms"/> <prosody volume="x-loud">this is loud</prosody>!</speak>` |
+| google | `<speak><p><emphasis>Hello</emphasis> world<break time="1000ms"/> <prosody volume="x-loud">this is loud</prosody>!</p></speak>` |
+
+See `examples/tts_with_capabilities.py` for a complete demonstration.
 
 ## SSMD Syntax Reference
 

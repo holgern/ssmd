@@ -40,6 +40,17 @@ from collections.abc import Iterator
 
 from ssmd.converter import Converter
 from ssmd.document import SSMDDocument
+from ssmd.capabilities import (
+    TTSCapabilities,
+    get_preset,
+    ESPEAK_CAPABILITIES,
+    PYTTSX3_CAPABILITIES,
+    GOOGLE_TTS_CAPABILITIES,
+    AMAZON_POLLY_CAPABILITIES,
+    AZURE_TTS_CAPABILITIES,
+    MINIMAL_CAPABILITIES,
+    FULL_CAPABILITIES,
+)
 
 try:
     from ssmd._version import version as __version__
@@ -54,12 +65,19 @@ class SSMD:
     and streaming capabilities for TTS applications that process
     text sentence-by-sentence.
 
+    Supports TTS capability filtering to automatically strip unsupported
+    features to plain text.
+
     Attributes:
         config: Configuration dictionary
         converter: Internal converter instance
     """
 
-    def __init__(self, config: dict[str, Any] | None = None):
+    def __init__(
+        self,
+        config: Optional[dict[str, Any]] = None,
+        capabilities: Optional[TTSCapabilities | str] = None,
+    ):
         """Initialize SSMD converter with optional configuration.
 
         Args:
@@ -70,16 +88,54 @@ class SSMD:
                 - auto_sentence_tags (bool): Auto-wrap sentences in <s> (default: False)
                 - heading_levels (dict): Custom heading configurations
                 - extensions (dict): Registered extension handlers
+            capabilities: TTS capabilities (TTSCapabilities instance or preset name).
+                Automatically configures processor skipping based on TTS support.
+                Presets: 'espeak', 'pyttsx3', 'google', 'polly', 'azure', 'minimal', 'full'
 
         Example:
-            >>> parser = SSMD({
-            ...     'auto_sentence_tags': True,
-            ...     'heading_levels': {
-            ...         1: [('emphasis', 'strong'), ('pause', '300ms')]
-            ...     }
-            ... })
+            >>> # Full SSML support
+            >>> parser = SSMD()
+            >>>
+            >>> # Using preset for eSpeak (limited SSML)
+            >>> parser = SSMD(capabilities='espeak')
+            >>>
+            >>> # Custom capabilities
+            >>> from ssmd import TTSCapabilities
+            >>> caps = TTSCapabilities(emphasis=False, prosody=False)
+            >>> parser = SSMD(capabilities=caps)
+            >>>
+            >>> # With additional config
+            >>> parser = SSMD(
+            ...     config={'auto_sentence_tags': True},
+            ...     capabilities='pyttsx3'
+            ... )
         """
         self.config = config or {}
+
+        # Handle capabilities
+        if capabilities is not None:
+            if isinstance(capabilities, str):
+                # Load preset
+                caps = get_preset(capabilities)
+            else:
+                caps = capabilities
+
+            # Merge capability config with user config
+            cap_config = caps.to_config()
+
+            # Merge skip lists
+            user_skip = set(self.config.get("skip", []))
+            cap_skip = set(cap_config.get("skip", []))
+            self.config["skip"] = list(user_skip | cap_skip)
+
+            # Store capabilities for annotation filtering
+            self.config["capabilities"] = caps
+
+            # Merge other config (user config takes precedence)
+            for key, value in cap_config.items():
+                if key not in self.config and key != "skip":
+                    self.config[key] = value
+
         self.converter = Converter(self.config)
 
     def to_ssml(self, ssmd_text: str) -> str:
@@ -195,5 +251,15 @@ __all__ = [
     "SSMDDocument",
     "to_ssml",
     "strip_ssmd",
+    "TTSCapabilities",
+    "get_preset",
+    # Capability presets
+    "ESPEAK_CAPABILITIES",
+    "PYTTSX3_CAPABILITIES",
+    "GOOGLE_TTS_CAPABILITIES",
+    "AMAZON_POLLY_CAPABILITIES",
+    "AZURE_TTS_CAPABILITIES",
+    "MINIMAL_CAPABILITIES",
+    "FULL_CAPABILITIES",
     "__version__",
 ]

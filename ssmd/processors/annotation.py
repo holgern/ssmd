@@ -29,6 +29,52 @@ class AnnotationProcessor(BaseProcessor):
         """
         return re.compile(r"\[([^\]]+)\]\(([^\)]+)\)")
 
+    def _is_annotation_supported(self, annotation) -> bool:
+        """Check if annotation is supported by current capabilities.
+
+        Args:
+            annotation: Annotation instance to check
+
+        Returns:
+            True if supported or no capability restrictions
+        """
+        capabilities = self.config.get("capabilities")
+        if not capabilities:
+            return True
+
+        # Import annotation types for checking
+        from ssmd.annotations.audio import AudioAnnotation
+        from ssmd.annotations.extension import ExtensionAnnotation
+        from ssmd.annotations.language import LanguageAnnotation
+        from ssmd.annotations.phoneme import PhonemeAnnotation
+        from ssmd.annotations.prosody import ProsodyAnnotation
+        from ssmd.annotations.say_as import SayAsAnnotation
+        from ssmd.annotations.substitution import SubstitutionAnnotation
+
+        # Check annotation type against capabilities
+        if isinstance(annotation, LanguageAnnotation):
+            return capabilities.language
+        elif isinstance(annotation, PhonemeAnnotation):
+            return capabilities.phoneme
+        elif isinstance(annotation, SubstitutionAnnotation):
+            return capabilities.substitution
+        elif isinstance(annotation, SayAsAnnotation):
+            return capabilities.say_as
+        elif isinstance(annotation, AudioAnnotation):
+            return capabilities.audio
+        elif isinstance(annotation, ProsodyAnnotation):
+            # For prosody annotations, check if any attribute is supported
+            return capabilities.prosody
+        elif isinstance(annotation, ExtensionAnnotation):
+            # Check specific extension support
+            ext_name = getattr(annotation, "extension_name", None)
+            if ext_name:
+                return capabilities.supports_extension(ext_name)
+            return False
+
+        # Unknown annotation type - allow it
+        return True
+
     def result(self, match: re.Match) -> str:
         """Convert to SSML using appropriate annotation handlers.
 
@@ -49,6 +95,10 @@ class AnnotationProcessor(BaseProcessor):
         for part in annotation_parts:
             annotation = get_annotation(part)
             if annotation:
+                # Filter based on capabilities
+                if not self._is_annotation_supported(annotation):
+                    continue  # Skip unsupported annotation
+
                 # Check if we already have this type
                 existing = next(
                     (a for a in annotations if type(a) == type(annotation)), None
