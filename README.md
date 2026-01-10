@@ -226,14 +226,14 @@ ssmd.to_ssml("*emphasized text*")
 ### Breaks & Pauses
 
 ```python
-# Default break (1000ms)
-ssmd.to_ssml("Hello ... world")
-
-# Specific time
+# Specific time (required - bare ... is preserved as ellipsis)
 ssmd.to_ssml("Hello ...500ms world")
 ssmd.to_ssml("Hello ...2s world")
+ssmd.to_ssml("Hello ...1s world")
 
 # Strength-based
+ssmd.to_ssml("Hello ...n world")  # none
+ssmd.to_ssml("Hello ...w world")  # weak (x-weak)
 ssmd.to_ssml("Hello ...c world")  # comma (medium)
 ssmd.to_ssml("Hello ...s world")  # sentence (strong)
 ssmd.to_ssml("Hello ...p world")  # paragraph (x-strong)
@@ -595,11 +595,11 @@ with additional features inspired by the JavaScript implementation.
 
 ### Implemented Features
 
-✅ Text ✅ Emphasis (`*text*`) ✅ Break (`...`, `...500ms`, `...c/s/p`) ✅ Language
-(`[text](en)`, `[text](en-GB)`) ✅ Mark (`@marker`) ✅ Paragraph (`\n\n`) ✅ Phoneme
-(`[text](ph: xsampa)`, `[text](ipa: ipa)`) ✅ Prosody shorthand (`++loud++`, `>>fast>>`,
-`^^high^^`) ✅ Prosody explicit (`[text](vrp: 555)`, `[text](v: 5)`) ✅ Substitution
-(`[text](sub: alias)`) ✅ Say-as (`[text](as: telephone)`) ✅ Audio
+✅ Text ✅ Emphasis (`*text*`) ✅ Break (`...500ms`, `...2s`, `...n/w/c/s/p`) ✅
+Language (`[text](en)`, `[text](en-GB)`) ✅ Mark (`@marker`) ✅ Paragraph (`\n\n`) ✅
+Phoneme (`[text](ph: xsampa)`, `[text](ipa: ipa)`) ✅ Prosody shorthand (`++loud++`,
+`>>fast>>`, `^^high^^`) ✅ Prosody explicit (`[text](vrp: 555)`, `[text](v: 5)`) ✅
+Substitution (`[text](sub: alias)`) ✅ Say-as (`[text](as: telephone)`) ✅ Audio
 (`[desc](url.mp3 alt)`) ✅ Headings (`# ## ###`) ✅ Extensions (`[text](ext: whisper)`)
 ✅ Auto-sentence tags (`<s>`) ✅ **SSML ↔ SSMD bidirectional conversion**
 

@@ -25,8 +25,8 @@ def test_strip_emphasis():
 
 def test_break():
     """Test break conversion."""
-    result = ssmd.to_ssml("hello ... world")
-    assert '<break time="1000ms"/>' in result
+    result = ssmd.to_ssml("hello ...1s world")
+    assert '<break time="1s"/>' in result
 
 
 def test_language_annotation():

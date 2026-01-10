@@ -29,20 +29,10 @@ Use double asterisks for strong emphasis:
 Breaks and Pauses
 -----------------
 
-Default Break
-~~~~~~~~~~~~~
-
-Three dots create a 1000ms pause:
-
-.. code-block:: python
-
-   ssmd.to_ssml("Hello ... world")
-   # → <speak>Hello <break time="1000ms"/> world</speak>
-
 Time-Based Breaks
 ~~~~~~~~~~~~~~~~~
 
-Specify duration in milliseconds or seconds:
+Specify duration in milliseconds or seconds using `...` followed by a time value:
 
 .. code-block:: python
 
@@ -50,7 +40,11 @@ Specify duration in milliseconds or seconds:
    # → <speak>Wait <break time="500ms"/> please</speak>
 
    ssmd.to_ssml("Wait ...2s please")
-   # → <speak>Wait <break time="2000ms"/> please</speak>
+   # → <speak>Wait <break time="2s"/> please</speak>
+
+.. note::
+   Bare `...` (without a time or strength code) is NOT treated as a break.
+   It will be preserved as literal ellipsis in your text.
 
 Strength-Based Breaks
 ~~~~~~~~~~~~~~~~~~~~~~

@@ -31,7 +31,7 @@ class TestSSMLToSSMD:
         """Test default break conversion."""
         ssml = '<speak>Hello<break time="1000ms"/>world</speak>'
         result = ssmd.from_ssml(ssml)
-        assert result == "Hello...world"
+        assert result == "Hello...1000msworld"
 
     def test_break_custom_time(self):
         """Test break with custom time."""
@@ -200,7 +200,7 @@ class TestSSMLToSSMD:
 
     def test_roundtrip_break(self):
         """Test roundtrip with break."""
-        original = "Hello...world"
+        original = "Hello...1sworld"
         ssml_out = ssmd.to_ssml(original)
         ssmd_back = ssmd.from_ssml(ssml_out)
         assert ssmd_back == original

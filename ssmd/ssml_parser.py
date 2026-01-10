@@ -218,23 +218,16 @@ class SSMLParser:
             match = re.match(r"(\d+)(ms|s)", time)
             if match:
                 value, unit = match.groups()
-                if unit == "s":
-                    # Convert seconds to milliseconds
-                    time_ms = int(value) * 1000
-                else:
-                    time_ms = int(value)
-
-                # Use default time if 1000ms, otherwise explicit
-                if time_ms == 1000:
-                    return "..."
-                else:
-                    return f"...{time}"
-            return "..."
+                # Always use explicit time notation
+                return f"...{time}"
+            # Fallback to 1s if time format is invalid
+            return "...1s"
 
         elif strength:
-            return self.BREAK_STRENGTH_TO_SSMD.get(strength, "...")
+            return self.BREAK_STRENGTH_TO_SSMD.get(strength, "...s")
 
-        return "..."
+        # Default to sentence break
+        return "...s"
 
     def _process_prosody(self, element: ET.Element) -> str:
         """Convert <prosody> to SSMD prosody syntax.

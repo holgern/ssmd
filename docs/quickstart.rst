@@ -259,17 +259,16 @@ Pauses and Breaks
 
 .. code-block:: python
 
-   # Default pause (1000ms)
-   ssmd.to_ssml("Hello ... world")
-
-   # Specific duration
+   # Specific duration (required - bare ... is not a break)
    ssmd.to_ssml("Hello ...500ms world")
    ssmd.to_ssml("Hello ...2s world")
+   ssmd.to_ssml("Hello ...1s world")  # 1 second
 
    # Strength-based
    ssmd.to_ssml("Hello ...c world")  # comma
    ssmd.to_ssml("Hello ...s world")  # sentence
    ssmd.to_ssml("Hello ...p world")  # paragraph
+   ssmd.to_ssml("Hello ...n world")  # none/no break
 
 Voice Control
 ~~~~~~~~~~~~~

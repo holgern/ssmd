@@ -1,4 +1,4 @@
-"""Break processor: ... → <break/>"""
+"""Break processor: ...500ms, ...2s, ...n, ...c → <break/>"""
 
 import re
 
@@ -6,7 +6,10 @@ from ssmd.processors.base import BaseProcessor
 
 
 class BreakProcessor(BaseProcessor):
-    """Process break/pause markup (...)."""
+    """Process break/pause markup (...n, ...500ms, ...2s, etc.).
+
+    Note: Bare '...' is NOT supported to avoid conflicts with ellipsis.
+    """
 
     name = "break"
 
@@ -14,19 +17,21 @@ class BreakProcessor(BaseProcessor):
         """Match break patterns.
 
         Supports:
-        - ... (default 1000ms)
         - ...5s (5 seconds)
         - ...100ms (100 milliseconds)
         - ...100 (100 milliseconds)
+        - ...n (none)
+        - ...w (weak/x-weak)
         - ...c (medium/comma)
         - ...s (strong/sentence)
         - ...p (x-strong/paragraph)
-        - ...0 (none/skip)
+
+        Note: Bare '...' is NOT supported (conflicts with ellipsis in text)
 
         Returns:
             Pattern matching break syntax
         """
-        return re.compile(r"\.\.\.(\d+(?:s|ms)|[csps0])?")
+        return re.compile(r"\.\.\.(\d+(?:s|ms)|[nwcsp])")
 
     def result(self, match: re.Match) -> str:
         """Convert to SSML break element.
@@ -39,13 +44,12 @@ class BreakProcessor(BaseProcessor):
         """
         modifier = match.group(1)
 
-        if not modifier:
-            # Default: 1000ms (x-strong)
-            return '<break time="1000ms"/>'
-
-        if modifier == "0":
-            # No break
+        if modifier == "n":
+            # None/no break
             return '<break strength="none"/>'
+        elif modifier == "w":
+            # Weak (x-weak)
+            return '<break strength="x-weak"/>'
         elif modifier == "c":
             # Comma (medium)
             return '<break strength="medium"/>'
