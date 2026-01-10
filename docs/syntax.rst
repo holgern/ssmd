@@ -6,10 +6,12 @@ This page provides a complete reference for SSMD markup syntax.
 Text and Emphasis
 -----------------
 
+SSMD supports all four SSML emphasis levels for fine-grained control over speech emphasis.
+
 Moderate Emphasis
 ~~~~~~~~~~~~~~~~~
 
-Use single asterisks for moderate emphasis:
+Use single asterisks for moderate (default) emphasis:
 
 .. code-block:: python
 
@@ -25,6 +27,31 @@ Use double asterisks for strong emphasis:
 
    ssmd.to_ssml("This is **very important**")
    # → <speak>This is <emphasis level="strong">very important</emphasis></speak>
+
+Reduced Emphasis
+~~~~~~~~~~~~~~~~
+
+Use single underscores for reduced (subtle) emphasis:
+
+.. code-block:: python
+
+   ssmd.to_ssml("This is _less important_")
+   # → <speak>This is <emphasis level="reduced">less important</emphasis></speak>
+
+No Emphasis
+~~~~~~~~~~~
+
+Use explicit annotation syntax for no emphasis (rarely used):
+
+.. code-block:: python
+
+   ssmd.to_ssml("[monotone reading](emphasis: none)")
+   # → <speak><emphasis level="none">monotone reading</emphasis></speak>
+
+.. note::
+   The "none" emphasis level is rarely needed in practice. It explicitly instructs
+   the TTS engine to speak without any emphasis, which can be useful for robotic
+   or monotone speech effects.
 
 Breaks and Pauses
 -----------------
@@ -290,6 +317,13 @@ Control how text is interpreted:
    # Date with format
    ssmd.to_ssml('[31.12.2024](as: date, format: "dd.mm.yyyy")')
 
+   # Say-as with detail attribute (verbosity control)
+   ssmd.to_ssml('[123](as: cardinal, detail: 2)')
+   # → <speak><say-as interpret-as="cardinal" detail="2">123</say-as></speak>
+
+   ssmd.to_ssml('[12/31/2024](as: date, format: "mdy", detail: 1)')
+   # → <speak><say-as interpret-as="date" format="mdy" detail="1">12/31/2024</say-as></speak>
+
    # Spell out characters
    ssmd.to_ssml('[NASA](as: character)')
 
@@ -318,6 +352,9 @@ Supported interpret-as values:
 * ``telephone`` - Phone numbers
 * ``address`` - Street addresses
 * ``expletive`` - Censored words
+
+The ``detail`` attribute (1-2) controls verbosity level and is platform-specific.
+Higher values generally provide more detailed pronunciation.
 
 Prosody (Voice Control)
 ------------------------
@@ -424,6 +461,82 @@ Audio with Fallback
 
 The fallback text is spoken if the audio file can't be played.
 
+Advanced Audio Attributes
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+SSMD supports advanced audio control through SSML attributes:
+
+Audio Clipping
+^^^^^^^^^^^^^^
+
+Play a portion of an audio file by specifying start and end times:
+
+.. code-block:: python
+
+   ssmd.to_ssml('[music](song.mp3 clip: 5s-30s)')
+   # → <audio src="song.mp3" clipBegin="5s" clipEnd="30s"><desc>music</desc></audio>
+
+   ssmd.to_ssml('[intro](podcast.mp3 clip: 0s-10s)')
+   # → <audio src="podcast.mp3" clipBegin="0s" clipEnd="10s"><desc>intro</desc></audio>
+
+Speed Control
+^^^^^^^^^^^^^
+
+Adjust playback speed using percentages:
+
+.. code-block:: python
+
+   ssmd.to_ssml('[announcement](speech.mp3 speed: 150%)')
+   # → <audio src="speech.mp3" speed="150%"><desc>announcement</desc></audio>
+
+   ssmd.to_ssml('[slow](message.mp3 speed: 80%)')
+   # → <audio src="message.mp3" speed="80%"><desc>slow</desc></audio>
+
+Repeat Audio
+^^^^^^^^^^^^
+
+Repeat audio playback a specific number of times:
+
+.. code-block:: python
+
+   ssmd.to_ssml('[jingle](ad.mp3 repeat: 3)')
+   # → <audio src="ad.mp3" repeatCount="3"><desc>jingle</desc></audio>
+
+   ssmd.to_ssml('[beep](alert.mp3 repeat: 5)')
+   # → <audio src="alert.mp3" repeatCount="5"><desc>beep</desc></audio>
+
+Volume Adjustment
+^^^^^^^^^^^^^^^^^
+
+Control audio volume using decibel adjustment:
+
+.. code-block:: python
+
+   ssmd.to_ssml('[alarm](alert.mp3 level: +6dB)')
+   # → <audio src="alert.mp3" soundLevel="+6dB"><desc>alarm</desc></audio>
+
+   ssmd.to_ssml('[background](music.mp3 level: -3dB)')
+   # → <audio src="music.mp3" soundLevel="-3dB"><desc>background</desc></audio>
+
+Combining Attributes
+^^^^^^^^^^^^^^^^^^^^
+
+Multiple audio attributes can be combined with fallback text:
+
+.. code-block:: python
+
+   ssmd.to_ssml('[bg music](music.mp3 clip: 0s-10s, speed: 120%, level: -3dB Fallback text)')
+   # → <audio src="music.mp3" clipBegin="0s" clipEnd="10s" speed="120%" soundLevel="-3dB">
+   #    <desc>bg music</desc>Fallback text</audio>
+
+   ssmd.to_ssml('[effect](sound.mp3 clip: 2s-5s, repeat: 2 Sound unavailable)')
+   # → <audio src="sound.mp3" clipBegin="2s" clipEnd="5s" repeatCount="2">
+   #    <desc>effect</desc>Sound unavailable</audio>
+
+.. note::
+   Audio attribute support varies by TTS platform. Amazon Polly and Google Cloud TTS
+   support most of these features. Always test with your specific TTS engine.
+
 Markers
 -------
 
@@ -447,15 +560,91 @@ Markers are removed when stripping to plain text:
 Extensions
 ----------
 
-Platform-specific extensions:
+Platform-specific extensions allow you to use TTS features beyond standard SSML.
+
+Amazon Polly Extensions
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+Amazon Polly provides effects like whispering and dynamic range compression:
 
 .. code-block:: python
 
-   # Amazon whisper effect
+   # Whisper effect
    ssmd.to_ssml('[secret message](ext: whisper)')
    # → <amazon:effect name="whispered">secret message</amazon:effect>
 
-Custom extensions can be registered via configuration.
+   # Dynamic range compression (for voice over music)
+   ssmd.to_ssml('[announcement](ext: drc)')
+   # → <amazon:effect name="drc">announcement</amazon:effect>
+
+Google Cloud TTS Speaking Styles
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Google Cloud TTS supports speaking styles for Neural2 and Studio voices. You can
+configure these using SSMD's extension system:
+
+.. code-block:: python
+
+   from ssmd import Document
+
+   # Configure Google TTS styles as extensions
+   doc = Document(config={
+       'extensions': {
+           'cheerful': lambda text: f'<google:style name="cheerful">{text}</google:style>',
+           'calm': lambda text: f'<google:style name="calm">{text}</google:style>',
+           'empathetic': lambda text: f'<google:style name="empathetic">{text}</google:style>',
+           'apologetic': lambda text: f'<google:style name="apologetic">{text}</google:style>',
+           'firm': lambda text: f'<google:style name="firm">{text}</google:style>',
+       }
+   })
+
+   # Use styles in your content
+   doc.add_sentence("[Welcome to our service!](ext: cheerful)")
+   doc.add_sentence("[We apologize for the inconvenience.](ext: apologetic)")
+   doc.add_sentence("[Please remain calm.](ext: calm)")
+
+   ssml = doc.to_ssml()
+   # → <speak>
+   #    <google:style name="cheerful">Welcome to our service!</google:style>
+   #    <google:style name="apologetic">We apologize for the inconvenience.</google:style>
+   #    <google:style name="calm">Please remain calm.</google:style>
+   #    </speak>
+
+Available Google TTS speaking styles:
+
+* ``cheerful`` - Upbeat and positive tone
+* ``calm`` - Relaxed and soothing tone
+* ``empathetic`` - Understanding and compassionate tone
+* ``apologetic`` - Sorry and regretful tone
+* ``firm`` - Confident and authoritative tone
+* ``news`` - Professional news anchor tone (some voices)
+* ``conversational`` - Natural conversation tone (some voices)
+
+.. note::
+   Google TTS speaking styles are only supported by specific Neural2 and Studio voices.
+   See the `Google Cloud TTS documentation <https://cloud.google.com/text-to-speech/docs/speaking-styles>`_
+   for voice compatibility.
+
+Custom Extensions
+~~~~~~~~~~~~~~~~~
+
+You can define your own extensions for any custom SSML tags your TTS platform supports:
+
+.. code-block:: python
+
+   from ssmd import Document
+
+   doc = Document(config={
+       'extensions': {
+           'robotic': lambda text: f'<voice-transformation type="robot">{text}</voice-transformation>',
+           'echo': lambda text: f'<audio-effect type="echo">{text}</audio-effect>',
+       }
+   })
+
+   doc.add_sentence("[Hello](ext: robotic)")
+   doc.add_sentence("[world](ext: echo)")
+
+For a complete Google TTS styles example, see ``examples/google_tts_styles.py``.
 
 Combining Multiple Annotations
 -------------------------------

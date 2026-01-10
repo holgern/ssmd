@@ -80,6 +80,62 @@ Google Text-to-Speech
    with open("output.mp3", "wb") as f:
        f.write(response.audio_content)
 
+Google TTS with Speaking Styles
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Google Cloud TTS supports speaking styles for Neural2 and Studio voices:
+
+.. code-block:: python
+
+   from google.cloud import texttospeech
+   from ssmd import Document
+
+   # Configure Google TTS styles as extensions
+   doc = Document(config={
+       'extensions': {
+           'cheerful': lambda text: f'<google:style name="cheerful">{text}</google:style>',
+           'calm': lambda text: f'<google:style name="calm">{text}</google:style>',
+           'empathetic': lambda text: f'<google:style name="empathetic">{text}</google:style>',
+           'apologetic': lambda text: f'<google:style name="apologetic">{text}</google:style>',
+       }
+   })
+
+   # Build content with speaking styles
+   doc.add_sentence("[Welcome to our customer service!](ext: cheerful)")
+   doc.add_sentence("[We understand this must be frustrating.](ext: empathetic)")
+   doc.add_sentence("[We sincerely apologize for the inconvenience.](ext: apologetic)")
+   doc.add_sentence("[Please take a moment to breathe.](ext: calm)")
+
+   # Generate SSML
+   ssml = doc.to_ssml()
+
+   # Initialize Google TTS client
+   client = texttospeech.TextToSpeechClient()
+
+   # Use a voice that supports styles (Neural2 or Studio)
+   synthesis_input = texttospeech.SynthesisInput(ssml=ssml)
+   voice = texttospeech.VoiceSelectionParams(
+       language_code="en-US",
+       name="en-US-Neural2-F"  # Neural2 voices support styles
+   )
+   audio_config = texttospeech.AudioConfig(
+       audio_encoding=texttospeech.AudioEncoding.MP3
+   )
+
+   response = client.synthesize_speech(
+       input=synthesis_input,
+       voice=voice,
+       audio_config=audio_config
+   )
+
+   with open("styled_output.mp3", "wb") as f:
+       f.write(response.audio_content)
+
+.. note::
+   Speaking styles are only supported by specific Google Cloud TTS voices
+   (Neural2 and Studio voices). See the complete example in
+   ``examples/google_tts_styles.py``.
+
 Amazon Polly
 ~~~~~~~~~~~~
 
@@ -714,6 +770,7 @@ See Also
   * ``examples/story_reader_demo.py`` - Interactive story reader
   * ``examples/tts_with_capabilities.py`` - TTS engine capability filtering
   * ``examples/tts_container_demo.py`` - Container-based TTS demo
+  * ``examples/google_tts_styles.py`` - Google Cloud TTS speaking styles
 
 * Visit :doc:`api` for complete API documentation
 * See :doc:`parser` for the Parser API guide
