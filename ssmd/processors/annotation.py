@@ -46,6 +46,7 @@ class AnnotationProcessor(BaseProcessor):
 
         # Import annotation types for checking
         from ssmd.annotations.audio import AudioAnnotation
+        from ssmd.annotations.emphasis import EmphasisAnnotation
         from ssmd.annotations.extension import ExtensionAnnotation
         from ssmd.annotations.language import LanguageAnnotation
         from ssmd.annotations.phoneme import PhonemeAnnotation
@@ -71,6 +72,9 @@ class AnnotationProcessor(BaseProcessor):
         elif isinstance(annotation, ProsodyAnnotation):
             # For prosody annotations, check if any attribute is supported
             return capabilities.prosody
+        elif isinstance(annotation, EmphasisAnnotation):
+            # Emphasis is usually supported
+            return capabilities.emphasis
         elif isinstance(annotation, ExtensionAnnotation):
             # Check specific extension support
             ext_name = getattr(annotation, "extension_name", None)
@@ -107,7 +111,50 @@ class AnnotationProcessor(BaseProcessor):
             else:
                 return text  # Return plain text if not supported
 
-        # Parse comma-separated annotations (for non-voice annotations)
+        # Check if this is an audio annotation (which may contain commas for attributes)
+        # Audio annotations should be matched as a whole before comma-splitting
+        from ssmd.annotations.audio import AudioAnnotation
+
+        audio_pattern = AudioAnnotation.regex()
+        audio_match = audio_pattern.match(annotations_str.strip())
+        if audio_match is not None:
+            # This is an audio annotation - don't split by comma
+            audio_annotation = AudioAnnotation(audio_match)
+            if self._is_annotation_supported(audio_annotation):
+                return audio_annotation.wrap(text)
+            else:
+                return text  # Return plain text if not supported
+
+        # Check if this is a say-as annotation
+        # (which may contain commas for format/detail)
+        # Say-as annotations should be matched as a whole before comma-splitting
+        from ssmd.annotations.say_as import SayAsAnnotation
+
+        sayas_pattern = SayAsAnnotation.regex()
+        sayas_match = sayas_pattern.match(annotations_str.strip())
+        if sayas_match is not None:
+            # This is a say-as annotation - don't split by comma
+            sayas_annotation = SayAsAnnotation(sayas_match)
+            if self._is_annotation_supported(sayas_annotation):
+                return sayas_annotation.wrap(text)
+            else:
+                return text  # Return plain text if not supported
+
+        # Check if this is an extension annotation (needs custom extensions from config)
+        from ssmd.annotations.extension import ExtensionAnnotation
+
+        ext_pattern = ExtensionAnnotation.regex()
+        ext_match = ext_pattern.match(annotations_str.strip())
+        if ext_match is not None:
+            # This is an extension annotation - pass custom extensions from config
+            custom_extensions = self.config.get("extensions", {})
+            ext_annotation = ExtensionAnnotation(ext_match, custom_extensions)
+            if self._is_annotation_supported(ext_annotation):
+                return ext_annotation.wrap(text)
+            else:
+                return text  # Return plain text if not supported
+
+        # Parse comma-separated annotations (for simpler annotation types)
         annotation_parts = [a.strip() for a in annotations_str.split(",")]
 
         # Build list of unique annotations (combining duplicates)

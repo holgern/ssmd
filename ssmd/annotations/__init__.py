@@ -15,6 +15,7 @@ def get_annotation(annotation_str: str) -> BaseAnnotation | None:
         Annotation instance or None if no match
     """
     from ssmd.annotations.audio import AudioAnnotation
+    from ssmd.annotations.emphasis import EmphasisAnnotation
     from ssmd.annotations.extension import ExtensionAnnotation
     from ssmd.annotations.language import LanguageAnnotation
     from ssmd.annotations.phoneme import PhonemeAnnotation
@@ -27,6 +28,7 @@ def get_annotation(annotation_str: str) -> BaseAnnotation | None:
     annotation_types: list[type[BaseAnnotation]] = [
         AudioAnnotation,  # Try audio first (has URL pattern)
         ExtensionAnnotation,  # Extensions (ext: name)
+        EmphasisAnnotation,  # Explicit emphasis (emphasis: level)
         VoiceAnnotation,  # Voice (voice: name, voice: lang)
         SayAsAnnotation,  # Say-as (as: type)
         PhonemeAnnotation,  # Phonemes (ph: ..., ipa: ...)

@@ -6,23 +6,35 @@ from ssmd.processors.base import BaseProcessor
 
 
 class EmphasisProcessor(BaseProcessor):
-    """Process emphasis markup (*text* and **text**)."""
+    """Process emphasis markup.
+
+    Supports:
+    - **text** for strong emphasis
+    - *text* for moderate emphasis (default)
+    - _text_ for reduced emphasis
+    """
 
     name = "emphasis"
 
     def regex(self) -> re.Pattern:
-        """Match text wrapped in asterisks.
+        """Match text wrapped in asterisks or underscores.
 
-        Matches both:
+        Matches:
         - **text** for strong emphasis
         - *text* for moderate emphasis
+        - _text_ for reduced emphasis
 
         Returns:
-            Pattern matching *text* or **text**
+            Pattern matching emphasis patterns
         """
-        # Match ** first (longer pattern), then single *
-        # Use negative lookbehind/lookahead to avoid matching *** as both
-        return re.compile(r"\*\*([^\*]+)\*\*|\*([^\*]+)\*")
+        # Match in order: ** (strong), * (moderate), _ (reduced)
+        # Need to avoid matching __ (pitch) or ___ patterns
+        # Use negative lookahead/lookbehind to prevent double underscores
+        return re.compile(
+            r"\*\*([^\*]+)\*\*|"  # **strong**
+            r"\*([^\*]+)\*|"  # *moderate*
+            r"(?<!_)_(?!_)([^_]+?)(?<!_)_(?!_)"  # _reduced_ (not __ or ___)
+        )
 
     def result(self, match: re.Match) -> str:
         """Convert to SSML emphasis element.
@@ -33,16 +45,19 @@ class EmphasisProcessor(BaseProcessor):
         Returns:
             SSML <emphasis> tag with appropriate level
         """
-        # Group 1 is **text**, group 2 is *text*
+        # Group 1 is **text**, group 2 is *text*, group 3 is _text_
         if match.group(1):  # Strong emphasis **text**
             text = match.group(1)
             return f'<emphasis level="strong">{text}</emphasis>'
-        else:  # Moderate emphasis *text*
+        elif match.group(2):  # Moderate emphasis *text*
             text = match.group(2)
             return f"<emphasis>{text}</emphasis>"
+        else:  # Reduced emphasis _text_
+            text = match.group(3)
+            return f'<emphasis level="reduced">{text}</emphasis>'
 
     def text(self, match: re.Match) -> str:
-        """Extract plain text without asterisks.
+        """Extract plain text without markers.
 
         Args:
             match: Regex match object
@@ -51,4 +66,4 @@ class EmphasisProcessor(BaseProcessor):
             Plain text content
         """
         # Return whichever group matched
-        return match.group(1) if match.group(1) else match.group(2)
+        return match.group(1) or match.group(2) or match.group(3)

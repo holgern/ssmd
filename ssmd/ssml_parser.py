@@ -190,7 +190,7 @@ class SSMLParser:
         return "".join(result)
 
     def _process_emphasis(self, element: ET.Element) -> str:
-        """Convert <emphasis> to *text*.
+        """Convert <emphasis> to *text*, **text**, or _text_.
 
         Args:
             element: emphasis element
@@ -203,7 +203,12 @@ class SSMLParser:
 
         if level in ("strong", "x-strong"):
             return f"**{content}**"
-        else:
+        elif level == "reduced":
+            return f"_{content}_"
+        elif level == "none":
+            # Level "none" is rare - use explicit annotation
+            return f"[{content}](emphasis: none)"
+        else:  # moderate or default
             return f"*{content}*"
 
     def _process_break(self, element: ET.Element) -> str:
@@ -457,33 +462,112 @@ class SSMLParser:
         content = self._process_children(element)
         interpret_as = element.get("interpret-as", "")
         format_attr = element.get("format")
+        detail_attr = element.get("detail")
+
+        # Build annotation string
+        parts = [f"as: {interpret_as}"]
 
         if format_attr:
-            return f'[{content}](as: {interpret_as}, format: "{format_attr}")'
-        elif interpret_as:
-            return f"[{content}](as: {interpret_as})"
+            parts.append(f'format: "{format_attr}"')
+        if detail_attr:
+            parts.append(f"detail: {detail_attr}")
+
+        annotation = ", ".join(parts)
+
+        if interpret_as:
+            return f"[{content}]({annotation})"
 
         return content
 
     def _process_audio(self, element: ET.Element) -> str:
-        """Convert <audio> to [desc](url.mp3 alt).
+        """Convert <audio> to [desc](url.mp3 attrs alt).
 
         Args:
             element: audio element
 
         Returns:
-            SSMD audio syntax
+            SSMD audio syntax with attributes
         """
         src = element.get("src", "")
-        alt_text = self._process_children(element)
 
-        if src:
-            if alt_text:
-                return f"[{alt_text}]({src} alt)"
-            else:
-                return f"[]({src})"
+        # Get advanced attributes
+        clip_begin = element.get("clipBegin")
+        clip_end = element.get("clipEnd")
+        speed = element.get("speed")
+        repeat_count = element.get("repeatCount")
+        repeat_dur = element.get("repeatDur")
+        sound_level = element.get("soundLevel")
 
-        return alt_text
+        # Extract description and alt text
+        description = ""
+        has_desc_tag = False
+
+        # Look for <desc> child element
+        desc_elem = element.find("desc")
+        if desc_elem is not None and desc_elem.text:
+            description = desc_elem.text
+            has_desc_tag = True
+
+        # Get all text content (including text and tail from children)
+        content_text = ""
+        if element.text:
+            content_text = element.text
+
+        # Get tail text from children (after desc)
+        for child in element:
+            if child.tail:
+                content_text += child.tail
+
+        content_text = content_text.strip()
+
+        # If there's no <desc> tag but there is text content,
+        # treat the text as description with "alt" marker
+        if not has_desc_tag and content_text:
+            description = content_text
+            has_alt_marker = True
+        else:
+            # If there's a <desc> tag, any other text is alt text
+            has_alt_marker = False
+
+        if not src:
+            return description if description else content_text
+
+        # Build attributes string
+        attrs = []
+
+        if clip_begin and clip_end:
+            attrs.append(f"clip: {clip_begin}-{clip_end}")
+        if speed:
+            attrs.append(f"speed: {speed}")
+        if repeat_count:
+            attrs.append(f"repeat: {repeat_count}")
+        if repeat_dur:
+            attrs.append(f"repeatDur: {repeat_dur}")
+        if sound_level:
+            attrs.append(f"level: {sound_level}")
+
+        # Build the annotation
+        attrs_str = ", ".join(attrs)
+
+        # Combine: [description](url attrs alt)
+        url_parts = [src]
+        if attrs_str:
+            url_parts.append(attrs_str)
+
+        # Add alt text or alt marker
+        if has_desc_tag and content_text:
+            # Has <desc> tag and additional text - include the text
+            url_parts.append(content_text)
+        elif has_alt_marker:
+            # No <desc> tag, text became description - add "alt" marker
+            url_parts.append("alt")
+
+        url_part = " ".join(url_parts)
+
+        if description:
+            return f"[{description}]({url_part})"
+        else:
+            return f"[]({url_part})"
 
     def _process_mark(self, element: ET.Element) -> str:
         """Convert <mark> to @name.

@@ -64,10 +64,12 @@ class SayAsAttrs:
         interpret_as: Interpretation type ('telephone', 'date', 'cardinal',
                       'ordinal', 'characters', 'expletive', etc.)
         format: Optional format string (e.g., 'dd.mm.yyyy' for dates)
+        detail: Optional detail level (e.g., '2' for verbosity)
     """
 
     interpret_as: str
     format: str | None = None
+    detail: str | None = None
 
 
 @dataclass
@@ -77,10 +79,22 @@ class AudioAttrs:
     Attributes:
         src: Audio file URL or path
         alt_text: Fallback text if audio cannot be played
+        clip_begin: Start time for playback (e.g., "0s", "500ms")
+        clip_end: End time for playback (e.g., "10s", "5000ms")
+        speed: Playback speed as percentage (e.g., "150%", "80%")
+        repeat_count: Number of times to repeat audio
+        repeat_dur: Total duration for repetitions (e.g., "10s")
+        sound_level: Volume adjustment in dB (e.g., "+6dB", "-3dB")
     """
 
     src: str
     alt_text: str | None = None
+    clip_begin: str | None = None
+    clip_end: str | None = None
+    speed: str | None = None
+    repeat_count: int | None = None
+    repeat_dur: str | None = None
+    sound_level: str | None = None
 
 
 @dataclass

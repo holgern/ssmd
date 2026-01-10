@@ -217,10 +217,24 @@ See `examples/tts_with_capabilities.py` for a complete demonstration.
 
 ### Text & Emphasis
 
+SSMD supports all four SSML emphasis levels:
+
 ```python
-# Emphasis
+# Moderate emphasis (default)
 ssmd.to_ssml("*emphasized text*")
 # → <speak><emphasis>emphasized text</emphasis></speak>
+
+# Strong emphasis
+ssmd.to_ssml("**very important**")
+# → <speak><emphasis level="strong">very important</emphasis></speak>
+
+# Reduced emphasis (subtle)
+ssmd.to_ssml("_less important_")
+# → <speak><emphasis level="reduced">less important</emphasis></speak>
+
+# No emphasis (explicit, rarely used)
+ssmd.to_ssml("[monotone](emphasis: none)")
+# → <speak><emphasis level="none">monotone</emphasis></speak>
 ```
 
 ### Breaks & Pauses
@@ -425,6 +439,13 @@ ssmd.to_ssml('[+1-555-0123](as: telephone)')
 # Dates with format
 ssmd.to_ssml('[31.12.2024](as: date, format: "dd.mm.yyyy")')
 
+# Say-as with detail attribute (for verbosity control)
+ssmd.to_ssml('[123](as: cardinal, detail: 2)')
+# → <speak><say-as interpret-as="cardinal" detail="2">123</say-as></speak>
+
+ssmd.to_ssml('[12/31/2024](as: date, format: "mdy", detail: 1)')
+# → <speak><say-as interpret-as="date" format="mdy" detail="1">12/31/2024</say-as></speak>
+
 # Spell out
 ssmd.to_ssml('[NASA](as: character)')
 
@@ -439,7 +460,7 @@ ssmd.to_ssml('[damn](as: expletive)')
 ### Audio Files
 
 ```python
-# With description
+# Basic audio with description
 ssmd.to_ssml('[doorbell](https://example.com/sounds/bell.mp3)')
 # → <audio src="https://example.com/sounds/bell.mp3"><desc>doorbell</desc></audio>
 
@@ -450,6 +471,28 @@ ssmd.to_ssml('[cat purring](cat.ogg Sound file not loaded)')
 # No description
 ssmd.to_ssml('[](beep.mp3)')
 # → <audio src="beep.mp3"></audio>
+
+# Advanced audio attributes
+# Clip audio (play from 5s to 30s)
+ssmd.to_ssml('[music](song.mp3 clip: 5s-30s)')
+# → <audio src="song.mp3" clipBegin="5s" clipEnd="30s"><desc>music</desc></audio>
+
+# Speed control
+ssmd.to_ssml('[announcement](speech.mp3 speed: 150%)')
+# → <audio src="speech.mp3" speed="150%"><desc>announcement</desc></audio>
+
+# Repeat count
+ssmd.to_ssml('[jingle](ad.mp3 repeat: 3)')
+# → <audio src="ad.mp3" repeatCount="3"><desc>jingle</desc></audio>
+
+# Volume level
+ssmd.to_ssml('[alarm](alert.mp3 level: +6dB)')
+# → <audio src="alert.mp3" soundLevel="+6dB"><desc>alarm</desc></audio>
+
+# Combine multiple attributes with fallback text
+ssmd.to_ssml('[background](music.mp3 clip: 0s-10s, speed: 120%, level: -3dB Fallback text)')
+# → <audio src="music.mp3" clipBegin="0s" clipEnd="10s" speed="120%" soundLevel="-3dB">
+#    <desc>background</desc>Fallback text</audio>
 ```
 
 ### Markers
@@ -496,6 +539,59 @@ doc = Document(config={
         'custom': lambda text: f'<custom-tag>{text}</custom-tag>'
     }
 })
+```
+
+#### Google Cloud TTS Speaking Styles
+
+Google Cloud TTS supports speaking styles via the `google:style` extension. You can use
+SSMD's extension system to add these styles:
+
+```python
+from ssmd import Document
+
+# Configure Google TTS styles
+doc = Document(config={
+    'extensions': {
+        'cheerful': lambda text: f'<google:style name="cheerful">{text}</google:style>',
+        'calm': lambda text: f'<google:style name="calm">{text}</google:style>',
+        'empathetic': lambda text: f'<google:style name="empathetic">{text}</google:style>',
+        'apologetic': lambda text: f'<google:style name="apologetic">{text}</google:style>',
+        'firm': lambda text: f'<google:style name="firm">{text}</google:style>',
+    }
+})
+
+# Use styles in your content
+doc.add_sentence("[Welcome to our service!](ext: cheerful)")
+doc.add_sentence("[We apologize for the inconvenience.](ext: apologetic)")
+doc.add_sentence("[Please remain calm.](ext: calm)")
+
+ssml = doc.to_ssml()
+# → <speak>
+#    <google:style name="cheerful">Welcome to our service!</google:style>
+#    <google:style name="apologetic">We apologize for the inconvenience.</google:style>
+#    <google:style name="calm">Please remain calm.</google:style>
+#    </speak>
+```
+
+**Available Google TTS Styles:**
+
+- `cheerful` - Upbeat and positive tone
+- `calm` - Relaxed and soothing tone
+- `empathetic` - Understanding and compassionate tone
+- `apologetic` - Sorry and regretful tone
+- `firm` - Confident and authoritative tone
+- `news` - Professional news anchor tone
+- `conversational` - Natural conversation tone
+
+**Note:** These styles are only supported by specific Google Cloud TTS voices (typically
+Neural2 and Studio voices). See the
+[Google Cloud TTS documentation](https://cloud.google.com/text-to-speech/docs/speaking-styles)
+for voice compatibility.
+
+For a complete example, see `examples/google_tts_styles.py`:
+
+```bash
+python examples/google_tts_styles.py
 ```
 
 ## Parser API - Extract Structured Data
@@ -697,6 +793,7 @@ Say-as interpretation attributes.
 
 - `interpret_as` (str): Interpretation type (e.g., "telephone", "date")
 - `format` (str | None): Format string (e.g., "mdy" for dates)
+- `detail` (int | None): Verbosity level (1-2, platform-specific)
 
 #### `AudioAttrs`
 
@@ -706,6 +803,12 @@ Audio file attributes.
 
 - `src` (str): Audio file URL
 - `alt_text` (str | None): Alternative text if audio fails
+- `clip_begin` (str | None): Start time for audio clip (e.g., "5s")
+- `clip_end` (str | None): End time for audio clip (e.g., "30s")
+- `speed` (str | None): Playback speed (e.g., "150%")
+- `repeat_count` (int | None): Number of times to repeat
+- `repeat_dur` (str | None): Duration to repeat (e.g., "10s")
+- `sound_level` (str | None): Volume adjustment (e.g., "+6dB", "-3dB")
 
 ### Complete Example
 
@@ -911,15 +1014,17 @@ with additional features inspired by the JavaScript implementation.
 
 ### Implemented Features
 
-✅ Text ✅ Emphasis (`*text*`) ✅ Break (`...500ms`, `...2s`, `...n/w/c/s/p`) ✅
-Language (`[text](en)`, `[text](en-GB)`) ✅ Voice inline (`[text](voice: Joanna)`,
-`[text](voice: en-US, gender: female)`) ✅ Voice directives (`@voice: name`) ✅ Mark
-(`@marker`) ✅ Paragraph (`\n\n`) ✅ Phoneme (`[text](ph: xsampa)`, `[text](ipa: ipa)`)
-✅ Prosody shorthand (`++loud++`, `>>fast>>`, `^^high^^`) ✅ Prosody explicit
-(`[text](vrp: 555)`, `[text](v: 5)`) ✅ Substitution (`[text](sub: alias)`) ✅ Say-as
-(`[text](as: telephone)`) ✅ Audio (`[desc](url.mp3 alt)`) ✅ Headings (`# ## ###`) ✅
-Extensions (`[text](ext: whisper)`) ✅ Auto-sentence tags (`<s>`) ✅ **SSML ↔ SSMD
-bidirectional conversion**
+✅ Text ✅ Emphasis (`*text*`, `**strong**`, `_reduced_`, `[text](emphasis: none)`) ✅
+Break (`...500ms`, `...2s`, `...n/w/c/s/p`) ✅ Language (`[text](en)`, `[text](en-GB)`)
+✅ Voice inline (`[text](voice: Joanna)`, `[text](voice: en-US, gender: female)`) ✅
+Voice directives (`@voice: name`) ✅ Mark (`@marker`) ✅ Paragraph (`\n\n`) ✅ Phoneme
+(`[text](ph: xsampa)`, `[text](ipa: ipa)`) ✅ Prosody shorthand (`++loud++`, `>>fast>>`,
+`^^high^^`) ✅ Prosody explicit (`[text](vrp: 555)`, `[text](v: 5)`) ✅ Substitution
+(`[text](sub: alias)`) ✅ Say-as (`[text](as: telephone)`,
+`[text](as: date, detail: 1)`) ✅ Audio (`[desc](url.mp3 alt)`,
+`[desc](url.mp3 clip: 5s-30s, speed: 120%)`) ✅ Headings (`# ## ###`) ✅ Extensions
+(`[text](ext: whisper)`, Google TTS styles) ✅ Auto-sentence tags (`<s>`) ✅ **SSML ↔
+SSMD bidirectional conversion**
 
 ## Related Projects
 
