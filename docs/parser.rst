@@ -38,7 +38,7 @@ each feature individually instead of generating a complete SSML document.
    for sentence in parse_sentences(script):
        # Get voice configuration
        voice_name = sentence.voice.name if sentence.voice else "default"
-       
+
        # Build complete text from segments
        full_text = ""
        for seg in sentence.segments:
@@ -52,7 +52,7 @@ each feature individually instead of generating a complete SSML document.
            else:
                text = seg.text
            full_text += text
-       
+
        # Speak with TTS engine
        tts.speak(full_text, voice=voice_name)
 
@@ -352,11 +352,11 @@ Build sentences from segments for TTS processing:
    for sentence in parse_sentences(script):
        # Get voice
        voice_name = sentence.voice.name if sentence.voice else "default"
-       
+
        # Build complete text
        full_text = ""
        metadata = []
-       
+
        for seg in sentence.segments:
            # Handle transformations
            if seg.say_as:
@@ -369,17 +369,17 @@ Build sentences from segments for TTS processing:
                metadata.append(f"phoneme:{seg.phoneme}")
            else:
                text = seg.text
-           
+
            full_text += text
-           
+
            # Track emphasis
            if seg.emphasis:
                metadata.append("emphasis")
-           
+
            # Track breaks
            for brk in seg.breaks_after:
                metadata.append(f"break:{brk.time}")
-       
+
        # Speak with TTS engine
        print(f"[{voice_name}] {full_text}")
        if metadata:
@@ -413,7 +413,7 @@ Control sentence detection and voice filtering:
        voice_name = sent.voice.name if sent.voice else "(default)"
        text_content = "".join(seg.text for seg in sent.segments)
        para_marker = " [PARA_END]" if sent.is_paragraph_end else ""
-       
+
        print(f"{i}. [{voice_name}] {text_content!r}{para_marker}")
 
 TTS Engine Integration
@@ -435,7 +435,7 @@ Example integration with a TTS engine:
    def process_ssmd_script(script: str, tts: TTSEngine):
        """Process SSMD script with TTS engine."""
        sentences = parse_sentences(script)
-       
+
        for sentence in sentences:
            # Configure voice
            voice_config = {}
@@ -444,7 +444,7 @@ Example integration with a TTS engine:
                    voice_config["voice"] = sentence.voice.name
                if sentence.voice.language:
                    voice_config["language"] = sentence.voice.language
-           
+
            # Build text with transformations
            full_text = ""
            for seg in sentence.segments:
@@ -457,9 +457,9 @@ Example integration with a TTS engine:
                    text = seg.text  # Use phoneme for pronunciation
                else:
                    text = seg.text
-               
+
                full_text += text
-           
+
            # Speak with TTS
            tts.speak(full_text, **voice_config)
 
@@ -467,11 +467,11 @@ Example integration with a TTS engine:
    script = """
    @voice: sarah
    Hello! Today's date is [2024-01-15](as: date, format: mdy).
-   
+
    @voice: michael
    Thank you for listening!
    """
-   
+
    tts = TTSEngine()
    process_ssmd_script(script, tts)
 
