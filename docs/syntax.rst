@@ -202,9 +202,26 @@ Perfect for dialogue, podcasts, and scripts with multiple speakers:
    ssmd.to_ssml(script)
    # Each voice directive creates a separate voice block in SSML
 
+Voice directives support all voice attributes:
+
+.. code-block:: python
+
+   # Language and gender
+   multilingual = """
+   @voice: fr-FR, gender: female
+   Bonjour! Comment allez-vous aujourd'hui?
+
+   @voice: en-GB, gender: male
+   Hello there! Lovely weather we're having.
+
+   @voice: es-ES, gender: female, variant: 1
+   ¡Hola! ¿Cómo estás?
+   """
+
 Voice directive features:
 
 * Use ``@voice: name`` or ``@voice(name)`` syntax
+* Supports all attributes: language, gender, variant
 * Applies to all text until the next directive or paragraph break
 * Automatically detected on SSML→SSMD conversion for long voice blocks
 * Much more readable than inline annotations for dialogue

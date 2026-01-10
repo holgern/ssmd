@@ -18,9 +18,11 @@ class VoiceDirectiveProcessor(BaseProcessor):
         @voice(am_michael)
         And this is Michael speaking.
 
-        @voice: af_sarah
-        Back to Sarah. This can span
-        multiple lines in the same paragraph.
+        @voice: fr-FR, gender: female
+        Bonjour! Comment allez-vous?
+
+        @voice: en-GB, gender: male, variant: 1
+        Hello from England!
     """
 
     name = "voice_directive"
@@ -31,12 +33,17 @@ class VoiceDirectiveProcessor(BaseProcessor):
         Returns:
             Pattern matching voice directive
         """
-        # Match @voice: name or @voice(name) followed by content until:
-        # - Double newline (paragraph break)
-        # - Another @voice directive
-        # - End of string
+        # Match @voice: followed by parameters (name or attributes)
+        # Parameters can include: name, language codes, gender, variant
+        # Examples:
+        #   @voice: sarah
+        #   @voice: fr-FR, gender: female
+        #   @voice(en-US, gender: male, variant: 1)
         return re.compile(
-            r"^@voice(?::\s*|\()([a-zA-Z0-9_-]+)\)?\s*\n((?:(?!^@voice)(?:.*\n?))+?)(?=\n\n|^@voice|\Z)",
+            r"^@voice(?::\s*|\()"
+            r"([a-zA-Z0-9_-]+(?:\s*,\s*(?:gender|variant):\s*[a-zA-Z0-9]+)*)"
+            r"\)?\s*\n"
+            r"((?:(?!^@voice)(?:.*\n?))+?)(?=\n\n|^@voice|\Z)",
             re.MULTILINE,
         )
 
@@ -57,7 +64,7 @@ class VoiceDirectiveProcessor(BaseProcessor):
             trailing_newlines = len(content) - len(content.rstrip("\n"))
             return content.strip() + ("\n" * trailing_newlines)
 
-        voice_name = match.group(1)
+        params_str = match.group(1)
         content = match.group(2)
 
         # Strip content but preserve trailing newlines for paragraph structure
@@ -68,7 +75,58 @@ class VoiceDirectiveProcessor(BaseProcessor):
             # No content after directive, skip
             return ""
 
-        return f'<voice name="{voice_name}">{stripped_content}</voice>' + (
+        # Parse voice parameters
+        # Can be: "name", "lang", or "lang, gender: X, variant: Y"
+        name = None
+        language = None
+        gender = None
+        variant = None
+
+        # Check for gender or variant attributes
+        has_gender = "gender:" in params_str
+        has_variant = "variant:" in params_str
+
+        # Extract the first parameter (voice name or language)
+        voice_match = re.match(r"([a-zA-Z0-9_-]+)", params_str)
+        if voice_match:
+            voice_value = voice_match.group(1)
+
+            # If gender or variant specified, or if it looks like a language code,
+            # treat as language
+            if (
+                has_gender
+                or has_variant
+                or re.match(r"^[a-z]{2}(-[A-Z]{2})?$", voice_value)
+            ):
+                language = voice_value
+            else:
+                # Otherwise it's a voice name
+                name = voice_value
+
+        # Parse gender if present
+        gender_match = re.search(r"gender:\s*([a-zA-Z]+)", params_str)
+        if gender_match:
+            gender = gender_match.group(1)
+
+        # Parse variant if present
+        variant_match = re.search(r"variant:\s*(\d+)", params_str)
+        if variant_match:
+            variant = variant_match.group(1)
+
+        # Build SSML attributes
+        attrs = []
+        if name:
+            attrs.append(f'name="{name}"')
+        else:
+            if language:
+                attrs.append(f'language="{language}"')
+            if gender:
+                attrs.append(f'gender="{gender}"')
+            if variant:
+                attrs.append(f'variant="{variant}"')
+
+        attrs_str = " ".join(attrs)
+        return f"<voice {attrs_str}>{stripped_content}</voice>" + (
             "\n" * trailing_newlines
         )
 

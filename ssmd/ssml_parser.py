@@ -365,15 +365,28 @@ class SSMLParser:
         # or single-line (use annotation)
         is_multiline = "\n" in content.strip() or len(content.strip()) > 80
 
-        # For directive syntax, we can only use simple names, not complex attributes
-        use_directive = (
-            is_multiline and name and not language and not gender and not variant
-        )
+        # Directive syntax can be used for both simple names and complex attrs
+        use_directive = is_multiline
 
         if use_directive:
             # Use block directive syntax for cleaner multi-line voice blocks
-            # Use a placeholder to protect the newline from whitespace cleaning
-            return f"@voice: {name}{{VOICE_NEWLINE}}{content.strip()}"
+            # Build parameter string
+            if name:
+                params = name
+            else:
+                # Build language, gender, variant params
+                parts = []
+                if language:
+                    parts.append(language)
+                if gender:
+                    parts.append(f"gender: {gender}")
+                if variant:
+                    parts.append(f"variant: {variant}")
+                params = ", ".join(parts) if parts else ""
+
+            if params:
+                # Use a placeholder to protect the newline from whitespace cleaning
+                return f"@voice: {params}{{VOICE_NEWLINE}}{content.strip()}"
 
         # Use inline annotation syntax
         if name:

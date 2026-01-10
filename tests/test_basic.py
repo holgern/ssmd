@@ -249,5 +249,39 @@ Now I'm speaking normally."""
     assert result.count('name="michael"') == 2
 
 
+def test_voice_directive_language_gender():
+    """Test voice directive with language and gender attributes."""
+    text = """@voice: fr-FR, gender: female
+Bonjour! Comment allez-vous?"""
+    result = ssmd.to_ssml(text)
+    assert '<voice language="fr-FR" gender="female">' in result
+    assert "Bonjour!" in result
+
+
+def test_voice_directive_all_attributes():
+    """Test voice directive with all attributes."""
+    text = """@voice: en-GB, gender: male, variant: 1
+Hello from England!"""
+    result = ssmd.to_ssml(text)
+    assert '<voice language="en-GB" gender="male" variant="1">' in result
+    assert "Hello from England!" in result
+
+
+def test_voice_directive_parentheses_with_attrs():
+    """Test voice directive with parentheses and attributes."""
+    text = """@voice(fr-FR, gender: female)
+Bonjour tout le monde!"""
+    result = ssmd.to_ssml(text)
+    assert '<voice language="fr-FR" gender="female">' in result
+
+
+def test_voice_directive_strip_with_attrs():
+    """Test stripping voice directive with attributes."""
+    text = """@voice: fr-FR, gender: female
+Bonjour! Comment allez-vous?"""
+    result = ssmd.to_text(text)
+    assert result.strip() == "Bonjour! Comment allez-vous?"
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

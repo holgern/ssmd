@@ -319,3 +319,33 @@ directive format too"""
         ssmd_back = ssmd.from_ssml(ssml_out)
         assert "@voice: sarah" in ssmd_back
         assert "@voice: michael" in ssmd_back
+
+    def test_voice_directive_with_attrs_to_ssmd(self):
+        """Test converting voice with attributes to directive syntax."""
+        ssml = (
+            '<speak><p><voice language="fr-FR" gender="female">'
+            "Bonjour! Comment allez-vous aujourd'hui? "
+            "J'espère que vous passez une excellente journée!"
+            "</voice></p></speak>"
+        )
+        result = ssmd.from_ssml(ssml)
+        # Should use directive syntax because content is long
+        assert "@voice: fr-FR, gender: female" in result
+        assert "Bonjour!" in result
+
+    def test_voice_directive_attrs_roundtrip(self):
+        """Test roundtrip with voice directive using attributes."""
+        original = """@voice: fr-FR, gender: female
+Bonjour! C'est un très grand plaisir de vous parler aujourd'hui dans
+cette magnifique langue française!
+
+@voice: en-GB, gender: male, variant: 1
+Hello there! It's absolutely lovely to meet you on this fine day in
+the beautiful United Kingdom."""
+        ssml_out = ssmd.to_ssml(original)
+        assert '<voice language="fr-FR" gender="female">' in ssml_out
+        assert '<voice language="en-GB" gender="male" variant="1">' in ssml_out
+        # Convert back - should preserve directive format with attributes
+        ssmd_back = ssmd.from_ssml(ssml_out)
+        assert "@voice: fr-FR, gender: female" in ssmd_back
+        assert "@voice: en-GB, gender: male" in ssmd_back
