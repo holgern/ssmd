@@ -89,26 +89,113 @@ Parse SSML and convert to SSMD format.
 Convenience Functions
 ---------------------
 
+Parser Functions
+~~~~~~~~~~~~~~~~
+
+Extract structured data from SSMD text.
+
+.. autofunction:: ssmd.parse_sentences
+.. autofunction:: ssmd.parse_segments
+.. autofunction:: ssmd.parse_voice_blocks
+
+Conversion Functions
+~~~~~~~~~~~~~~~~~~~~
+
+Convert between SSMD, SSML, and plain text.
+
 to_ssml
-~~~~~~~
+^^^^^^^
 
 Convert SSMD markup to SSML.
 
 .. autofunction:: ssmd.to_ssml
 
 to_text
-~~~~~~~
+^^^^^^^
 
 Convert SSMD to plain text (strips all markup).
 
 .. autofunction:: ssmd.to_text
 
 from_ssml
-~~~~~~~~~
+^^^^^^^^^
 
 Convert SSML back to SSMD format.
 
 .. autofunction:: ssmd.from_ssml
+
+Parser Data Structures
+----------------------
+
+SSMDSentence
+~~~~~~~~~~~~
+
+Represents a sentence with voice context and segments.
+
+.. autoclass:: ssmd.SSMDSentence
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+SSMDSegment
+~~~~~~~~~~~
+
+Represents a text segment with metadata.
+
+.. autoclass:: ssmd.SSMDSegment
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+VoiceAttrs
+~~~~~~~~~~
+
+Voice configuration attributes.
+
+.. autoclass:: ssmd.VoiceAttrs
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+ProsodyAttrs
+~~~~~~~~~~~~
+
+Prosody (volume, rate, pitch) attributes.
+
+.. autoclass:: ssmd.ProsodyAttrs
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+BreakAttrs
+~~~~~~~~~~
+
+Pause/break attributes.
+
+.. autoclass:: ssmd.BreakAttrs
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+SayAsAttrs
+~~~~~~~~~~
+
+Say-as interpretation attributes.
+
+.. autoclass:: ssmd.SayAsAttrs
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+AudioAttrs
+~~~~~~~~~~
+
+Audio file attributes.
+
+.. autoclass:: ssmd.AudioAttrs
+   :members:
+   :undoc-members:
+   :show-inheritance:
 
 Capability Presets
 ------------------

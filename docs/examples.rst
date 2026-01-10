@@ -572,9 +572,149 @@ Voice Assistant with SSMD
    print(assistant.error("I couldn't find that file"))
    print(assistant.announce("Weather Update", "It's sunny with a high of 72 degrees"))
 
+Parser API Examples
+-------------------
+
+The Parser API extracts structured data from SSMD instead of generating SSML.
+This is useful for building custom TTS pipelines.
+
+Basic Segment Extraction
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: python
+
+   from ssmd import parse_segments
+
+   text = "Hello *world*! This is ...500ms great."
+   segments = parse_segments(text)
+
+   for seg in segments:
+       print(f"Text: {seg.text!r}")
+       if seg.emphasis:
+           print("  - Has emphasis")
+       for brk in seg.breaks_after:
+           print(f"  - Break: {brk.time}")
+
+Multi-Voice Dialogue Processing
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: python
+
+   from ssmd import parse_sentences
+
+   script = """
+   @voice: sarah
+   Welcome to the show!
+
+   @voice: michael
+   Thanks Sarah! Great to be here.
+
+   @voice: sarah
+   Let's get started!
+   """
+
+   for sentence in parse_sentences(script):
+       voice_name = sentence.voice.name if sentence.voice else "default"
+       text = "".join(seg.text for seg in sentence.segments)
+       print(f"[{voice_name}] {text}")
+
+Custom TTS Pipeline
+~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: python
+
+   from ssmd import parse_sentences
+
+   class CustomTTS:
+       def process_script(self, script):
+           """Process SSMD script with custom handling."""
+           sentences = parse_sentences(script)
+
+           for sentence in sentences:
+               # Configure voice
+               voice = sentence.voice.name if sentence.voice else "default"
+
+               # Build text with transformations
+               full_text = ""
+               for seg in sentence.segments:
+                   # Handle say-as
+                   if seg.say_as:
+                       if seg.say_as.interpret_as == "telephone":
+                           text = self.format_phone(seg.text)
+                       elif seg.say_as.interpret_as == "date":
+                           text = self.format_date(seg.text)
+                       else:
+                           text = seg.text
+                   # Handle substitution
+                   elif seg.substitution:
+                       text = seg.substitution
+                   # Handle phoneme
+                   elif seg.phoneme:
+                       text = seg.text  # Use phoneme data
+                   else:
+                       text = seg.text
+
+                   full_text += text
+
+               # Speak with custom TTS
+               self.speak(full_text, voice=voice)
+
+       def format_phone(self, number):
+           """Custom phone number formatting."""
+           # Remove non-digits and format
+           digits = ''.join(c for c in number if c.isdigit())
+           return f"{digits[:3]}-{digits[3:6]}-{digits[6:]}"
+
+       def format_date(self, date_str):
+           """Custom date formatting."""
+           return date_str  # Add custom date parsing
+
+       def speak(self, text, voice="default"):
+           """Mock TTS speak method."""
+           print(f"[{voice}] {text}")
+
+   # Usage
+   tts = CustomTTS()
+   tts.process_script("""
+   @voice: sarah
+   Call [+1-555-0123](as: telephone) today!
+   """)
+
+Text Transformation Example
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: python
+
+   from ssmd import parse_segments
+
+   text = """
+   Call [+1-555-0123](as: telephone) for info.
+   [H2O](sub: water) is important.
+   Say [tomato](ph: təˈmeɪtoʊ) correctly.
+   """
+
+   segments = parse_segments(text)
+
+   for seg in segments:
+       if seg.say_as:
+           print(f"Say-as: {seg.text!r} as {seg.say_as.interpret_as}")
+       elif seg.substitution:
+           print(f"Substitute: '{seg.text}' → '{seg.substitution}'")
+       elif seg.phoneme:
+           print(f"Phoneme: '{seg.text}' → /{seg.phoneme}/")
+
+For a complete parser demonstration, see ``examples/parser_demo.py``.
+
 See Also
 --------
 
-* Check the `examples/` directory in the repository for more runnable examples
+* Check the `examples/` directory in the repository for more runnable examples:
+
+  * ``examples/parser_demo.py`` - Complete parser API demonstration
+  * ``examples/story_reader_demo.py`` - Interactive story reader
+  * ``examples/tts_with_capabilities.py`` - TTS engine capability filtering
+  * ``examples/tts_container_demo.py`` - Container-based TTS demo
+
 * Visit :doc:`api` for complete API documentation
+* See :doc:`parser` for the Parser API guide
 * See :doc:`capabilities` for TTS engine integration details

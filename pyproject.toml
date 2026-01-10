@@ -44,6 +44,9 @@ dev = [
     "ruff>=0.1.0",
     "mypy>=1.0.0",
 ]
+parser = [
+    "phrasplit>=0.1.0",
+]
 
 [tool.setuptools_scm]
 write_to = "ssmd/_version.py"
@@ -83,22 +86,8 @@ ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = [
-    "kokorog2p.ja.*",
-    "kokorog2p.zh.*",
-    "kokorog2p.ko.*",
-    "kokorog2p.de.numbers",
-    "kokorog2p.goruut_g2p",
-    "kokorog2p.backends.goruut.*",
-    "kokorog2p.backends.espeak.wrapper",
-    "kokorog2p.fr.lexicon",
-    "kokorog2p.fr.g2p",
-    "kokorog2p.espeak_g2p",
-    "kokorog2p.en.fallback",
-    "kokorog2p.en.g2p",
-    "kokorog2p.en.lexicon",
-    "kokorog2p.words_mismatch",
-    "kokorog2p.mixed_language_g2p",
-    "kokorog2p.__init__",
+    "phrasplit",
+    "phrasplit.*",
 ]
 ignore_errors = true
 

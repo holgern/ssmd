@@ -53,6 +53,20 @@ from ssmd.capabilities import (
     MINIMAL_CAPABILITIES,
     FULL_CAPABILITIES,
 )
+from ssmd.parser import (
+    parse_sentences,
+    parse_segments,
+    parse_voice_blocks,
+)
+from ssmd.parser_types import (
+    SSMDSegment,
+    SSMDSentence,
+    VoiceAttrs,
+    ProsodyAttrs,
+    BreakAttrs,
+    SayAsAttrs,
+    AudioAttrs,
+)
 
 try:
     from ssmd._version import version as __version__
@@ -139,5 +153,17 @@ __all__ = [
     "AZURE_TTS_CAPABILITIES",
     "MINIMAL_CAPABILITIES",
     "FULL_CAPABILITIES",
+    # Parser functions
+    "parse_sentences",
+    "parse_segments",
+    "parse_voice_blocks",
+    # Parser types
+    "SSMDSegment",
+    "SSMDSentence",
+    "VoiceAttrs",
+    "ProsodyAttrs",
+    "BreakAttrs",
+    "SayAsAttrs",
+    "AudioAttrs",
     "__version__",
 ]

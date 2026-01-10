@@ -498,6 +498,233 @@ doc = Document(config={
 })
 ```
 
+## Parser API - Extract Structured Data
+
+The SSMD parser provides an alternative to SSML generation by extracting structured
+segments from SSMD text. This is useful when you need programmatic control over SSMD
+features or want to build custom TTS pipelines.
+
+### When to Use the Parser
+
+- **Custom TTS integration** - Process SSMD features programmatically
+- **Text transformations** - Handle say-as, substitution, and phoneme conversions
+- **Multi-voice dialogue** - Build voice-specific processing pipelines
+- **Feature extraction** - Analyze SSMD content without generating SSML
+
+### Quick Example
+
+```python
+from ssmd import parse_sentences
+
+script = """
+@voice: sarah
+Hello! Call [+1-555-0123](as: telephone) for info.
+[H2O](sub: water) is important.
+
+@voice: michael
+Thanks *Sarah*!
+"""
+
+# Parse into structured sentences
+sentences = parse_sentences(script)
+
+for sentence in sentences:
+    # Get voice configuration
+    voice_name = sentence.voice.name if sentence.voice else "default"
+
+    # Process each segment
+    full_text = ""
+    for seg in sentence.segments:
+        # Handle text transformations
+        if seg.say_as:
+            # Your TTS engine converts based on interpret_as
+            text = convert_say_as(seg.text, seg.say_as.interpret_as)
+        elif seg.substitution:
+            # Use substitution text instead of original
+            text = seg.substitution
+        elif seg.phoneme:
+            # Use phoneme for pronunciation
+            text = seg.text  # TTS engine handles phoneme
+        else:
+            text = seg.text
+
+        full_text += text
+
+    # Speak the complete sentence
+    tts.speak(full_text, voice=voice_name)
+```
+
+### Parser Functions
+
+#### `parse_sentences(text, **options)` → `list[SSMDSentence]`
+
+Parse SSMD text into structured sentences with segments.
+
+**Parameters:**
+
+- `text` (str): SSMD text to parse
+- `sentence_detection` (bool): Split text into sentences (default: True)
+- `include_default_voice` (bool): Include text before first @voice directive (default:
+  True)
+- `capabilities` (TTSCapabilities | str): Filter features based on TTS engine support
+
+**Returns:** List of `SSMDSentence` objects
+
+**Example:**
+
+```python
+from ssmd import parse_sentences
+
+sentences = parse_sentences("Hello *world*! This is great.")
+
+for sent in sentences:
+    print(f"Voice: {sent.voice.name if sent.voice else 'default'}")
+    print(f"Segments: {len(sent.segments)}")
+    for seg in sent.segments:
+        print(f"  - {seg.text!r} (emphasis={seg.emphasis})")
+```
+
+#### `parse_segments(text, **options)` → `list[SSMDSegment]`
+
+Parse SSMD text into segments without sentence grouping.
+
+**Parameters:**
+
+- `text` (str): SSMD text to parse
+- `capabilities` (TTSCapabilities | str): Filter features based on TTS engine support
+
+**Returns:** List of `SSMDSegment` objects
+
+**Example:**
+
+```python
+from ssmd import parse_segments
+
+segments = parse_segments("Call [+1-555-0123](as: telephone) now")
+
+for seg in segments:
+    if seg.say_as:
+        print(f"Say-as: {seg.text!r} as {seg.say_as.interpret_as}")
+```
+
+#### `parse_voice_blocks(text)` → `list[tuple[VoiceAttrs | None, str]]`
+
+Split text by voice directives.
+
+**Returns:** List of (voice_attrs, text) tuples
+
+**Example:**
+
+```python
+from ssmd import parse_voice_blocks
+
+blocks = parse_voice_blocks("""
+@voice: sarah
+Hello from Sarah
+
+@voice: michael
+Hello from Michael
+""")
+
+for voice, text in blocks:
+    print(f"{voice.name}: {text.strip()}")
+```
+
+### Data Structures
+
+#### `SSMDSentence`
+
+Represents a complete sentence with voice context.
+
+**Attributes:**
+
+- `segments` (list[SSMDSegment]): List of text segments
+- `voice` (VoiceAttrs | None): Voice configuration
+- `is_paragraph_end` (bool): Whether sentence ends a paragraph
+
+#### `SSMDSegment`
+
+Represents a text segment with metadata.
+
+**Attributes:**
+
+- `text` (str): The text content
+- `emphasis` (bool): Emphasis flag
+- `prosody` (ProsodyAttrs | None): Volume, rate, pitch
+- `language` (str | None): Language code (e.g., "fr-FR")
+- `breaks_after` (list[BreakAttrs]): Pauses after this segment
+- `say_as` (SayAsAttrs | None): Say-as interpretation
+- `substitution` (str | None): Substitution text
+- `phoneme` (str | None): Phonetic pronunciation (IPA)
+- `audio` (AudioAttrs | None): Audio file info
+- `marks` (list[str]): Marker names
+
+#### `VoiceAttrs`
+
+Voice configuration attributes.
+
+**Attributes:**
+
+- `name` (str | None): Voice name (e.g., "sarah", "en-US-Wavenet-A")
+- `language` (str | None): Language code (e.g., "en-US")
+- `gender` (str | None): Gender ("male", "female", "neutral")
+- `variant` (int | None): Voice variant number
+
+#### `ProsodyAttrs`
+
+Prosody (volume, rate, pitch) attributes.
+
+**Attributes:**
+
+- `volume` (str | None): Volume level (e.g., "x-loud", "+10dB")
+- `rate` (str | None): Speech rate (e.g., "fast", "120%")
+- `pitch` (str | None): Pitch level (e.g., "high", "+20%")
+
+#### `BreakAttrs`
+
+Pause/break attributes.
+
+**Attributes:**
+
+- `time` (str | None): Break duration (e.g., "500ms", "2s")
+- `strength` (str | None): Break strength (e.g., "weak", "strong")
+
+#### `SayAsAttrs`
+
+Say-as interpretation attributes.
+
+**Attributes:**
+
+- `interpret_as` (str): Interpretation type (e.g., "telephone", "date")
+- `format` (str | None): Format string (e.g., "mdy" for dates)
+
+#### `AudioAttrs`
+
+Audio file attributes.
+
+**Attributes:**
+
+- `src` (str): Audio file URL
+- `alt_text` (str | None): Alternative text if audio fails
+
+### Complete Example
+
+See `examples/parser_demo.py` for a comprehensive demonstration of all parser features:
+
+```bash
+python examples/parser_demo.py
+```
+
+The demo shows:
+
+- Basic segment parsing
+- Text transformations (say-as, substitution, phoneme)
+- Voice block handling
+- Complete TTS workflow with sentence assembly
+- Prosody and language annotations
+- Advanced sentence parsing options
+- Mock TTS integration
+
 ## API Reference
 
 ### Module Functions

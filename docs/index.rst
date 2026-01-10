@@ -26,6 +26,8 @@ Features
 
 🔄 **Bidirectional** - Convert SSMD↔SSML or strip to plain text
 
+📊 **Parser API** - Extract structured data for custom TTS pipelines
+
 📝 **TTS streaming** - Iterate through sentences for real-time TTS
 
 🎛️ **TTS capabilities** - Auto-filter features based on engine support
@@ -53,6 +55,13 @@ Quick Example
    plain = ssmd.to_text("Hello *world* @marker!")
    # → Hello world!
 
+   # Or use the Parser API for structured data
+   from ssmd import parse_sentences
+
+   for sentence in parse_sentences("Hello *world*!"):
+       for seg in sentence.segments:
+           print(f"Text: {seg.text}, Emphasis: {seg.emphasis}")
+
 Table of Contents
 -----------------
 
@@ -64,6 +73,7 @@ Table of Contents
    quickstart
    syntax
    capabilities
+   parser
    ssml_conversion
    examples
 

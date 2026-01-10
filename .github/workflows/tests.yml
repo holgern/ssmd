@@ -18,4 +18,6 @@ jobs:
         pip install pytest
         pip install -e .
         pip install -r requirements-test.txt
+        pip install spacy
+        python -m spacy download en_core_web_sm
         pytest

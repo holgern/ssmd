@@ -13,6 +13,8 @@ jobs:
       run: |
         pip install coverage click pytest pytest-cov
         pip install -r requirements-test.txt
+        pip install spacy
+        python -m spacy download en_core_web_sm
         pip install -e .
         pytest --cov --junitxml=junit.xml 
     - name: Upload coverage to Codecov
