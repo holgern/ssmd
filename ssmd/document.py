@@ -1,8 +1,12 @@
 """SSMD document container with sentence iteration for TTS."""
 
 from collections.abc import Iterator
+from typing import TYPE_CHECKING
 
 from ssmd.utils import extract_sentences
+
+if TYPE_CHECKING:
+    from ssmd.converter import Converter
 
 
 class SSMDDocument:
@@ -21,7 +25,7 @@ class SSMDDocument:
         ...     # tts_engine.speak(sentence)
     """
 
-    def __init__(self, ssmd_text: str, converter):
+    def __init__(self, ssmd_text: str, converter: "Converter") -> None:
         """Initialize document with SSMD text.
 
         Args:

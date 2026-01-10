@@ -2,6 +2,7 @@
 
 import re
 from collections.abc import Callable
+from typing import Optional
 
 from ssmd.annotations.base import BaseAnnotation
 
@@ -26,7 +27,9 @@ class ExtensionAnnotation(BaseAnnotation):
     }
 
     def __init__(
-        self, match: re.Match, custom_extensions: dict[str, Callable] | None = None
+        self,
+        match: re.Match,
+        custom_extensions: dict[str, Callable[[str], str]] | None = None,
     ):
         """Initialize with extension name.
 
@@ -35,7 +38,10 @@ class ExtensionAnnotation(BaseAnnotation):
             custom_extensions: Optional custom extension handlers
         """
         self.extension_name = match.group(1).strip()
-        self.extensions = {**self.DEFAULT_EXTENSIONS, **(custom_extensions or {})}
+        self.extensions: dict[str, Callable[[str], str]] = {
+            **self.DEFAULT_EXTENSIONS,
+            **(custom_extensions or {}),
+        }
 
     @classmethod
     def regex(cls) -> re.Pattern:
@@ -47,7 +53,7 @@ class ExtensionAnnotation(BaseAnnotation):
         return re.compile(r"^ext:\s*(\w+)$")
 
     @classmethod
-    def try_create(cls, annotation_str: str):
+    def try_create(cls, annotation_str: str) -> Optional["ExtensionAnnotation"]:
         """Try to create annotation with custom extensions from config.
 
         Note: This override is needed to pass custom extensions from config.
@@ -74,7 +80,7 @@ class ExtensionAnnotation(BaseAnnotation):
             Platform-specific SSML
         """
         handler = self.extensions.get(self.extension_name)
-        if handler:
+        if handler is not None:
             return handler(text)
 
         # Unknown extension, return unchanged

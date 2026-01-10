@@ -2,8 +2,10 @@
 
 from typing import Optional
 
+from ssmd.annotations.base import BaseAnnotation
 
-def get_annotation(annotation_str: str):
+
+def get_annotation(annotation_str: str) -> BaseAnnotation | None:
     """Try to create an annotation from a string.
 
     Args:
@@ -12,16 +14,16 @@ def get_annotation(annotation_str: str):
     Returns:
         Annotation instance or None if no match
     """
+    from ssmd.annotations.audio import AudioAnnotation
+    from ssmd.annotations.extension import ExtensionAnnotation
     from ssmd.annotations.language import LanguageAnnotation
     from ssmd.annotations.phoneme import PhonemeAnnotation
     from ssmd.annotations.prosody import ProsodyAnnotation
-    from ssmd.annotations.substitution import SubstitutionAnnotation
     from ssmd.annotations.say_as import SayAsAnnotation
-    from ssmd.annotations.audio import AudioAnnotation
-    from ssmd.annotations.extension import ExtensionAnnotation
+    from ssmd.annotations.substitution import SubstitutionAnnotation
 
     # Try each annotation type in order
-    annotation_types = [
+    annotation_types: list[type[BaseAnnotation]] = [
         AudioAnnotation,  # Try audio first (has URL pattern)
         ExtensionAnnotation,  # Extensions (ext: name)
         SayAsAnnotation,  # Say-as (as: type)

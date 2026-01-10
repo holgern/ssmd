@@ -113,12 +113,15 @@ class ProsodyAnnotation(BaseAnnotation):
 
         return text  # No valid attributes, return unchanged
 
-    def combine(self, other: "ProsodyAnnotation") -> None:
+    def combine(self, other: "BaseAnnotation") -> None:
         """Combine with another prosody annotation (first wins).
 
         Args:
             other: Another prosody annotation
         """
+        if not isinstance(other, ProsodyAnnotation):
+            return
+
         # Keep existing values, don't overwrite
         if self.volume is None:
             self.volume = other.volume

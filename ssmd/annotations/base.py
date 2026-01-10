@@ -34,7 +34,7 @@ class BaseAnnotation(ABC):
         """
         match = cls.regex().match(annotation_str.strip())
         if match:
-            return cls(match)
+            return cls(match)  # type: ignore[call-arg]
         return None
 
     @abstractmethod

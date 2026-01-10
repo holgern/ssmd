@@ -1,3 +1,8 @@
+[![PyPI - Version](https://img.shields.io/pypi/v/ssmd)](https://pypi.org/project/ssmd/)
+![PyPI - Python Version](https://img.shields.io/pypi/pyversions/ssmd)
+![PyPI - Downloads](https://img.shields.io/pypi/dm/ssmd)
+[![codecov](https://codecov.io/gh/holgern/ssmd/graph/badge.svg?token=iCHXwbjAXG)](https://codecov.io/gh/holgern/ssmd)
+
 # SSMD - Speech Synthesis Markdown
 
 **SSMD** (Speech Synthesis Markdown) is a lightweight Python library that provides a

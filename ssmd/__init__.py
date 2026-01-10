@@ -214,7 +214,7 @@ class SSMD:
 
 
 # Convenience functions for simple use cases
-def to_ssml(ssmd_text: str, **config) -> str:
+def to_ssml(ssmd_text: str, **config: Any) -> str:
     """Convert SSMD to SSML (convenience function).
 
     Args:
@@ -231,7 +231,7 @@ def to_ssml(ssmd_text: str, **config) -> str:
     return SSMD(config).to_ssml(ssmd_text)
 
 
-def strip_ssmd(ssmd_text: str, **config) -> str:
+def strip_ssmd(ssmd_text: str, **config: Any) -> str:
     """Strip SSMD annotations (convenience function).
 
     Args:
@@ -248,7 +248,7 @@ def strip_ssmd(ssmd_text: str, **config) -> str:
     return SSMD(config).strip(ssmd_text)
 
 
-def from_ssml(ssml_text: str, **config) -> str:
+def from_ssml(ssml_text: str, **config: Any) -> str:
     """Convert SSML to SSMD format (reverse conversion).
 
     Args:

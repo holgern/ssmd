@@ -3,6 +3,7 @@
 import re
 
 from ssmd.annotations import get_annotation
+from ssmd.annotations.base import BaseAnnotation
 from ssmd.processors.base import BaseProcessor
 
 
@@ -29,7 +30,7 @@ class AnnotationProcessor(BaseProcessor):
         """
         return re.compile(r"\[([^\]]+)\]\(([^\)]+)\)")
 
-    def _is_annotation_supported(self, annotation) -> bool:
+    def _is_annotation_supported(self, annotation: BaseAnnotation) -> bool:
         """Check if annotation is supported by current capabilities.
 
         Args:
@@ -91,7 +92,7 @@ class AnnotationProcessor(BaseProcessor):
         annotation_parts = [a.strip() for a in annotations_str.split(",")]
 
         # Build list of unique annotations (combining duplicates)
-        annotations = []
+        annotations: list[BaseAnnotation] = []
         for part in annotation_parts:
             annotation = get_annotation(part)
             if annotation:

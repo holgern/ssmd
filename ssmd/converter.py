@@ -1,9 +1,12 @@
 """Main SSMD to SSML conversion engine."""
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from ssmd.processors import get_all_processors
 from ssmd.utils import escape_xml, format_xml, unescape_xml
+
+if TYPE_CHECKING:
+    from ssmd.processors.base import BaseProcessor
 
 
 class Converter:
@@ -84,7 +87,9 @@ class Converter:
 
         return unescape_xml(result)
 
-    def _process_recursively(self, processor, text: str, strip: bool) -> str:
+    def _process_recursively(
+        self, processor: "BaseProcessor", text: str, strip: bool
+    ) -> str:
         """Apply processor recursively until no more matches.
 
         Args:
