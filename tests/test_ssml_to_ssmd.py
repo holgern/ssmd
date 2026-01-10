@@ -100,7 +100,10 @@ class TestSSMLToSSMD:
 
     def test_say_as_with_format(self):
         """Test say-as with format attribute."""
-        ssml = '<speak><say-as interpret-as="date" format="mdy">12/31/2024</say-as></speak>'
+        ssml = (
+            '<speak><say-as interpret-as="date" format="mdy">'
+            "12/31/2024</say-as></speak>"
+        )
         result = ssmd.from_ssml(ssml)
         assert result == '[12/31/2024](as: date, format: "mdy")'
 
@@ -164,7 +167,10 @@ class TestSSMLToSSMD:
     def test_amazon_whisper_effect(self):
         """Test Amazon whisper effect."""
         # Amazon effects require namespace declaration
-        ssml = '<speak xmlns:amazon="https://amazon.com/ssml"><amazon:effect name="whispered">secret</amazon:effect></speak>'
+        ssml = (
+            '<speak xmlns:amazon="https://amazon.com/ssml">'
+            '<amazon:effect name="whispered">secret</amazon:effect></speak>'
+        )
         result = ssmd.from_ssml(ssml)
         assert result == "[secret](ext: whisper)"
 
@@ -241,7 +247,7 @@ class TestSSMLToSSMD:
         """Test whitespace is normalized."""
         ssml = """<speak>
             Hello    world
-            
+
             Test
         </speak>"""
         result = ssmd.from_ssml(ssml)

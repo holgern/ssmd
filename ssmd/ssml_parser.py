@@ -99,13 +99,13 @@ class SSMLParser:
         # Register common SSML namespaces
         try:
             ET.register_namespace("amazon", "https://amazon.com/ssml")
-        except:
+        except Exception:
             pass  # Namespace might already be registered
 
         try:
             root = ET.fromstring(ssml)
         except ET.ParseError as e:
-            raise ValueError(f"Invalid SSML XML: {e}")
+            raise ValueError(f"Invalid SSML XML: {e}") from e
 
         # Process the root element
         result = self._process_element(root)

@@ -62,8 +62,7 @@ class SSMDDocument:
         if self._sentences is None:
             self._sentences = extract_sentences(self.ssml)
 
-        for sentence in self._sentences:
-            yield sentence
+        yield from self._sentences
 
     def get_sentence(self, index: int) -> str | None:
         """Get a specific sentence by index.

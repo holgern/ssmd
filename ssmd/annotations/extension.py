@@ -10,7 +10,8 @@ class ExtensionAnnotation(BaseAnnotation):
     """Process platform-specific extension annotations.
 
     Examples:
-        [whispers](ext: whisper) → <amazon:effect name="whispered">whispers</amazon:effect>
+        [whispers](ext: whisper) →
+            <amazon:effect name="whispered">whispers</amazon:effect>
         [url](ext: audio) → <audio src="url"/>
 
     Extensions can be registered via config['extensions'].
@@ -18,7 +19,9 @@ class ExtensionAnnotation(BaseAnnotation):
 
     # Built-in extensions
     DEFAULT_EXTENSIONS: dict[str, Callable[[str], str]] = {
-        "whisper": lambda text: f'<amazon:effect name="whispered">{text}</amazon:effect>',
+        "whisper": lambda text: (
+            f'<amazon:effect name="whispered">{text}</amazon:effect>'
+        ),
         "audio": lambda text: f'<audio src="{text}"/>',
     }
 

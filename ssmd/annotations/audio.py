@@ -9,8 +9,10 @@ class AudioAnnotation(BaseAnnotation):
     """Process audio file annotations.
 
     Examples:
-        [boing](https://example.com/sounds/boing.mp3) → <audio src="..."><desc>boing</desc></audio>
-        [purr](cat.ogg Sound didn't load) → <audio src="cat.ogg"><desc>purr</desc>Sound didn't load</audio>
+        [boing](https://example.com/sounds/boing.mp3) →
+            <audio src="..."><desc>boing</desc></audio>
+        [purr](cat.ogg Sound didn't load) →
+            <audio src="cat.ogg"><desc>purr</desc>Sound didn't load</audio>
         [](miaou.mp3) → <audio src="miaou.mp3"></audio>
     """
 

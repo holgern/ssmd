@@ -9,9 +9,12 @@ class SayAsAnnotation(BaseAnnotation):
     """Process say-as annotations.
 
     Examples:
-        [+49 123456](as: telephone) → <say-as interpret-as="telephone">+49 123456</say-as>
-        [fuck](as: expletive) → <say-as interpret-as="expletive">fuck</say-as>
-        [29.12.2017](as: date, format: "dd.mm.yyyy") → <say-as interpret-as="date" format="dd.mm.yyyy">
+        [+49 123456](as: telephone) →
+            <say-as interpret-as="telephone">+49 123456</say-as>
+        [fuck](as: expletive) →
+            <say-as interpret-as="expletive">fuck</say-as>
+        [29.12.2017](as: date, format: "dd.mm.yyyy") →
+            <say-as interpret-as="date" format="dd.mm.yyyy">
 
     Supported interpret-as values:
         - character, number, ordinal, digits, fraction, unit

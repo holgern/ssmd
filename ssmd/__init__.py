@@ -90,8 +90,9 @@ class SSMD:
                 - heading_levels (dict): Custom heading configurations
                 - extensions (dict): Registered extension handlers
             capabilities: TTS capabilities (TTSCapabilities instance or preset name).
-                Automatically configures processor skipping based on TTS support.
-                Presets: 'espeak', 'pyttsx3', 'google', 'polly', 'azure', 'minimal', 'full'
+                Automatically configures processor skipping based on TTS
+                support. Presets: 'espeak', 'pyttsx3', 'google', 'polly',
+                'azure', 'minimal', 'full'
 
         Example:
             >>> # Full SSML support

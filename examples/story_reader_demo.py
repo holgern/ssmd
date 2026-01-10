@@ -15,9 +15,10 @@ def read_story_chapter():
     story = """
 # Chapter 3: The Discovery
 
-[Emma](en-GB) stepped into the dusty library ...800ms her eyes adjusting to the dim light.
-++"This is it"++ she whispered to herself.
-The ancient book lay on the pedestal @book_location, exactly where the [map](sub: treasure map) had indicated.
+[Emma](en-GB) stepped into the dusty library ...800ms her eyes adjusting to
+the dim light. ++"This is it"++ she whispered to herself.
+The ancient book lay on the pedestal @book_location, exactly where the
+[map](sub: treasure map) had indicated.
 
 She approached slowly, her footsteps echoing in the silence.
 Each step seemed to say [[kri:k]](ph: kri:k) in the quiet.

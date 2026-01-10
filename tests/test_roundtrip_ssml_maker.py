@@ -6,17 +6,16 @@ then validates:
 2. SSMD → SSML roundtrip preserves the semantic meaning
 """
 
-import pytest
 from ssml_maker import (
-    Speech,
-    InterpretAs,
-    ProsodyConfig,
-    ProsodyRate,
-    ProsodyPitch,
-    VolumeLevel,
     BreakStrength,
-    PhoneticAlphabet,
     EmphasisLevel,
+    InterpretAs,
+    PhoneticAlphabet,
+    ProsodyConfig,
+    ProsodyPitch,
+    ProsodyRate,
+    Speech,
+    VolumeLevel,
 )
 
 import ssmd
@@ -52,9 +51,9 @@ class TestEmphasis:
         ssmd_text = ssmd.from_ssml(original_ssml)
 
         # Validate SSMD syntax
-        assert ssmd_text == "**critical**", (
-            f"Expected '**critical**', got '{ssmd_text}'"
-        )
+        assert (
+            ssmd_text == "**critical**"
+        ), f"Expected '**critical**', got '{ssmd_text}'"
 
         # Validate roundtrip
         result_ssml = ssmd.to_ssml(ssmd_text)
@@ -149,9 +148,9 @@ class TestProsody:
         ssmd_text = ssmd.from_ssml(original_ssml)
 
         # Validate SSMD syntax
-        assert "++VERY LOUD++" in ssmd_text, (
-            f"Expected '++VERY LOUD++' in '{ssmd_text}'"
-        )
+        assert (
+            "++VERY LOUD++" in ssmd_text
+        ), f"Expected '++VERY LOUD++' in '{ssmd_text}'"
 
         # Validate roundtrip
         result_ssml = ssmd.to_ssml(ssmd_text)
@@ -221,9 +220,9 @@ class TestProsody:
         ssmd_text = ssmd.from_ssml(original_ssml)
 
         # Validate SSMD syntax - should use annotation format
-        assert "[energetic]" in ssmd_text, (
-            f"Expected annotation format in '{ssmd_text}'"
-        )
+        assert (
+            "[energetic]" in ssmd_text
+        ), f"Expected annotation format in '{ssmd_text}'"
         assert "v:" in ssmd_text or "volume" in ssmd_text
         assert "r:" in ssmd_text or "rate" in ssmd_text
         assert "p:" in ssmd_text or "pitch" in ssmd_text
@@ -305,9 +304,9 @@ class TestSubstitution:
         ssmd_text = ssmd.from_ssml(original_ssml)
 
         # Validate SSMD syntax
-        assert "[W3C](sub: World Wide Web Consortium)" in ssmd_text, (
-            f"Got '{ssmd_text}'"
-        )
+        assert (
+            "[W3C](sub: World Wide Web Consortium)" in ssmd_text
+        ), f"Got '{ssmd_text}'"
 
         # Validate roundtrip
         result_ssml = ssmd.to_ssml(ssmd_text)

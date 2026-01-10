@@ -101,7 +101,8 @@ class AnnotationProcessor(BaseProcessor):
 
                 # Check if we already have this type
                 existing = next(
-                    (a for a in annotations if type(a) == type(annotation)), None
+                    (a for a in annotations if isinstance(a, type(annotation))),
+                    None,
                 )
                 if existing:
                     # Combine with existing (first wins by default)

@@ -75,7 +75,7 @@ def test_class_api():
     result = parser.to_ssml("hello *world*")
     assert "emphasis" in result
 
-    plain = parser.strip("hello *world*")
+    plain = parser.strip("hello *world*")  # noqa: B005
     assert plain == "hello world"
 
 

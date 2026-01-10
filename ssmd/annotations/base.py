@@ -49,7 +49,7 @@ class BaseAnnotation(ABC):
         """
         pass
 
-    def combine(self, other: "BaseAnnotation") -> None:
+    def combine(self, other: "BaseAnnotation") -> None:  # noqa: B027
         """Combine with duplicate annotation.
 
         Default behavior: first annotation wins, ignore duplicates.
