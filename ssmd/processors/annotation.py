@@ -99,11 +99,11 @@ class AnnotationProcessor(BaseProcessor):
 
         voice_pattern = VoiceAnnotation.regex()
         voice_match = voice_pattern.match(annotations_str.strip())
-        if voice_match:
+        if voice_match is not None:
             # This is a voice annotation - don't split by comma
-            annotation = VoiceAnnotation(voice_match)
-            if self._is_annotation_supported(annotation):
-                return annotation.wrap(text)
+            voice_annotation = VoiceAnnotation(voice_match)
+            if self._is_annotation_supported(voice_annotation):
+                return voice_annotation.wrap(text)
             else:
                 return text  # Return plain text if not supported
 
@@ -113,27 +113,27 @@ class AnnotationProcessor(BaseProcessor):
         # Build list of unique annotations (combining duplicates)
         annotations: list[BaseAnnotation] = []
         for part in annotation_parts:
-            annotation = get_annotation(part)
-            if annotation:
+            ann = get_annotation(part)
+            if ann is not None:
                 # Filter based on capabilities
-                if not self._is_annotation_supported(annotation):
+                if not self._is_annotation_supported(ann):
                     continue  # Skip unsupported annotation
 
                 # Check if we already have this type
                 existing = next(
-                    (a for a in annotations if isinstance(a, type(annotation))),
+                    (a for a in annotations if isinstance(a, type(ann))),
                     None,
                 )
                 if existing:
                     # Combine with existing (first wins by default)
-                    existing.combine(annotation)
+                    existing.combine(ann)
                 else:
-                    annotations.append(annotation)
+                    annotations.append(ann)
 
         # Wrap text in annotations (innermost to outermost)
         result = text
-        for annotation in annotations:
-            result = annotation.wrap(result)
+        for ann in annotations:
+            result = ann.wrap(result)
 
         return result
 
