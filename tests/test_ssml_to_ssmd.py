@@ -291,3 +291,31 @@ class TestSSMLToSSMD:
         ssml_out = ssmd.to_ssml(original)
         ssmd_back = ssmd.from_ssml(ssml_out)
         assert ssmd_back == original
+
+    def test_voice_directive_to_ssmd(self):
+        """Test converting multiline voice SSML to directive syntax."""
+        ssml = (
+            '<speak><p><voice name="sarah">This is a long sentence that '
+            "should convert to directive syntax because it is longer than "
+            "eighty characters.</voice></p></speak>"
+        )
+        result = ssmd.from_ssml(ssml)
+        assert result.startswith("@voice: sarah\n")
+        assert "This is a long sentence" in result
+
+    def test_voice_directive_roundtrip(self):
+        """Test roundtrip with voice directive syntax."""
+        original = """@voice: sarah
+Hello from Sarah with a very long message that definitely spans way more
+than eighty characters to trigger directive format
+
+@voice: michael
+And hello from Michael with another long message to ensure it uses
+directive format too"""
+        ssml_out = ssmd.to_ssml(original)
+        assert '<voice name="sarah">' in ssml_out
+        assert '<voice name="michael">' in ssml_out
+        # Convert back - should use directive syntax for long content
+        ssmd_back = ssmd.from_ssml(ssml_out)
+        assert "@voice: sarah" in ssmd_back
+        assert "@voice: michael" in ssmd_back

@@ -266,12 +266,19 @@ ssmd.to_ssml('[Cheerio](en-GB)')
 
 ### Voice Selection
 
+SSMD supports two ways to specify voices: **inline annotations** for short phrases and
+**block directives** for longer passages (ideal for dialogue and scripts).
+
+#### Inline Voice Annotations
+
+Perfect for short voice changes within a sentence:
+
 ```python
 # Simple voice name
 ssmd.to_ssml('[Hello](voice: Joanna)')
 # → <speak><voice name="Joanna">Hello</voice></speak>
 
-# Cloud TTS voice name (e.g., Google Wavenet)
+# Cloud TTS voice name (e.g., Google Wavenet, AWS Polly)
 ssmd.to_ssml('[Hello](voice: en-US-Wavenet-A)')
 # → <speak><voice name="en-US-Wavenet-A">Hello</voice></speak>
 
@@ -282,6 +289,51 @@ ssmd.to_ssml('[Bonjour](voice: fr-FR, gender: female)')
 # All attributes (language, gender, variant)
 ssmd.to_ssml('[Text](voice: en-GB, gender: male, variant: 1)')
 # → <speak><voice language="en-GB" gender="male" variant="1">Text</voice></speak>
+```
+
+#### Voice Directives (Block Syntax)
+
+Perfect for dialogue, podcasts, and scripts with multiple speakers:
+
+```python
+# Use @voice: name or @voice(name) for clean dialogue formatting
+script = """
+@voice: af_sarah
+Welcome to Tech Talk! I'm Sarah, and today we're diving into the fascinating
+world of text-to-speech technology.
+...s
+
+@voice: am_michael
+And I'm Michael! We've got an amazing episode lined up. The advances in neural
+TTS have been incredible lately.
+...s
+
+@voice: af_sarah
+So what are we covering today?
+"""
+
+ssmd.to_ssml(script)
+# Each voice directive creates a separate voice block in SSML
+```
+
+**Voice directive features:**
+
+- Use `@voice: name` or `@voice(name)` syntax
+- Applies to all text until the next directive or paragraph break
+- Automatically detected on SSML→SSMD conversion for long voice blocks
+- Much more readable than inline annotations for dialogue
+
+**Mixing both styles:**
+
+```python
+# Block directive for main speaker, inline for interruptions
+text = """
+@voice: sarah
+Hello everyone, [but wait!](voice: michael) Michael interrupts...
+
+@voice: michael
+Sorry, I had to jump in there!
+"""
 ```
 
 ### Phonetic Pronunciation
@@ -616,13 +668,14 @@ with additional features inspired by the JavaScript implementation.
 ### Implemented Features
 
 ✅ Text ✅ Emphasis (`*text*`) ✅ Break (`...500ms`, `...2s`, `...n/w/c/s/p`) ✅
-Language (`[text](en)`, `[text](en-GB)`) ✅ Voice (`[text](voice: Joanna)`,
-`[text](voice: en-US, gender: female)`) ✅ Mark (`@marker`) ✅ Paragraph (`\n\n`) ✅
-Phoneme (`[text](ph: xsampa)`, `[text](ipa: ipa)`) ✅ Prosody shorthand (`++loud++`,
-`>>fast>>`, `^^high^^`) ✅ Prosody explicit (`[text](vrp: 555)`, `[text](v: 5)`) ✅
-Substitution (`[text](sub: alias)`) ✅ Say-as (`[text](as: telephone)`) ✅ Audio
-(`[desc](url.mp3 alt)`) ✅ Headings (`# ## ###`) ✅ Extensions (`[text](ext: whisper)`)
-✅ Auto-sentence tags (`<s>`) ✅ **SSML ↔ SSMD bidirectional conversion**
+Language (`[text](en)`, `[text](en-GB)`) ✅ Voice inline (`[text](voice: Joanna)`,
+`[text](voice: en-US, gender: female)`) ✅ Voice directives (`@voice: name`) ✅ Mark
+(`@marker`) ✅ Paragraph (`\n\n`) ✅ Phoneme (`[text](ph: xsampa)`, `[text](ipa: ipa)`)
+✅ Prosody shorthand (`++loud++`, `>>fast>>`, `^^high^^`) ✅ Prosody explicit
+(`[text](vrp: 555)`, `[text](v: 5)`) ✅ Substitution (`[text](sub: alias)`) ✅ Say-as
+(`[text](as: telephone)`) ✅ Audio (`[desc](url.mp3 alt)`) ✅ Headings (`# ## ###`) ✅
+Extensions (`[text](ext: whisper)`) ✅ Auto-sentence tags (`<s>`) ✅ **SSML ↔ SSMD
+bidirectional conversion**
 
 ## Related Projects
 

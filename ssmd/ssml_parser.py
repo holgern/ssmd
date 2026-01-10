@@ -113,6 +113,9 @@ class SSMLParser:
         # Clean up whitespace
         result = self._clean_whitespace(result)
 
+        # Restore voice directive newlines (protected during whitespace cleaning)
+        result = result.replace("{VOICE_NEWLINE}", "\n")
+
         return result.strip()
 
     def _process_element(self, element: ET.Element) -> str:
@@ -339,7 +342,10 @@ class SSMLParser:
         return content
 
     def _process_voice(self, element: ET.Element) -> str:
-        """Convert <voice> to [text](voice: ...).
+        """Convert <voice> to directive or annotation syntax.
+
+        Uses directive syntax (@voice: name) for multi-line content,
+        and annotation syntax ([text](voice: name)) for single-line content.
 
         Args:
             element: voice element
@@ -355,7 +361,21 @@ class SSMLParser:
         gender = element.get("gender")
         variant = element.get("variant")
 
-        # Build annotation string
+        # Check if content is multi-line (use directive syntax)
+        # or single-line (use annotation)
+        is_multiline = "\n" in content.strip() or len(content.strip()) > 80
+
+        # For directive syntax, we can only use simple names, not complex attributes
+        use_directive = (
+            is_multiline and name and not language and not gender and not variant
+        )
+
+        if use_directive:
+            # Use block directive syntax for cleaner multi-line voice blocks
+            # Use a placeholder to protect the newline from whitespace cleaning
+            return f"@voice: {name}{{VOICE_NEWLINE}}{content.strip()}"
+
+        # Use inline annotation syntax
         if name:
             # Simple name-only format
             return f"[{content}](voice: {name})"

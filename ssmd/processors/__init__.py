@@ -15,6 +15,7 @@ def get_all_processors(config: dict[str, Any]) -> list:
     from ssmd.processors.emphasis import EmphasisProcessor
     from ssmd.processors.annotation import AnnotationProcessor
     from ssmd.processors.mark import MarkProcessor
+    from ssmd.processors.voice_directive import VoiceDirectiveProcessor
     from ssmd.processors.prosody import ProsodyProcessor
     from ssmd.processors.heading import HeadingProcessor
     from ssmd.processors.paragraph import ParagraphProcessor
@@ -22,7 +23,9 @@ def get_all_processors(config: dict[str, Any]) -> list:
     from ssmd.processors.break_processor import BreakProcessor
 
     # Order matters! Process in this sequence
+    # VoiceDirectiveProcessor should run early to wrap blocks before other processing
     return [
+        VoiceDirectiveProcessor(config),  # Process voice blocks first
         EmphasisProcessor(config),
         AnnotationProcessor(config),
         MarkProcessor(config),

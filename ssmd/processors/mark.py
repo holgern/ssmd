@@ -11,12 +11,12 @@ class MarkProcessor(BaseProcessor):
     name = "mark"
 
     def regex(self) -> re.Pattern:
-        """Match @ followed by identifier.
-
+        """Match @ followed by identifier (but not @voice: or @voice()\n
         Returns:
             Pattern matching @identifier
         """
-        return re.compile(r"@(\w+)")
+        # Negative lookahead to exclude @voice: and @voice(
+        return re.compile(r"@(?!voice[:(])(\w+)")
 
     def result(self, match: re.Match) -> str:
         """Convert to SSML mark element.

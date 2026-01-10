@@ -144,7 +144,13 @@ Common language codes:
 Voice Selection
 ~~~~~~~~~~~~~~~
 
-Control which voice speaks the text:
+SSMD supports two ways to specify voices: **inline annotations** for short phrases
+and **block directives** for longer passages (ideal for dialogue and scripts).
+
+Inline Voice Annotations
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Perfect for short voice changes within a sentence:
 
 .. code-block:: python
 
@@ -169,6 +175,53 @@ Voice attributes:
 * ``voice: NAME`` - Voice name (e.g., Joanna, en-US-Wavenet-A)
 * ``gender: GENDER`` - male, female, or neutral
 * ``variant: NUMBER`` - Variant number for tiebreaking
+
+Voice Directives (Block Syntax)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Perfect for dialogue, podcasts, and scripts with multiple speakers:
+
+.. code-block:: python
+
+   # Use @voice: name or @voice(name) for clean dialogue formatting
+   script = """
+   @voice: af_sarah
+   Welcome to Tech Talk! I'm Sarah, and today we're diving into the
+   fascinating world of text-to-speech technology.
+   ...s
+
+   @voice: am_michael
+   And I'm Michael! We've got an amazing episode lined up. The advances
+   in neural TTS have been incredible lately.
+   ...s
+
+   @voice: af_sarah
+   So what are we covering today?
+   """
+
+   ssmd.to_ssml(script)
+   # Each voice directive creates a separate voice block in SSML
+
+Voice directive features:
+
+* Use ``@voice: name`` or ``@voice(name)`` syntax
+* Applies to all text until the next directive or paragraph break
+* Automatically detected on SSML→SSMD conversion for long voice blocks
+* Much more readable than inline annotations for dialogue
+
+Mixing inline and directive syntax:
+
+.. code-block:: python
+
+   # Block directive for main speaker, inline for interruptions
+   text = """
+   @voice: sarah
+   Hello everyone, [but wait!](voice: michael) Michael interrupts...
+
+   @voice: michael
+   Sorry, I had to jump in there!
+   """
+
 
 Phonetic Pronunciation
 ~~~~~~~~~~~~~~~~~~~~~~

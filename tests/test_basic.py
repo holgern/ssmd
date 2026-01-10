@@ -188,5 +188,66 @@ def test_strip_voice():
     assert result == "Hello"
 
 
+def test_voice_directive_simple():
+    """Test voice directive with simple name."""
+    text = """@voice: sarah
+Hello from Sarah"""
+    result = ssmd.to_ssml(text)
+    assert '<voice name="sarah">Hello from Sarah</voice>' in result
+
+
+def test_voice_directive_with_break():
+    """Test voice directive with break."""
+    text = """@voice: sarah
+Hello from Sarah
+...500ms"""
+    result = ssmd.to_ssml(text)
+    assert '<voice name="sarah">Hello from Sarah' in result
+    assert '<break time="500ms"/>' in result
+
+
+def test_voice_directive_multiple():
+    """Test multiple voice directives in sequence."""
+    text = """@voice: sarah
+Hello from Sarah
+
+@voice: michael
+Hello from Michael"""
+    result = ssmd.to_ssml(text)
+    assert '<voice name="sarah">Hello from Sarah</voice>' in result
+    assert '<voice name="michael">Hello from Michael</voice>' in result
+    # Should be in separate paragraphs
+    assert result.count("<p>") == 2
+
+
+def test_voice_directive_parentheses():
+    """Test voice directive with parentheses syntax."""
+    text = """@voice(sarah)
+Hello from Sarah"""
+    result = ssmd.to_ssml(text)
+    assert '<voice name="sarah">Hello from Sarah</voice>' in result
+
+
+def test_voice_directive_strip():
+    """Test stripping voice directive markup."""
+    text = """@voice: sarah
+Hello from Sarah"""
+    result = ssmd.to_text(text)
+    assert result.strip() == "Hello from Sarah"
+
+
+def test_voice_inline_and_directive():
+    """Test mixing inline and directive voice syntax."""
+    text = """@voice: sarah
+Hello from Sarah, and [this is Michael](voice: michael) interrupting!
+
+@voice: michael
+Now I'm speaking normally."""
+    result = ssmd.to_ssml(text)
+    assert '<voice name="sarah">' in result
+    assert '<voice name="michael">this is Michael</voice>' in result
+    assert result.count('name="michael"') == 2
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
