@@ -12,6 +12,7 @@ class AnnotationProcessor(BaseProcessor):
 
     Annotations can include:
     - Language codes: [text](en), [text](en-GB)
+    - Voice: [text](voice: Joanna), [text](voice: en-US, gender: female)
     - Phonemes: [text](ph: dIC), [text](ipa: dɪç)
     - Prosody: [text](vrp: 555), [text](v: 5, r: 3, p: 1)
     - Substitution: [text](sub: alias)
@@ -51,6 +52,7 @@ class AnnotationProcessor(BaseProcessor):
         from ssmd.annotations.prosody import ProsodyAnnotation
         from ssmd.annotations.say_as import SayAsAnnotation
         from ssmd.annotations.substitution import SubstitutionAnnotation
+        from ssmd.annotations.voice import VoiceAnnotation
 
         # Check annotation type against capabilities
         if isinstance(annotation, LanguageAnnotation):
@@ -63,6 +65,9 @@ class AnnotationProcessor(BaseProcessor):
             return capabilities.say_as
         elif isinstance(annotation, AudioAnnotation):
             return capabilities.audio
+        elif isinstance(annotation, VoiceAnnotation):
+            # Voice is generally supported by cloud TTS but not by basic engines
+            return getattr(capabilities, "voice", True)
         elif isinstance(annotation, ProsodyAnnotation):
             # For prosody annotations, check if any attribute is supported
             return capabilities.prosody
@@ -88,7 +93,21 @@ class AnnotationProcessor(BaseProcessor):
         text = match.group(1)
         annotations_str = match.group(2)
 
-        # Parse comma-separated annotations
+        # Check if this is a voice annotation (which may contain commas)
+        # Voice annotations should be matched as a whole before comma-splitting
+        from ssmd.annotations.voice import VoiceAnnotation
+
+        voice_pattern = VoiceAnnotation.regex()
+        voice_match = voice_pattern.match(annotations_str.strip())
+        if voice_match:
+            # This is a voice annotation - don't split by comma
+            annotation = VoiceAnnotation(voice_match)
+            if self._is_annotation_supported(annotation):
+                return annotation.wrap(text)
+            else:
+                return text  # Return plain text if not supported
+
+        # Parse comma-separated annotations (for non-voice annotations)
         annotation_parts = [a.strip() for a in annotations_str.split(",")]
 
         # Build list of unique annotations (combining duplicates)

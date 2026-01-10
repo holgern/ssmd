@@ -144,6 +144,8 @@ class SSMLParser:
             return self._process_prosody(element)
         elif tag == "lang":
             return self._process_language(element)
+        elif tag == "voice":
+            return self._process_voice(element)
         elif tag == "phoneme":
             return self._process_phoneme(element)
         elif tag == "sub":
@@ -333,6 +335,43 @@ class SSMLParser:
                 return f"[{content}]({simplified})"
             # Otherwise use full locale
             return f"[{content}]({lang})"
+
+        return content
+
+    def _process_voice(self, element: ET.Element) -> str:
+        """Convert <voice> to [text](voice: ...).
+
+        Args:
+            element: voice element
+
+        Returns:
+            SSMD voice syntax
+        """
+        content = self._process_children(element)
+
+        # Get voice attributes
+        name = element.get("name")
+        language = element.get("language")
+        gender = element.get("gender")
+        variant = element.get("variant")
+
+        # Build annotation string
+        if name:
+            # Simple name-only format
+            return f"[{content}](voice: {name})"
+        else:
+            # Complex format with language/gender/variant
+            parts = []
+            if language:
+                parts.append(f"voice: {language}")
+            if gender:
+                parts.append(f"gender: {gender}")
+            if variant:
+                parts.append(f"variant: {variant}")
+
+            if parts:
+                annotation = ", ".join(parts)
+                return f"[{content}]({annotation})"
 
         return content
 

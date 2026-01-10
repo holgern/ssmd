@@ -141,6 +141,35 @@ Common language codes:
 * ``zh`` → zh-CN
 * ``ru`` → ru-RU
 
+Voice Selection
+~~~~~~~~~~~~~~~
+
+Control which voice speaks the text:
+
+.. code-block:: python
+
+   # Simple voice name
+   ssmd.to_ssml('[Hello](voice: Joanna)')
+   # → <speak><voice name="Joanna">Hello</voice></speak>
+
+   # Cloud TTS voice (e.g., Google Wavenet, AWS Polly)
+   ssmd.to_ssml('[Hello](voice: en-US-Wavenet-A)')
+   # → <speak><voice name="en-US-Wavenet-A">Hello</voice></speak>
+
+   # Language and gender attributes
+   ssmd.to_ssml('[Bonjour](voice: fr-FR, gender: female)')
+   # → <speak><voice language="fr-FR" gender="female">Bonjour</voice></speak>
+
+   # All attributes (language, gender, variant)
+   ssmd.to_ssml('[Text](voice: en-GB, gender: male, variant: 1)')
+   # → <speak><voice language="en-GB" gender="male" variant="1">Text</voice></speak>
+
+Voice attributes:
+
+* ``voice: NAME`` - Voice name (e.g., Joanna, en-US-Wavenet-A)
+* ``gender: GENDER`` - male, female, or neutral
+* ``variant: NUMBER`` - Variant number for tiebreaking
+
 Phonetic Pronunciation
 ~~~~~~~~~~~~~~~~~~~~~~
 

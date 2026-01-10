@@ -21,11 +21,13 @@ def get_annotation(annotation_str: str) -> BaseAnnotation | None:
     from ssmd.annotations.prosody import ProsodyAnnotation
     from ssmd.annotations.say_as import SayAsAnnotation
     from ssmd.annotations.substitution import SubstitutionAnnotation
+    from ssmd.annotations.voice import VoiceAnnotation
 
     # Try each annotation type in order
     annotation_types: list[type[BaseAnnotation]] = [
         AudioAnnotation,  # Try audio first (has URL pattern)
         ExtensionAnnotation,  # Extensions (ext: name)
+        VoiceAnnotation,  # Voice (voice: name, voice: lang)
         SayAsAnnotation,  # Say-as (as: type)
         PhonemeAnnotation,  # Phonemes (ph: ..., ipa: ...)
         ProsodyAnnotation,  # Prosody (vrp: 555, v: 5, etc.)

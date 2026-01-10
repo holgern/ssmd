@@ -264,6 +264,26 @@ ssmd.to_ssml('[Cheerio](en-GB)')
 # → <speak><lang xml:lang="en-GB">Cheerio</lang></speak>
 ```
 
+### Voice Selection
+
+```python
+# Simple voice name
+ssmd.to_ssml('[Hello](voice: Joanna)')
+# → <speak><voice name="Joanna">Hello</voice></speak>
+
+# Cloud TTS voice name (e.g., Google Wavenet)
+ssmd.to_ssml('[Hello](voice: en-US-Wavenet-A)')
+# → <speak><voice name="en-US-Wavenet-A">Hello</voice></speak>
+
+# Language and gender
+ssmd.to_ssml('[Bonjour](voice: fr-FR, gender: female)')
+# → <speak><voice language="fr-FR" gender="female">Bonjour</voice></speak>
+
+# All attributes (language, gender, variant)
+ssmd.to_ssml('[Text](voice: en-GB, gender: male, variant: 1)')
+# → <speak><voice language="en-GB" gender="male" variant="1">Text</voice></speak>
+```
+
 ### Phonetic Pronunciation
 
 ```python
@@ -596,7 +616,8 @@ with additional features inspired by the JavaScript implementation.
 ### Implemented Features
 
 ✅ Text ✅ Emphasis (`*text*`) ✅ Break (`...500ms`, `...2s`, `...n/w/c/s/p`) ✅
-Language (`[text](en)`, `[text](en-GB)`) ✅ Mark (`@marker`) ✅ Paragraph (`\n\n`) ✅
+Language (`[text](en)`, `[text](en-GB)`) ✅ Voice (`[text](voice: Joanna)`,
+`[text](voice: en-US, gender: female)`) ✅ Mark (`@marker`) ✅ Paragraph (`\n\n`) ✅
 Phoneme (`[text](ph: xsampa)`, `[text](ipa: ipa)`) ✅ Prosody shorthand (`++loud++`,
 `>>fast>>`, `^^high^^`) ✅ Prosody explicit (`[text](vrp: 555)`, `[text](v: 5)`) ✅
 Substitution (`[text](sub: alias)`) ✅ Say-as (`[text](as: telephone)`) ✅ Audio

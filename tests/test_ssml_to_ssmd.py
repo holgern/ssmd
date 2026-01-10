@@ -256,3 +256,38 @@ class TestSSMLToSSMD:
         # Content should be preserved
         assert "Hello world" in result
         assert "Test" in result
+
+    def test_voice_name(self):
+        """Test voice with name conversion."""
+        ssml = '<speak><voice name="Joanna">Hello</voice></speak>'
+        result = ssmd.from_ssml(ssml)
+        assert result == "[Hello](voice: Joanna)"
+
+    def test_voice_language_gender(self):
+        """Test voice with language and gender."""
+        ssml = '<speak><voice language="fr-FR" gender="female">Bonjour</voice></speak>'
+        result = ssmd.from_ssml(ssml)
+        assert result == "[Bonjour](voice: fr-FR, gender: female)"
+
+    def test_voice_all_attributes(self):
+        """Test voice with all attributes."""
+        ssml = (
+            '<speak><voice language="en-GB" gender="male" '
+            'variant="1">Text</voice></speak>'
+        )
+        result = ssmd.from_ssml(ssml)
+        assert result == "[Text](voice: en-GB, gender: male, variant: 1)"
+
+    def test_roundtrip_voice_name(self):
+        """Test roundtrip voice with name."""
+        original = "[Hello](voice: Joanna)"
+        ssml_out = ssmd.to_ssml(original)
+        ssmd_back = ssmd.from_ssml(ssml_out)
+        assert ssmd_back == original
+
+    def test_roundtrip_voice_complex(self):
+        """Test roundtrip voice with language and gender."""
+        original = "[Bonjour](voice: fr-FR, gender: female)"
+        ssml_out = ssmd.to_ssml(original)
+        ssmd_back = ssmd.from_ssml(ssml_out)
+        assert ssmd_back == original

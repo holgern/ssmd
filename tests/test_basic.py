@@ -158,5 +158,35 @@ def test_document_from_text():
     assert doc.ssmd == "Hello world"
 
 
+def test_voice_simple_name():
+    """Test voice with simple name."""
+    result = ssmd.to_ssml("[Hello](voice: Joanna)")
+    assert '<voice name="Joanna">Hello</voice>' in result
+
+
+def test_voice_language_gender():
+    """Test voice with language and gender."""
+    result = ssmd.to_ssml("[Bonjour](voice: fr-FR, gender: female)")
+    assert '<voice language="fr-FR" gender="female">Bonjour</voice>' in result
+
+
+def test_voice_all_attributes():
+    """Test voice with all attributes."""
+    result = ssmd.to_ssml("[Text](voice: en-GB, gender: male, variant: 1)")
+    assert '<voice language="en-GB" gender="male" variant="1">Text</voice>' in result
+
+
+def test_voice_wavenet_name():
+    """Test voice with Wavenet-style name."""
+    result = ssmd.to_ssml("[Hello](voice: en-US-Wavenet-A)")
+    assert '<voice name="en-US-Wavenet-A">Hello</voice>' in result
+
+
+def test_strip_voice():
+    """Test stripping voice markup."""
+    result = ssmd.to_text("[Hello](voice: Joanna)")
+    assert result == "Hello"
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
