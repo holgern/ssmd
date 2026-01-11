@@ -605,9 +605,12 @@ def _split_sentences(
         # Build model name from language + size for spaCy mode
         # phrasplit will auto-detect if spaCy is available and fall back to regex
         size = model_size or "sm"
+        # Extract 2-letter language code from BCP-47 locale (e.g., "en-US" -> "en")
+        # spaCy models use simple 2-letter codes: en_core_web_sm, not en-US_core_web_sm
+        lang_code = language.split("-")[0] if "-" in language else language
         # Simple pattern - most languages use this format
         # phrasplit handles language-specific patterns internally
-        language_model = f"{language}_core_web_{size}"
+        language_model = f"{lang_code}_core_web_{size}"
 
     # phrasplit handles everything: spaCy detection, fallback, errors
     segments = split_text(

@@ -146,6 +146,18 @@ class TestParseSentencesCustomModel:
 class TestParseSentencesMultiLanguage:
     """Test sentence parsing with multiple languages."""
 
+    def test_locale_normalization(self):
+        """BCP-47 locales (en-US, fr-FR) should normalize to 2-letter codes (en, fr)."""
+        # Test with en-US locale - should use en_core_web_sm, not en-US_core_web_sm
+        text = "Hello world. This is a test."
+        sentences = parse_sentences(text, language="en-US")
+        # Should work (phrasplit will use "en" internally)
+        assert len(sentences) == 2
+
+        # Test with en-GB locale
+        sentences = parse_sentences(text, language="en-GB")
+        assert len(sentences) == 2
+
     def test_french_default_model(self):
         """Parse French text with default small model."""
         text = """
