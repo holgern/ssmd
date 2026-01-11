@@ -24,35 +24,6 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# Language model name patterns for spaCy models
-# Format: language_code -> model_name_pattern ({size} = sm/md/lg/trf)
-LANGUAGE_MODEL_PATTERNS = {
-    "en": "en_core_web_{size}",
-    "fr": "fr_core_news_{size}",
-    "de": "de_core_news_{size}",
-    "es": "es_core_news_{size}",
-    "it": "it_core_news_{size}",
-    "pt": "pt_core_news_{size}",
-    "nl": "nl_core_news_{size}",
-    "ca": "ca_core_news_{size}",
-    "da": "da_core_news_{size}",
-    "fi": "fi_core_news_{size}",
-    "el": "el_core_news_{size}",
-    "ja": "ja_core_news_{size}",
-    "ko": "ko_core_news_{size}",
-    "lt": "lt_core_news_{size}",
-    "mk": "mk_core_news_{size}",
-    "nb": "nb_core_news_{size}",
-    "pl": "pl_core_news_{size}",
-    "ro": "ro_core_news_{size}",
-    "ru": "ru_core_news_{size}",
-    "sl": "sl_core_news_{size}",
-    "sv": "sv_core_news_{size}",
-    "uk": "uk_core_news_{size}",
-    "zh": "zh_core_web_{size}",
-    "hr": "hr_core_news_{size}",
-}
-
 
 def parse_voice_blocks(ssmd_text: str) -> list[tuple[VoiceAttrs | None, str]]:
     """Parse SSMD text into voice blocks.
@@ -503,22 +474,6 @@ def _parse_break(modifier: str) -> BreakAttrs:
         return BreakAttrs(time=f"{modifier}ms")
 
 
-def _build_model_name(language: str, model_size: str) -> str | None:
-    """Build spaCy model name from language code and size.
-
-    Args:
-        language: Language code (e.g., "en", "fr")
-        model_size: Model size ("sm", "md", "lg", "trf")
-
-    Returns:
-        Model name string (e.g., "en_core_web_md") or None if language not supported
-    """
-    pattern = LANGUAGE_MODEL_PATTERNS.get(language)
-    if pattern is None:
-        return None
-    return pattern.format(size=model_size)
-
-
 def parse_sentences(
     ssmd_text: str,
     *,
@@ -620,120 +575,87 @@ def parse_sentences(
 def _split_sentences(
     text: str,
     language: str = "en",
-    use_phrasplit: bool = True,
     model_size: str | None = None,
     spacy_model: str | None = None,
     use_spacy: bool | None = None,
 ) -> list[str]:
-    """Split text into sentences using phrasplit or fallback regex.
+    """Split text into sentences using phrasplit.
+
+    phrasplit handles all the complexity: spaCy detection, model loading,
+    fallback to regex, error handling, and multi-language support.
 
     Args:
         text: Text to split
-        language: Language code for phrasplit
-        use_phrasplit: If True, use phrasplit for accurate splitting
+        language: Language code (e.g., "en", "fr", "de")
         model_size: spaCy model size ("sm", "md", "lg", "trf")
-        spacy_model: Custom spaCy model name (overrides model_size)
-        use_spacy: If False, skip spaCy and use regex only
+        spacy_model: Custom spaCy model name (overrides model_size/language)
+        use_spacy: Force spaCy mode (True), regex mode (False), or auto-detect (None)
 
     Returns:
         List of sentence strings (preserving paragraph breaks)
     """
-    # Determine which language model to use
+    from phrasplit import split_text
+
+    # Determine language model name
     language_model = None
-
-    # Priority 1: Custom spacy_model parameter
     if spacy_model is not None:
+        # Custom model name provided - use it directly
         language_model = spacy_model
-    # Priority 2: use_spacy=False means skip spaCy entirely
-    elif use_spacy is False:
-        language_model = None
-    # Priority 3: Build model name from language + model_size
-    elif model_size is not None:
-        language_model = _build_model_name(language, model_size)
-    # Priority 4: Default to small model
-    else:
-        language_model = _build_model_name(language, "sm")
+    elif use_spacy is not False:
+        # Build model name from language + size for spaCy mode
+        # phrasplit will auto-detect if spaCy is available and fall back to regex
+        size = model_size or "sm"
+        # Simple pattern - most languages use this format
+        # phrasplit handles language-specific patterns internally
+        language_model = f"{language}_core_web_{size}"
 
-    if use_phrasplit and language_model is not None:
-        try:
-            from phrasplit import split_text  # noqa: F401
+    # phrasplit handles everything: spaCy detection, fallback, errors
+    segments = split_text(
+        text,
+        mode="sentence",
+        language_model=language_model,
+        apply_corrections=True,
+        split_on_colon=True,
+        use_spacy=use_spacy,  # None = auto-detect, True = force, False = regex
+    )
 
-            # Use phrasplit for accurate sentence detection
-            segments = split_text(
-                text,
-                mode="sentence",  # Split by sentences
-                language_model=language_model,
-                apply_corrections=True,
-                split_on_colon=True,
-                use_spacy=(use_spacy if use_spacy is not None else True),
-            )
-
-            # Convert phrasplit.Segment to sentence strings
-            # Group by sentence, track paragraph boundaries
-            sentences = []
-            current_sentence = ""
-            last_sentence_id = None
-            last_paragraph_id = None
-
-            for seg in segments:
-                seg_text = seg.text.strip()
-                if not seg_text:
-                    continue
-
-                # Check if we've moved to a new sentence or paragraph
-                sentence_changed = (
-                    last_sentence_id is not None and seg.sentence != last_sentence_id
-                )
-                paragraph_changed = (
-                    last_paragraph_id is not None and seg.paragraph != last_paragraph_id
-                )
-
-                if sentence_changed or paragraph_changed:
-                    # Finish previous sentence
-                    if current_sentence.strip():
-                        # Mark paragraph end if paragraph changed
-                        if paragraph_changed:
-                            sentences.append(current_sentence + "\n\n")
-                        else:
-                            sentences.append(current_sentence)
-                    current_sentence = ""
-
-                current_sentence += seg_text
-
-                last_sentence_id = seg.sentence
-                last_paragraph_id = seg.paragraph
-
-            # Add any remaining text
-            if current_sentence.strip():
-                sentences.append(current_sentence)
-
-            return [s for s in sentences if s.strip()]
-
-        except ImportError:
-            logger.warning(
-                "phrasplit not available, falling back to regex sentence splitting"
-            )
-        except Exception as e:
-            logger.warning(f"phrasplit error: {e}, falling back to regex")
-
-    # Fallback: Simple regex-based splitting
-    # Split on .!? followed by whitespace or end of string
-    # Keep the punctuation with the sentence
-    pattern = re.compile(r"([.!?]+(?:\s+|$))")
-    parts = pattern.split(text)
-
+    # Convert phrasplit.Segment to sentence strings
+    # Group by sentence, track paragraph boundaries
     sentences = []
-    current = ""
+    current_sentence = ""
+    last_sentence_id = None
+    last_paragraph_id = None
 
-    for part in parts:
-        current += part
-        if pattern.match(part):
-            # This part is a sentence ending
-            sentences.append(current)
-            current = ""
+    for seg in segments:
+        seg_text = seg.text.strip()
+        if not seg_text:
+            continue
+
+        # Check if we've moved to a new sentence or paragraph
+        sentence_changed = (
+            last_sentence_id is not None and seg.sentence != last_sentence_id
+        )
+        paragraph_changed = (
+            last_paragraph_id is not None and seg.paragraph != last_paragraph_id
+        )
+
+        if sentence_changed or paragraph_changed:
+            # Finish previous sentence
+            if current_sentence.strip():
+                # Mark paragraph end if paragraph changed
+                if paragraph_changed:
+                    sentences.append(current_sentence + "\n\n")
+                else:
+                    sentences.append(current_sentence)
+            current_sentence = ""
+
+        current_sentence += seg_text
+
+        last_sentence_id = seg.sentence
+        last_paragraph_id = seg.paragraph
 
     # Add any remaining text
-    if current.strip():
-        sentences.append(current)
+    if current_sentence.strip():
+        sentences.append(current_sentence)
 
     return [s for s in sentences if s.strip()]

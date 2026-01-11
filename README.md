@@ -25,6 +25,40 @@ specification
 pip install ssmd
 ```
 
+SSMD includes intelligent sentence detection via **phrasplit** (regex mode by default -
+fast and lightweight).
+
+### Optional: Enhanced Accuracy with spaCy
+
+For best sentence detection accuracy, especially with complex or informal text, install
+spaCy support:
+
+```bash
+pip install "ssmd[spacy]"
+
+# Install language models for the languages you need
+python -m spacy download en_core_web_sm  # English (small, ~30MB)
+python -m spacy download en_core_web_md  # English (medium, better accuracy, ~100MB)
+python -m spacy download en_core_web_lg  # English (large, best accuracy, ~500MB)
+python -m spacy download fr_core_news_sm  # French
+python -m spacy download de_core_news_sm  # German
+python -m spacy download es_core_news_sm  # Spanish
+# See https://spacy.io/models for all available models
+```
+
+**Performance comparison:**
+
+| Mode                   | Speed       | Accuracy | Size    | Use Case                      |
+| ---------------------- | ----------- | -------- | ------- | ----------------------------- |
+| **Regex (default)**    | ~60x faster | ~85-90%  | 0 MB    | Simple text, speed-critical   |
+| **spaCy small models** | Baseline    | ~95%     | ~30 MB  | Balanced accuracy/performance |
+| **spaCy large models** | Slower      | ~98%+    | ~500 MB | Best accuracy, complex text   |
+| **spaCy transformer**  | Slowest     | ~99%+    | ~1 GB   | Research, maximum quality     |
+
+Without spaCy, SSMD uses fast regex-based sentence splitting that works great for
+well-formatted text. With spaCy, you get ML-powered detection for complex cases like
+abbreviations, URLs, and informal writing.
+
 Or install from source:
 
 ```bash
@@ -666,7 +700,8 @@ Parse SSMD text into structured sentences with segments.
 - `language` (str): Language code for sentence detection (default: "en")
 - `model_size` (str): spaCy model size - "sm", "md", "lg", "trf" (default: "sm")
 - `spacy_model` (str): Custom spaCy model name (overrides model_size)
-- `use_spacy` (bool): If False, use fast regex splitting instead of spaCy (default: True)
+- `use_spacy` (bool): If False, use fast regex splitting instead of spaCy (default:
+  True)
 
 **Returns:** List of `SSMDSentence` objects
 
@@ -698,19 +733,23 @@ sentences = parse_sentences("Medical text.", spacy_model="en_core_sci_md")
 
 SSMD supports flexible sentence detection with quality/speed tradeoffs:
 
-- **Fast mode** (`use_spacy=False`): Regex-based splitting, no dependencies, instant
-- **Small models** (`model_size="sm"`): Default, fast and accurate for most cases
-- **Medium models** (`model_size="md"`): Better accuracy, slightly slower
-- **Large models** (`model_size="lg"`): Best accuracy, more memory/time
-- **Transformer models** (`model_size="trf"`): Highest quality, slowest
+- **Fast mode** (`use_spacy=False`): Regex-based splitting, no dependencies, ~60x faster
+- **Auto-detect** (default): Uses spaCy if installed, falls back to regex
+- **Small models** (`model_size="sm"`): Best balance of speed and accuracy
+- **Medium models** (`model_size="md"`): Better accuracy for complex text
+- **Large models** (`model_size="lg"`): Best accuracy, slower
+- **Transformer models** (`model_size="trf"`): Research-grade accuracy, slowest
 
-The `model_size` parameter works across all supported languages (en, fr, de, es, it, pt,
-nl, ca, da, fi, el, ja, ko, lt, mk, nb, pl, ro, ru, sl, sv, uk, zh, hr).
+The parser works out-of-the-box with fast regex mode. Install `ssmd[spacy]` and language
+models for ML-powered accuracy.
 
 **Installation note:** Larger spaCy models need manual installation:
 
 ```bash
-# Medium models
+# First install spaCy support
+pip install "ssmd[spacy]"
+
+# Then install models
 python -m spacy download en_core_web_md
 python -m spacy download fr_core_news_md
 

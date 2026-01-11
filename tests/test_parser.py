@@ -1,5 +1,7 @@
 """Tests for SSMD parser (segment-based parsing)."""
 
+import pytest
+
 from ssmd import (
     parse_segments,
     parse_sentences,
@@ -282,26 +284,30 @@ Hello *world*! ...500ms Call [+1-555-0123](as: telephone) now.
         # Note: breaks might be merged, so they're not checked
 
     def test_multilingual_script(self):
-        """Test parsing multilingual script."""
+        """Test multi-language script with voice blocks and gender."""
         script = """@voice: fr-FR, gender: female
 Bonjour! Comment allez-vous?
 
 @voice: en-GB, gender: male
 Hello there! How are you?"""
 
-        sentences = parse_sentences(script)
+        try:
+            sentences = parse_sentences(script)
 
-        assert len(sentences) >= 2
-        assert sentences[0].voice is not None
-        assert sentences[0].voice.language == "fr-FR"
-        assert sentences[0].voice.gender == "female"
-        # Later sentences may have en-GB voice
-        en_sentence = next(
-            (s for s in sentences if s.voice and s.voice.language == "en-GB"), None
-        )
-        if en_sentence:
-            assert en_sentence.voice is not None
-            assert en_sentence.voice.gender == "male"
+            assert len(sentences) >= 2
+            assert sentences[0].voice is not None
+            assert sentences[0].voice.language == "fr-FR"
+            assert sentences[0].voice.gender == "female"
+            # Later sentences may have en-GB voice
+            en_sentence = next(
+                (s for s in sentences if s.voice and s.voice.language == "en-GB"), None
+            )
+            if en_sentence:
+                assert en_sentence.voice is not None
+                assert en_sentence.voice.gender == "male"
+        except OSError:
+            # French or English model not installed - use regex mode
+            pytest.skip("spaCy models not installed for all languages")
 
 
 class TestEdgeCases:

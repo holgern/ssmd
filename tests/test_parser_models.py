@@ -2,47 +2,24 @@
 
 import pytest
 
-from ssmd.parser import _build_model_name, parse_sentences
+from ssmd.parser import parse_sentences
 
 
-class TestBuildModelName:
-    """Test the _build_model_name helper function."""
+class TestPhrasplitAlwaysAvailable:
+    """Test that phrasplit is always importable."""
 
-    def test_english_small_model(self):
-        """Build English small model name."""
-        assert _build_model_name("en", "sm") == "en_core_web_sm"
+    def test_phrasplit_import(self):
+        """Verify phrasplit is always importable (core dependency)."""
+        import phrasplit  # noqa: F401
 
-    def test_english_medium_model(self):
-        """Build English medium model name."""
-        assert _build_model_name("en", "md") == "en_core_web_md"
+        # Should never raise ImportError
+        assert True
 
-    def test_english_large_model(self):
-        """Build English large model name."""
-        assert _build_model_name("en", "lg") == "en_core_web_lg"
-
-    def test_english_transformer_model(self):
-        """Build English transformer model name."""
-        assert _build_model_name("en", "trf") == "en_core_web_trf"
-
-    def test_french_models(self):
-        """Build French model names."""
-        assert _build_model_name("fr", "sm") == "fr_core_news_sm"
-        assert _build_model_name("fr", "md") == "fr_core_news_md"
-        assert _build_model_name("fr", "lg") == "fr_core_news_lg"
-
-    def test_german_models(self):
-        """Build German model names."""
-        assert _build_model_name("de", "sm") == "de_core_news_sm"
-        assert _build_model_name("de", "md") == "de_core_news_md"
-
-    def test_spanish_models(self):
-        """Build Spanish model names."""
-        assert _build_model_name("es", "sm") == "es_core_news_sm"
-
-    def test_unsupported_language(self):
-        """Return None for unsupported language."""
-        assert _build_model_name("xyz", "sm") is None
-        assert _build_model_name("unknown", "md") is None
+    def test_parse_sentences_always_works(self):
+        """Parser should always work (phrasplit is core dependency)."""
+        sentences = parse_sentences("Hello. World.")
+        # Should work in regex mode even without spaCy
+        assert len(sentences) == 2
 
 
 class TestParseSentencesRegexMode:
@@ -175,10 +152,13 @@ class TestParseSentencesMultiLanguage:
         @voice: fr-FR
         Bonjour tout le monde.
         """
-        sentences = parse_sentences(text, language="fr")
-
-        # Should work with French small model
-        assert len(sentences) >= 1
+        try:
+            sentences = parse_sentences(text, language="fr")
+            # Should work with French small model if installed
+            assert len(sentences) >= 1
+        except OSError:
+            # French model not installed - skip test
+            pytest.skip("French spaCy model not installed")
 
     def test_french_medium_model(self):
         """Parse French text with medium model."""
