@@ -92,6 +92,58 @@ class ProsodyProcessor(BaseProcessor):
 
         return match.group(0)  # Return unchanged if no match
 
+    def substitute(self, text: str) -> str:
+        """Replace SSMD with SSML, skipping matches inside XML attributes.
+
+        Args:
+            text: Input text with SSMD markup
+
+        Returns:
+            Text with SSMD replaced by SSML
+        """
+        match = self.regex().search(text)
+        if not match:
+            return text
+
+        # Check if match is inside an XML attribute (between =" and ")
+        # by looking backwards from match start to find if we're in an attribute
+        pre_text = text[: match.start()]
+
+        # Count unmatched quotes in attribute context
+        # Find the last < before our position
+        last_tag_start = pre_text.rfind("<")
+        if last_tag_start != -1:
+            # Get text between last < and our match
+            between = pre_text[last_tag_start:]
+            # Check if we're inside an attribute by counting unmatched quotes
+            # after an = sign
+            in_attr = False
+            i = 0
+            while i < len(between):
+                if between[i] == "=" and i + 1 < len(between) and between[i + 1] == '"':
+                    # Start of attribute value
+                    in_attr = True
+                    i += 2
+                elif in_attr and between[i] == '"':
+                    # End of attribute value
+                    in_attr = False
+                    i += 1
+                else:
+                    i += 1
+
+            if in_attr:
+                # We're inside an XML attribute, skip this match
+                # Try to find next match after this one
+                post = text[match.end() :]
+                return text[: match.end()] + self.substitute(post)
+
+        # Not in attribute, proceed with normal substitution
+        pre = text[: match.start()]
+        post = text[match.end() :]
+        ssml_result = self.result(match)
+
+        return pre + ssml_result + post
+
     def text(self, match: re.Match) -> str:
         """Extract plain text without markers.
 

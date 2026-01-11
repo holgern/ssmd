@@ -13,7 +13,7 @@ def escape_xml(text: str) -> str:
     Returns:
         Text with XML entities escaped
     """
-    return html.escape(text, quote=False)
+    return html.escape(text, quote=True)
 
 
 def unescape_xml(text: str) -> str:

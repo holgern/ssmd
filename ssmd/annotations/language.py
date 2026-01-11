@@ -36,6 +36,8 @@ class LanguageAnnotation(BaseAnnotation):
         "fi": "fi-FI",
     }
 
+    lang: str  # Type annotation for mypy
+
     def __init__(self, match: re.Match):
         """Initialize with language code.
 
@@ -43,8 +45,12 @@ class LanguageAnnotation(BaseAnnotation):
             match: Regex match containing language code
         """
         lang_code = match.group(1)
+        assert lang_code is not None, "Language code is required"
         # Auto-complete if only 2-letter code
-        self.lang = self.DEFAULTS.get(lang_code, lang_code)
+        if lang_code in self.DEFAULTS:
+            self.lang = self.DEFAULTS[lang_code]
+        else:
+            self.lang = lang_code
 
     @classmethod
     def regex(cls) -> re.Pattern:

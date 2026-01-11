@@ -3,7 +3,7 @@
 from typing import TYPE_CHECKING, Any
 
 from ssmd.processors import get_all_processors
-from ssmd.utils import escape_xml, format_xml, unescape_xml
+from ssmd.utils import escape_xml, format_xml
 
 if TYPE_CHECKING:
     from ssmd.processors.base import BaseProcessor
@@ -59,7 +59,8 @@ class Converter:
             result = self._process_recursively(processor, result, strip=False)
 
         # 3. Unescape XML entities in final SSML
-        result = unescape_xml(result)
+        # COMMENTED OUT: This was breaking XML escaping in attributes
+        # result = unescape_xml(result)
 
         # 4. Wrap in <speak> tags if configured
         if self.config.get("output_speak_tag", True):
@@ -85,7 +86,9 @@ class Converter:
         for processor in self.processors:
             result = self._process_recursively(processor, result, strip=True)
 
-        return unescape_xml(result)
+        # COMMENTED OUT: This was breaking XML escaping
+        # return unescape_xml(result)
+        return result
 
     def _process_recursively(
         self, processor: "BaseProcessor", text: str, strip: bool
