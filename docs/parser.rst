@@ -73,6 +73,9 @@ Parse SSMD text into structured sentences with segments.
 * ``include_default_voice`` (bool): Include text before first ``@voice:`` directive (default: ``True``)
 * ``capabilities`` (TTSCapabilities | str): Filter features based on TTS engine support
 * ``language`` (str): Language code for sentence detection (default: ``"en"``)
+* ``model_size`` (str): spaCy model size - ``"sm"``, ``"md"``, ``"lg"``, ``"trf"`` (default: ``"sm"``)
+* ``spacy_model`` (str): Custom spaCy model name (overrides ``model_size``)
+* ``use_spacy`` (bool): If ``False``, use fast regex splitting instead of spaCy (default: ``True``)
 
 **Returns:** List of :class:`SSMDSentence` objects
 
@@ -89,6 +92,96 @@ Parse SSMD text into structured sentences with segments.
        print(f"Segments: {len(sent.segments)}")
        for seg in sent.segments:
            print(f"  - {seg.text!r} (emphasis={seg.emphasis})")
+
+Sentence Detection Configuration
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Control how sentences are detected and split using spaCy models or regex.
+
+**Fast Mode (No spaCy Required)**
+
+Use regex-based splitting for maximum speed when spaCy is not installed or when
+high accuracy is not needed:
+
+.. code-block:: python
+
+   from ssmd import parse_sentences
+
+   # Fast regex splitting (no spaCy required)
+   sentences = parse_sentences(
+       "Hello world. This is fast.",
+       use_spacy=False
+   )
+
+**Model Size Selection**
+
+Choose different spaCy model sizes for quality vs. speed tradeoffs:
+
+.. code-block:: python
+
+   # Default: Small model (fastest spaCy option)
+   sentences = parse_sentences("Hello. World.")
+   # Uses: en_core_web_sm, fr_core_news_sm, etc.
+
+   # Medium model (better accuracy)
+   sentences = parse_sentences("Hello. World.", model_size="md")
+   # Uses: en_core_web_md, fr_core_news_md, etc.
+
+   # Large model (best accuracy)
+   sentences = parse_sentences("Hello. World.", model_size="lg")
+   # Uses: en_core_web_lg, fr_core_news_lg, etc.
+
+   # Transformer model (highest quality, slowest)
+   sentences = parse_sentences("Hello. World.", model_size="trf")
+   # Uses: en_core_web_trf, fr_dep_news_trf, etc.
+
+**Custom Models**
+
+Use domain-specific or custom spaCy models:
+
+.. code-block:: python
+
+   # Use a custom spaCy model
+   sentences = parse_sentences(
+       "Technical text here.",
+       spacy_model="en_core_sci_md"  # Scientific/medical domain model
+   )
+
+**Multi-Language Support**
+
+The ``model_size`` parameter works across all supported languages:
+
+.. code-block:: python
+
+   script = """
+   @voice: fr-FR
+   Bonjour tout le monde!
+
+   @voice: en-US
+   Hello everyone!
+   """
+
+   # Uses fr_core_news_md for French, en_core_web_md for English
+   sentences = parse_sentences(script, model_size="md")
+
+**Installation Notes**
+
+spaCy models must be installed separately. Small models are included with SSMD dependencies,
+but larger models need manual installation:
+
+.. code-block:: bash
+
+   # Medium models
+   python -m spacy download en_core_web_md
+   python -m spacy download fr_core_news_md
+
+   # Large models
+   python -m spacy download en_core_web_lg
+
+   # Transformer models
+   python -m spacy download en_core_web_trf
+
+See the `spaCy models documentation <https://spacy.io/models>`_ for a complete list of available models.
 
 parse_segments
 ~~~~~~~~~~~~~~

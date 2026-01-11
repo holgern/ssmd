@@ -663,6 +663,10 @@ Parse SSMD text into structured sentences with segments.
 - `include_default_voice` (bool): Include text before first @voice directive (default:
   True)
 - `capabilities` (TTSCapabilities | str): Filter features based on TTS engine support
+- `language` (str): Language code for sentence detection (default: "en")
+- `model_size` (str): spaCy model size - "sm", "md", "lg", "trf" (default: "sm")
+- `spacy_model` (str): Custom spaCy model name (overrides model_size)
+- `use_spacy` (bool): If False, use fast regex splitting instead of spaCy (default: True)
 
 **Returns:** List of `SSMDSentence` objects
 
@@ -671,6 +675,7 @@ Parse SSMD text into structured sentences with segments.
 ```python
 from ssmd import parse_sentences
 
+# Default: uses small spaCy models (en_core_web_sm)
 sentences = parse_sentences("Hello *world*! This is great.")
 
 for sent in sentences:
@@ -678,6 +683,42 @@ for sent in sentences:
     print(f"Segments: {len(sent.segments)}")
     for seg in sent.segments:
         print(f"  - {seg.text!r} (emphasis={seg.emphasis})")
+
+# Fast mode: no spaCy required (uses regex)
+sentences = parse_sentences("Hello world. Fast mode.", use_spacy=False)
+
+# High quality: use large spaCy model for better accuracy
+sentences = parse_sentences("Complex text here.", model_size="lg")
+
+# Custom model: use domain-specific spaCy model
+sentences = parse_sentences("Medical text.", spacy_model="en_core_sci_md")
+```
+
+**Sentence Detection Configuration:**
+
+SSMD supports flexible sentence detection with quality/speed tradeoffs:
+
+- **Fast mode** (`use_spacy=False`): Regex-based splitting, no dependencies, instant
+- **Small models** (`model_size="sm"`): Default, fast and accurate for most cases
+- **Medium models** (`model_size="md"`): Better accuracy, slightly slower
+- **Large models** (`model_size="lg"`): Best accuracy, more memory/time
+- **Transformer models** (`model_size="trf"`): Highest quality, slowest
+
+The `model_size` parameter works across all supported languages (en, fr, de, es, it, pt,
+nl, ca, da, fi, el, ja, ko, lt, mk, nb, pl, ro, ru, sl, sv, uk, zh, hr).
+
+**Installation note:** Larger spaCy models need manual installation:
+
+```bash
+# Medium models
+python -m spacy download en_core_web_md
+python -m spacy download fr_core_news_md
+
+# Large models
+python -m spacy download en_core_web_lg
+
+# Transformer models
+python -m spacy download en_core_web_trf
 ```
 
 #### `parse_segments(text, **options)` → `list[SSMDSegment]`

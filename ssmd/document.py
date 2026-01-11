@@ -68,6 +68,12 @@ class Document:
                 - auto_sentence_tags (bool): Auto-wrap sentences (default: False)
                 - heading_levels (dict): Custom heading configurations
                 - extensions (dict): Registered extension handlers
+                - sentence_model_size (str): spaCy model size for sentence detection
+                    ("sm", "md", "lg", "trf"). Default: "sm"
+                - sentence_spacy_model (str): Custom spaCy model name (overrides
+                    sentence_model_size)
+                - sentence_use_spacy (bool): If False, use fast regex splitting
+                    instead of spaCy. Default: True
             capabilities: TTS capabilities (TTSCapabilities instance or preset name).
                 Presets: 'espeak', 'pyttsx3', 'google', 'polly', 'azure',
                 'minimal', 'full'
@@ -76,6 +82,10 @@ class Document:
             >>> doc = ssmd.Document("Hello *world*!")
             >>> doc = ssmd.Document(capabilities='pyttsx3')
             >>> doc = ssmd.Document("Text", config={'auto_sentence_tags': True})
+            >>> # Fast sentence detection (no spaCy required)
+            >>> doc = ssmd.Document(config={'sentence_use_spacy': False})
+            >>> # High quality sentence detection
+            >>> doc = ssmd.Document(config={'sentence_model_size': 'lg'})
         """
         self._fragments: list[str] = []
         self._separators: list[str] = []

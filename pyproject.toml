@@ -45,7 +45,7 @@ dev = [
     "mypy>=1.0.0",
 ]
 parser = [
-    "phrasplit>=0.1.0",
+    "phrasplit>=0.2.2",
 ]
 
 [tool.setuptools_scm]

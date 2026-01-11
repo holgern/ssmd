@@ -24,6 +24,35 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# Language model name patterns for spaCy models
+# Format: language_code -> model_name_pattern ({size} = sm/md/lg/trf)
+LANGUAGE_MODEL_PATTERNS = {
+    "en": "en_core_web_{size}",
+    "fr": "fr_core_news_{size}",
+    "de": "de_core_news_{size}",
+    "es": "es_core_news_{size}",
+    "it": "it_core_news_{size}",
+    "pt": "pt_core_news_{size}",
+    "nl": "nl_core_news_{size}",
+    "ca": "ca_core_news_{size}",
+    "da": "da_core_news_{size}",
+    "fi": "fi_core_news_{size}",
+    "el": "el_core_news_{size}",
+    "ja": "ja_core_news_{size}",
+    "ko": "ko_core_news_{size}",
+    "lt": "lt_core_news_{size}",
+    "mk": "mk_core_news_{size}",
+    "nb": "nb_core_news_{size}",
+    "pl": "pl_core_news_{size}",
+    "ro": "ro_core_news_{size}",
+    "ru": "ru_core_news_{size}",
+    "sl": "sl_core_news_{size}",
+    "sv": "sv_core_news_{size}",
+    "uk": "uk_core_news_{size}",
+    "zh": "zh_core_web_{size}",
+    "hr": "hr_core_news_{size}",
+}
+
 
 def parse_voice_blocks(ssmd_text: str) -> list[tuple[VoiceAttrs | None, str]]:
     """Parse SSMD text into voice blocks.
@@ -474,6 +503,22 @@ def _parse_break(modifier: str) -> BreakAttrs:
         return BreakAttrs(time=f"{modifier}ms")
 
 
+def _build_model_name(language: str, model_size: str) -> str | None:
+    """Build spaCy model name from language code and size.
+
+    Args:
+        language: Language code (e.g., "en", "fr")
+        model_size: Model size ("sm", "md", "lg", "trf")
+
+    Returns:
+        Model name string (e.g., "en_core_web_md") or None if language not supported
+    """
+    pattern = LANGUAGE_MODEL_PATTERNS.get(language)
+    if pattern is None:
+        return None
+    return pattern.format(size=model_size)
+
+
 def parse_sentences(
     ssmd_text: str,
     *,
@@ -481,6 +526,9 @@ def parse_sentences(
     include_default_voice: bool = True,
     sentence_detection: bool = True,
     language: str = "en",
+    model_size: str | None = None,
+    spacy_model: str | None = None,
+    use_spacy: bool | None = None,
 ) -> list[SSMDSentence]:
     """Parse SSMD text into sentences with segments.
 
@@ -493,14 +541,24 @@ def parse_sentences(
         include_default_voice: If True, include text before first @voice: directive
         sentence_detection: If True, auto-split on sentence boundaries using phrasplit
         language: Language code for sentence detection (default: "en")
+        model_size: spaCy model size: "sm", "md", "lg", "trf" (default: "sm")
+        spacy_model: Custom spaCy model name (overrides model_size)
+        use_spacy: If False, use fast regex splitting instead of spaCy (default: True)
 
     Returns:
         List of SSMDSentence objects
 
     Example:
+        >>> # Default: uses small models (en_core_web_sm)
         >>> for sentence in parse_sentences(script):
         ...     full_text = "".join(seg.text for seg in sentence.segments)
         ...     tts.speak(full_text, voice=sentence.voice)
+        >>>
+        >>> # Fast mode: no spaCy required
+        >>> sentences = parse_sentences(script, use_spacy=False)
+        >>>
+        >>> # High quality: use large model
+        >>> sentences = parse_sentences(script, model_size="lg")
     """
     sentences = []
 
@@ -522,7 +580,13 @@ def parse_sentences(
 
         # Step 3: Split by sentence boundaries if enabled
         if sentence_detection:
-            sentence_texts = _split_sentences(text, language=split_language)
+            sentence_texts = _split_sentences(
+                text,
+                language=split_language,
+                model_size=model_size,
+                spacy_model=spacy_model,
+                use_spacy=use_spacy,
+            )
         else:
             sentence_texts = [text]
 
@@ -557,6 +621,9 @@ def _split_sentences(
     text: str,
     language: str = "en",
     use_phrasplit: bool = True,
+    model_size: str | None = None,
+    spacy_model: str | None = None,
+    use_spacy: bool | None = None,
 ) -> list[str]:
     """Split text into sentences using phrasplit or fallback regex.
 
@@ -564,23 +631,29 @@ def _split_sentences(
         text: Text to split
         language: Language code for phrasplit
         use_phrasplit: If True, use phrasplit for accurate splitting
+        model_size: spaCy model size ("sm", "md", "lg", "trf")
+        spacy_model: Custom spaCy model name (overrides model_size)
+        use_spacy: If False, skip spaCy and use regex only
 
     Returns:
         List of sentence strings (preserving paragraph breaks)
     """
+    # Determine which language model to use
     language_model = None
-    if language.startswith("en"):
-        language_model = "en_core_web_sm"
-    elif language.startswith("fr"):
-        language_model = "fr_core_news_sm"
-    elif language.startswith("de"):
-        language_model = "de_core_news_sm"
-    elif language.startswith("es"):
-        language_model = "es_core_news_sm"
-    elif language.startswith("it"):
-        language_model = "it_core_news_sm"
-    elif language.startswith("pt"):
-        language_model = "pt_core_news_sm"
+
+    # Priority 1: Custom spacy_model parameter
+    if spacy_model is not None:
+        language_model = spacy_model
+    # Priority 2: use_spacy=False means skip spaCy entirely
+    elif use_spacy is False:
+        language_model = None
+    # Priority 3: Build model name from language + model_size
+    elif model_size is not None:
+        language_model = _build_model_name(language, model_size)
+    # Priority 4: Default to small model
+    else:
+        language_model = _build_model_name(language, "sm")
+
     if use_phrasplit and language_model is not None:
         try:
             from phrasplit import split_text  # noqa: F401
@@ -592,6 +665,7 @@ def _split_sentences(
                 language_model=language_model,
                 apply_corrections=True,
                 split_on_colon=True,
+                use_spacy=(use_spacy if use_spacy is not None else True),
             )
 
             # Convert phrasplit.Segment to sentence strings
