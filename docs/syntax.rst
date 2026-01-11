@@ -672,6 +672,26 @@ XML special characters are automatically escaped:
    ssmd.to_ssml('5 < 10 & 10 > 5')
    # → <speak>5 &lt; 10 &amp; 10 &gt; 5</speak>
 
+Security
+~~~~~~~~
+
+All user input is automatically sanitized to prevent XML injection attacks. Special
+characters in both text content and annotation parameters are properly escaped:
+
+.. code-block:: python
+
+   # Malicious input is safely escaped
+   ssmd.to_ssml('[text](sub: value"><script>alert(1)</script>)')
+   # → <speak><p><sub alias="value&quot;&gt;&lt;script&gt;alert(1)&lt;/script&gt;">text</sub></p></speak>
+
+The library ensures:
+
+- **XML validity**: Output is always valid, well-formed XML
+- **Injection prevention**: User input cannot break out of attribute values or inject tags
+- **Automatic escaping**: All special characters (``<``, ``>``, ``&``, ``"``, ``'``) are escaped
+
+You can safely use SSMD with untrusted user input in TTS applications.
+
 Literal Asterisks
 ~~~~~~~~~~~~~~~~~
 
