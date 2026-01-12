@@ -289,5 +289,49 @@ Bonjour! Comment allez-vous?"""
     assert result.strip() == "Bonjour! Comment allez-vous?"
 
 
+def test_quoted_sentence_splitting():
+    """Test that closing quotes stay with the final sentence in a quote.
+
+    When splitting sentences within quotes like "I'm Tom. This is great.",
+    the closing quote must be attached to the last sentence.
+    """
+    from ssmd.parser import parse_sentences
+
+    # Test basic quoted text with multiple sentences
+    text = '"I\'m Tom. This is great."'
+    sentences = parse_sentences(text)
+
+    assert len(sentences) == 2
+    # Opening quote should be with first sentence
+    assert sentences[0].to_text().startswith('"')
+    # Closing quote must be with last sentence
+    assert sentences[1].to_text().endswith('"')
+    assert sentences[1].to_text() == 'This is great."'
+
+
+def test_quoted_sentence_splitting_hello():
+    """Test quoted sentence splitting with greeting."""
+    from ssmd.parser import parse_sentences
+
+    text = '"Hello there. How are you?"'
+    sentences = parse_sentences(text)
+
+    assert len(sentences) == 2
+    assert sentences[0].to_text() == '"Hello there.'
+    assert sentences[1].to_text() == 'How are you?"'
+
+
+def test_quoted_sentence_splitting_dialogue():
+    """Test quoted sentence splitting in dialogue."""
+    from ssmd.parser import parse_sentences
+
+    text = 'He said, "Stop! Don\'t go."'
+    sentences = parse_sentences(text)
+
+    assert len(sentences) == 2
+    # The closing quote must stay with "Don't go."
+    assert sentences[1].to_text().endswith('"')
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
