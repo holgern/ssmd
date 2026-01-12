@@ -58,6 +58,8 @@ class Document:
         content: str = "",
         config: dict[str, Any] | None = None,
         capabilities: "TTSCapabilities | str | None" = None,
+        escape_syntax: bool = False,
+        escape_patterns: list[str] | None = None,
     ) -> None:
         """Initialize a new SSMD document.
 
@@ -70,15 +72,22 @@ class Document:
                 - auto_sentence_tags (bool): Auto-wrap sentences (default: False)
                 - heading_levels (dict): Custom heading configurations
                 - extensions (dict): Registered extension handlers
-                - sentence_model_size (str): spaCy model size for sentence detection
-                    ("sm", "md", "lg", "trf"). Default: "sm"
-                - sentence_spacy_model (str): Custom spaCy model name (overrides
-                    sentence_model_size)
+                - sentence_model_size (str): spaCy model size for sentence
+                  detection ("sm", "md", "lg", "trf"). Default: "sm"
+                - sentence_spacy_model (str): Custom spaCy model name
+                  (overrides sentence_model_size)
                 - sentence_use_spacy (bool): If False, use fast regex splitting
-                    instead of spaCy. Default: True
-            capabilities: TTS capabilities (TTSCapabilities instance or preset name).
-                Presets: 'espeak', 'pyttsx3', 'google', 'polly', 'azure',
-                'minimal', 'full'
+                  instead of spaCy. Default: True
+            capabilities: TTS capabilities (TTSCapabilities instance or
+                preset name). Presets: 'espeak', 'pyttsx3', 'google',
+                'polly', 'azure', 'minimal', 'full'
+            escape_syntax: If True, escape SSMD-like syntax in content to
+                prevent interpretation as markup. Useful for plain text or
+                markdown that may coincidentally contain SSMD patterns.
+            escape_patterns: List of specific pattern types to escape when
+                escape_syntax=True. If None, escapes all patterns.
+                Valid values: 'emphasis', 'annotations', 'breaks', 'marks',
+                'headings', 'voice_directives', 'prosody_shorthand'
 
         Example:
             >>> doc = ssmd.Document("Hello *world*!")
@@ -88,6 +97,14 @@ class Document:
             >>> doc = ssmd.Document(config={'sentence_use_spacy': False})
             >>> # High quality sentence detection
             >>> doc = ssmd.Document(config={'sentence_model_size': 'lg'})
+            >>> # Escape SSMD syntax for plain text/markdown
+            >>> doc = ssmd.Document(markdown, escape_syntax=True)
+            >>> # Selective escaping
+            >>> doc = ssmd.Document(
+            ...     text,
+            ...     escape_syntax=True,
+            ...     escape_patterns=['emphasis', 'annotations']
+            ... )
         """
         self._fragments: list[str] = []
         self._separators: list[str] = []
@@ -96,9 +113,15 @@ class Document:
         self._converter: Converter | None = None
         self._cached_ssml: str | None = None
         self._cached_sentences: list[str] | None = None
+        self._escape_syntax = escape_syntax
+        self._escape_patterns = escape_patterns
 
         # Add initial content if provided
         if content:
+            if escape_syntax:
+                from ssmd.utils import escape_ssmd_syntax
+
+                content = escape_ssmd_syntax(content, patterns=escape_patterns)
             self._fragments.append(content)
 
     @classmethod
@@ -269,7 +292,15 @@ class Document:
         """
         if self._cached_ssml is None:
             converter = self._get_converter()
-            self._cached_ssml = converter.convert(self.ssmd)
+            ssmd_content = self.ssmd
+            # Convert to SSML (placeholders won't be interpreted as SSMD)
+            ssml = converter.convert(ssmd_content)
+            # Unescape placeholders after conversion if escaping was used
+            if self._escape_syntax:
+                from ssmd.utils import unescape_ssmd_syntax
+
+                ssml = unescape_ssmd_syntax(ssml)
+            self._cached_ssml = ssml
         return self._cached_ssml
 
     def to_ssmd(self) -> str:

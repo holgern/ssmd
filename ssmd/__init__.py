@@ -69,6 +69,7 @@ from ssmd.parser_types import (
     PhonemeAttrs,
 )
 from ssmd.formatter import format_ssmd
+from ssmd.utils import escape_ssmd_syntax, unescape_ssmd_syntax
 
 try:
     from ssmd._version import version as __version__
@@ -160,6 +161,9 @@ __all__ = [
     "parse_segments",
     "parse_voice_blocks",
     "format_ssmd",
+    # Utility functions
+    "escape_ssmd_syntax",
+    "unescape_ssmd_syntax",
     # Parser types
     "SSMDSegment",
     "SSMDSentence",
