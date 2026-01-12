@@ -235,18 +235,16 @@ def _parse_text_segments(  # noqa: C901
     emphasis_pattern = re.compile(r"\*([^\*]+)\*")
     reduced_emphasis_pattern = re.compile(r"_([^_]+)_")
     annotation_pattern = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
-    audio_pattern = re.compile(r"!\[([^\]]+)\]\(([^)]+)\)")  # Audio with ! prefix
 
     # Combined pattern to find ALL markup boundaries  # noqa: C901
-    # This matches: emphasis, annotations, audio, breaks, marks
-    # Order matters: match ** before *, ![...](...) before [...](...)
+    # This matches: emphasis, annotations, breaks, marks
+    # Order matters: match ** before *
     combined_pattern = re.compile(
         r"("
         r"\*\*[^\*]+\*\*"  # Strong emphasis (must come before single *)
         r"|\*[^\*]+\*"  # Regular emphasis
         r"|_[^_]+_"  # Reduced emphasis
-        r"|!\[[^\]]+\]\([^)]+\)"  # Audio annotations (must come before regular annotations)
-        r"|\[[^\]]+\]\([^)]+\)"  # Regular annotations
+        r"|\[[^\]]+\]\([^)]+\)"  # Annotations (including audio)
         r"|\.\.\.(?:\d+(?:s|ms)|[nwcsp])"  # Breaks
         r"|@(?!voice[:(])\w+"  # Marks
         r")"
@@ -260,7 +258,12 @@ def _parse_text_segments(  # noqa: C901
     for match in combined_pattern.finditer(text):
         # Get any plain text before this markup
         if match.start() > current_pos:
-            plain_text = text[current_pos : match.start()].strip()
+            plain_text = text[current_pos : match.start()]
+            # Normalize: strip leading and trailing spaces
+            # Also remove space before punctuation
+            plain_text = plain_text.strip()
+            # Remove space before punctuation
+            plain_text = re.sub(r"\s+([.!?,;:])", r"\1", plain_text)
             if plain_text:
                 seg = SSMDSegment(text=plain_text, position=position)
                 if pending_breaks:
@@ -343,25 +346,8 @@ def _parse_text_segments(  # noqa: C901
                 segments.append(seg)
                 position += len(emph_text)
 
-        elif markup.startswith("!["):
-            # Audio annotation
-            audio_match = audio_pattern.match(markup)
-            if audio_match:
-                audio_text = audio_match.group(1)
-                audio_params = audio_match.group(2)
-                # Parse as audio (force audio interpretation)
-                seg = _parse_audio_segment(audio_text, audio_params, position)
-                if pending_breaks:
-                    seg.breaks_before.extend(pending_breaks)
-                    pending_breaks = []
-                if pending_marks_before:
-                    seg.marks_before = pending_marks_before
-                    pending_marks_before = []
-                segments.append(seg)
-                position += len(audio_text)
-
         elif markup.startswith("["):
-            # Annotation
+            # Annotation (including audio detected by URL pattern)
             ann_match = annotation_pattern.match(markup)
             if ann_match:
                 ann_text = ann_match.group(1)
@@ -381,6 +367,8 @@ def _parse_text_segments(  # noqa: C901
     # Handle any remaining text after last markup
     if current_pos < len(text):
         remaining_text = text[current_pos:].strip()
+        # Remove space before punctuation
+        remaining_text = re.sub(r"\s+([.!?,;:])", r"\1", remaining_text)
         if remaining_text:
             seg = SSMDSegment(text=remaining_text, position=position)
             if pending_breaks:
@@ -403,7 +391,9 @@ def _parse_text_segments(  # noqa: C901
     return segments
 
 
-def _parse_annotation_segment(text: str, params: str, position: int) -> SSMDSegment:
+def _parse_annotation_segment(  # noqa: C901
+    text: str, params: str, position: int
+) -> SSMDSegment:
     """Parse annotation parameters and create segment.
 
     Args:

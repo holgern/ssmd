@@ -291,7 +291,7 @@ class Document:
 
         # Parse into sentences and format with proper line breaks
         sentences = parse_sentences(raw_ssmd)
-        return format_ssmd(sentences)
+        return format_ssmd(sentences).rstrip("\n")
 
     def to_text(self) -> str:
         """Export document to plain text (strips all markup).

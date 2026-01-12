@@ -38,12 +38,16 @@ class SayAsAnnotation(BaseAnnotation):
         """Match say-as annotations.
 
         Returns:
-            Pattern matching as: annotations with optional format and detail
+            Pattern matching say-as: or as: annotations with optional format and detail
         """
-        # Match "as: type" or "as: type, format: value" or "as: type, detail: N"
+        # Match "say-as: type" or "as: type" with optional format and detail
+        # Or "say-as: type, format: value" or "as: type, format: value"
+        # Or "say-as: type, detail: N" or "as: type, detail: N"
+        # Or "say-as: type, format: value, detail: N"
         # Or "as: type, format: value, detail: N"
         return re.compile(
-            r"^as:\s*(\w+)"  # interpret-as (required)
+            # interpret-as (required) with say-as or as prefix
+            r"^(?:say-as|as):\s*(\w+)"
             r'(?:\s*,\s*format:\s*["\']?([^"\']+)["\']?)?'  # format (optional)
             r"(?:\s*,\s*detail:\s*(\d+))?"  # detail (optional)
             r"$"

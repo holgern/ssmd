@@ -58,9 +58,17 @@ class ProsodyAnnotation(BaseAnnotation):
             self.rate = self.RATE_MAP.get(vrp[1]) if len(vrp) > 1 else None
             self.pitch = self.PITCH_MAP.get(vrp[2]) if len(vrp) > 2 else None
         else:
-            # Individual parameters (v: 5, r: 3, p: 1)
-            attr = match.group(2)  # v, r, or p
+            # Individual parameters (v: 5, r: 3, p: 1 or volume: loud, etc.)
+            attr = match.group(2)  # v, r, p, volume, rate, or pitch
             value = match.group(3).strip()
+
+            # Normalize attribute name to short form
+            if attr == "volume":
+                attr = "v"
+            elif attr == "rate":
+                attr = "r"
+            elif attr == "pitch":
+                attr = "p"
 
             # Check if it's a relative value (+10dB, -4%)
             if value.startswith(("+", "-")) or value.endswith(("dB", "%")):
@@ -72,23 +80,27 @@ class ProsodyAnnotation(BaseAnnotation):
                 elif attr == "p":
                     self.pitch = value
             else:
-                # Numeric value, map to SSML
+                # Could be numeric value (map to SSML) or named value (use as-is)
                 if attr == "v":
-                    self.volume = self.VOLUME_MAP.get(value)
+                    self.volume = self.VOLUME_MAP.get(value, value)
                 elif attr == "r":
-                    self.rate = self.RATE_MAP.get(value)
+                    self.rate = self.RATE_MAP.get(value, value)
                 elif attr == "p":
-                    self.pitch = self.PITCH_MAP.get(value)
+                    self.pitch = self.PITCH_MAP.get(value, value)
 
     @classmethod
     def regex(cls) -> re.Pattern:
         """Match prosody annotations.
 
         Returns:
-            Pattern matching vrp shorthand or individual parameters
+            Pattern matching vrp shorthand, individual parameters (v/r/p),
+            or full names (volume/rate/pitch)
         """
-        # Match either "vrp: 555" or "v: 5" or "r: 3" or "p: 1"
-        return re.compile(r"^(?:vrp:\s*(\d{1,3})|([vrp]):\s*(.+))$")
+        # Match either:
+        # - "vrp: 555"
+        # - "v: 5" or "r: 3" or "p: 1"
+        # - "volume: loud" or "rate: fast" or "pitch: high"
+        return re.compile(r"^(?:vrp:\s*(\d{1,3})|([vrp]|volume|rate|pitch):\s*(.+))$")
 
     def wrap(self, text: str) -> str:
         """Wrap text in prosody tag.

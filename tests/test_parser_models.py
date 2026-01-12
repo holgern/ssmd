@@ -696,12 +696,17 @@ class TestSegmentSplittingAtBreaks:
 
         segments = sentences[0].segments
 
-        assert len(segments) == 2
-        # First segment should have emphasis and text without markers
-        assert segments[0].text == "I really"
-        assert segments[0].emphasis is True
+        assert len(segments) == 3
+        # First segment should be plain text
+        assert segments[0].text == "I"
+        assert segments[0].emphasis is False
 
-        assert segments[1].text == "love this."
+        # Second segment should have emphasis
+        assert segments[1].text == "really"
+        assert segments[1].emphasis is True
+
+        # Third segment should be plain text after the break
+        assert segments[2].text == "love this."
 
 
 class TestQuotePreservation:

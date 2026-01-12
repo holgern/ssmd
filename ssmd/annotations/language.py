@@ -44,7 +44,8 @@ class LanguageAnnotation(BaseAnnotation):
         Args:
             match: Regex match containing language code
         """
-        lang_code = match.group(1)
+        # Group 1 is from "lang: xx" format, group 2 is from bare "xx" format
+        lang_code = match.group(1) or match.group(2)
         assert lang_code is not None, "Language code is required"
         # Auto-complete if only 2-letter code
         if lang_code in self.DEFAULTS:
@@ -57,9 +58,13 @@ class LanguageAnnotation(BaseAnnotation):
         """Match language codes.
 
         Returns:
-            Pattern matching 2-letter or full locale codes
+            Pattern matching "lang: xx" or bare language codes
+            (2-letter or full locale codes)
         """
-        return re.compile(r"^([a-z]{2}(?:-[A-Z]{2})?)$")
+        # Match either "lang: fr" format or bare "fr" or "en-US" format
+        return re.compile(
+            r"^(?:lang:\s*([a-z]{2}(?:-[A-Z]{2})?)|([a-z]{2}(?:-[A-Z]{2})?))$"
+        )
 
     def wrap(self, text: str) -> str:
         """Wrap text in lang tag.

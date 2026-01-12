@@ -117,7 +117,7 @@ class SSMLParser:
         result = self._clean_whitespace(result)
 
         # Restore voice directive newlines (protected during whitespace cleaning)
-        result = result.replace("{VOICE_NEWLINE}", "\n")
+        result = result.replace("{VOICE_NEWLINE}", "\n").strip()
 
         # Parse into sentences and format with proper line breaks
         sentences = parse_sentences(result.strip())

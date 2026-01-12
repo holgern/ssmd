@@ -113,7 +113,7 @@ def _format_sentence(sentence: SSMDSentence) -> str:
             break_marker = _format_breaks(segment.breaks_after)
             result_parts.append(break_marker)
 
-    # Join segments intelligently - no spaces around break markers
+    # Join segments intelligently
     sentence_text = ""
     for i, part in enumerate(result_parts):
         if i == 0:
@@ -123,6 +123,9 @@ def _format_sentence(sentence: SSMDSentence) -> str:
             sentence_text += part
         elif i > 0 and result_parts[i - 1].startswith("..."):
             # Previous part was a break marker - append without space
+            sentence_text += part
+        elif i > 0 and result_parts[i - 1].endswith((" ", "\n")):
+            # Previous part ends with whitespace, append without extra space
             sentence_text += part
         else:
             # Normal text segment - add space
@@ -141,7 +144,7 @@ def _format_sentence(sentence: SSMDSentence) -> str:
     return sentence_text.strip()
 
 
-def _format_segment(segment: SSMDSegment) -> str:
+def _format_segment(segment: SSMDSegment) -> str:  # noqa: C901
     """Format a single segment, reconstructing markup from attributes.
 
     Reconstructs SSMD markup like *emphasis*, [language](lang: en),
@@ -250,7 +253,7 @@ def _format_segment(segment: SSMDSegment) -> str:
             audio_parts.append(segment.audio.alt_text)
 
         audio_annotation = " ".join(audio_parts)
-        text = f"![{text}]({audio_annotation})"
+        text = f"[{text}]({audio_annotation})"
 
     # Handle marks
     if segment.marks_before:
@@ -308,7 +311,8 @@ def _format_voice_directive(voice) -> str:
         voice: VoiceAttrs object
 
     Returns:
-        Voice directive string (e.g., "@voice: sarah" or "@voice: fr-FR, gender: female")
+        Voice directive string
+        (e.g., "@voice: sarah" or "@voice: fr-FR, gender: female")
     """
     if not voice:
         return ""

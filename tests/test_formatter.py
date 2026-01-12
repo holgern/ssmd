@@ -647,11 +647,11 @@ class TestLosslessRoundtrip:
 
     def test_audio(self):
         """Audio should be preserved."""
-        text = "Listen to this ![sound](sound.mp3) effect"
+        text = "Listen to this [sound](sound.mp3) effect"
         sentences = parse_sentences(text)
         formatted = format_ssmd(sentences)
 
-        assert "![sound](sound.mp3)" in formatted
+        assert "[sound](sound.mp3)" in formatted
 
     def test_marks(self):
         """Marks should be preserved."""
