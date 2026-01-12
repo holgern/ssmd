@@ -808,43 +808,44 @@ def _parse_prosody_annotation(params: str) -> ProsodyAttrs:
 def _parse_prosody_shorthand(markup: str) -> Segment | None:
     """Parse prosody shorthand markup like ++loud++ or <<slow<<."""
     # Volume: ~~silent~~, --x-soft--, -soft-, +loud+, ++x-loud++
-    volume_patterns = {
-        "~~": "silent",
-        "--": "x-soft",
-        "-": "soft",
-        "+": "loud",
-        "++": "x-loud",
-    }
+    # Order by length (longest first) to ensure ++ matches before +
+    volume_patterns = [
+        ("++", "x-loud"),
+        ("~~", "silent"),
+        ("--", "x-soft"),
+        ("+", "loud"),
+        ("-", "soft"),
+    ]
 
     # Rate: <<x-slow<<, <slow<, >fast>, >>x-fast>>
-    rate_patterns = {
-        "<<": "x-slow",
-        "<": "slow",
-        ">": "fast",
-        ">>": "x-fast",
-    }
+    rate_patterns = [
+        ("<<", "x-slow"),
+        (">>", "x-fast"),
+        ("<", "slow"),
+        (">", "fast"),
+    ]
 
     # Pitch: __x-low__, _low_ (single _ handled by emphasis), ^high^, ^^x-high^^
-    pitch_patterns = {
-        "__": "x-low",
-        "^": "high",
-        "^^": "x-high",
-    }
+    pitch_patterns = [
+        ("^^", "x-high"),
+        ("__", "x-low"),
+        ("^", "high"),
+    ]
 
     # Try to match each pattern type
-    for marker, value in volume_patterns.items():
+    for marker, value in volume_patterns:
         pattern = re.compile(rf"^{re.escape(marker)}(.+?){re.escape(marker)}$")
         match = pattern.match(markup)
         if match:
             return Segment(text=match.group(1), prosody=ProsodyAttrs(volume=value))
 
-    for marker, value in rate_patterns.items():
+    for marker, value in rate_patterns:
         pattern = re.compile(rf"^{re.escape(marker)}(.+?){re.escape(marker)}$")
         match = pattern.match(markup)
         if match:
             return Segment(text=match.group(1), prosody=ProsodyAttrs(rate=value))
 
-    for marker, value in pitch_patterns.items():
+    for marker, value in pitch_patterns:
         pattern = re.compile(rf"^{re.escape(marker)}(.+?){re.escape(marker)}$")
         match = pattern.match(markup)
         if match:

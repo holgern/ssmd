@@ -207,7 +207,43 @@ class Sentence:
         Returns:
             Plain text with all markup removed
         """
-        return "".join(segment.to_text() for segment in self.segments)
+        text_parts = [segment.to_text() for segment in self.segments]
+        return self._join_text_parts(text_parts)
+
+    def _join_text_parts(self, parts: list[str]) -> str:
+        """Join text parts with appropriate spacing.
+
+        Adds spaces between parts but not before punctuation.
+
+        Args:
+            parts: List of text strings for each segment
+
+        Returns:
+            Joined text string
+        """
+        import re
+
+        if not parts:
+            return ""
+
+        # Filter out empty parts
+        parts = [p for p in parts if p]
+        if not parts:
+            return ""
+
+        result = parts[0]
+        for i in range(1, len(parts)):
+            part = parts[i]
+            # Don't add space before punctuation
+            if part and re.match(r'^[.!?,;:\'")\]}>]', part):
+                result += part
+            # Don't add space if previous part ends with opening bracket/quote
+            elif result and result[-1] in "([{<\"'":
+                result += part
+            else:
+                result += " " + part
+
+        return result
 
     @property
     def text(self) -> str:

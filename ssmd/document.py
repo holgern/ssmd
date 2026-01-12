@@ -5,11 +5,10 @@ from typing import TYPE_CHECKING, Any, overload
 
 from ssmd.formatter import format_ssmd
 from ssmd.parser import parse_sentences
-from ssmd.utils import extract_sentences
+from ssmd.utils import extract_sentences, format_xml
 
 if TYPE_CHECKING:
     from ssmd.capabilities import TTSCapabilities
-    from ssmd.converter import Converter
 
 
 class Document:
@@ -110,7 +109,7 @@ class Document:
         self._separators: list[str] = []
         self._config = config or {}
         self._capabilities = capabilities
-        self._converter: Converter | None = None
+        self._capabilities_obj: "TTSCapabilities | None" = None  # Resolved capabilities
         self._cached_ssml: str | None = None
         self._cached_sentences: list[str] | None = None
         self._escape_syntax = escape_syntax
@@ -291,15 +290,58 @@ class Document:
             '<speak>Hello <emphasis>world</emphasis>!</speak>'
         """
         if self._cached_ssml is None:
-            converter = self._get_converter()
             ssmd_content = self.ssmd
-            # Convert to SSML (placeholders won't be interpreted as SSMD)
-            ssml = converter.convert(ssmd_content)
-            # Unescape placeholders after conversion if escaping was used
+
+            # Unescape placeholders if escaping was used (before parsing)
             if self._escape_syntax:
                 from ssmd.utils import unescape_ssmd_syntax
 
-                ssml = unescape_ssmd_syntax(ssml)
+                ssmd_content = unescape_ssmd_syntax(ssmd_content)
+
+            # Get resolved capabilities
+            capabilities = self._get_capabilities()
+
+            # Get config options
+            output_speak_tag = self._config.get("output_speak_tag", True)
+            auto_sentence_tags = self._config.get("auto_sentence_tags", False)
+            pretty_print = self._config.get("pretty_print", False)
+            extensions = self._config.get("extensions")
+
+            # Get sentence detection config
+            model_size = self._config.get("sentence_model_size")
+            spacy_model = self._config.get("sentence_spacy_model")
+            use_spacy = self._config.get("sentence_use_spacy")
+
+            # Parse SSMD into sentences
+            sentences = parse_sentences(
+                ssmd_content,
+                capabilities=capabilities,
+                model_size=model_size,
+                spacy_model=spacy_model,
+                use_spacy=use_spacy,
+            )
+
+            # Build SSML from sentences
+            ssml_parts = []
+            for sentence in sentences:
+                ssml_parts.append(
+                    sentence.to_ssml(
+                        capabilities=capabilities,
+                        extensions=extensions,
+                        wrap_sentence=auto_sentence_tags,
+                    )
+                )
+
+            ssml = "".join(ssml_parts)
+
+            # Wrap in <speak> tags if configured
+            if output_speak_tag:
+                ssml = f"<speak>{ssml}</speak>"
+
+            # Pretty print if configured
+            if pretty_print:
+                ssml = format_xml(ssml, pretty=True)
+
             self._cached_ssml = ssml
         return self._cached_ssml
 
@@ -335,8 +377,12 @@ class Document:
             >>> doc.to_text()
             'Hello world!'
         """
-        converter = self._get_converter()
-        return converter.strip(self.ssmd)
+        ssmd_content = self.ssmd
+        sentences = parse_sentences(ssmd_content)
+        text_parts = []
+        for sentence in sentences:
+            text_parts.append(sentence.to_text())
+        return " ".join(text_parts)
 
     # ═══════════════════════════════════════════════════════════
     # PROPERTIES
@@ -380,7 +426,7 @@ class Document:
             value: New configuration dict
         """
         self._config = value
-        self._converter = None  # Reset converter with new config
+        self._capabilities_obj = None  # Reset resolved capabilities
         self._invalidate_cache()
 
     @property
@@ -400,7 +446,7 @@ class Document:
             value: TTSCapabilities instance, preset name, or None
         """
         self._capabilities = value
-        self._converter = None  # Reset converter with new capabilities
+        self._capabilities_obj = None  # Reset resolved capabilities
         self._invalidate_cache()
 
     # ═══════════════════════════════════════════════════════════
@@ -818,45 +864,20 @@ class Document:
     # INTERNAL HELPERS
     # ═══════════════════════════════════════════════════════════
 
-    def _get_converter(self) -> "Converter":
-        """Get or create converter instance.
+    def _get_capabilities(self) -> "TTSCapabilities | None":
+        """Get resolved TTSCapabilities object.
 
         Returns:
-            Converter instance configured for this document
+            TTSCapabilities instance or None
         """
-        if self._converter is None:
-            from ssmd.capabilities import get_preset
-            from ssmd.converter import Converter
+        if self._capabilities_obj is None and self._capabilities is not None:
+            from ssmd.capabilities import TTSCapabilities, get_preset
 
-            config = self._config.copy()
-
-            # Handle capabilities
-            if self._capabilities is not None:
-                if isinstance(self._capabilities, str):
-                    # Load preset
-                    caps = get_preset(self._capabilities)
-                else:
-                    caps = self._capabilities
-
-                # Merge capability config
-                cap_config = caps.to_config()
-
-                # Merge skip lists
-                user_skip = set(config.get("skip", []))
-                cap_skip = set(cap_config.get("skip", []))
-                config["skip"] = list(user_skip | cap_skip)
-
-                # Store capabilities for annotation filtering
-                config["capabilities"] = caps
-
-                # Merge other config (user config takes precedence)
-                for key, value in cap_config.items():
-                    if key not in config and key != "skip":
-                        config[key] = value
-
-            self._converter = Converter(config)
-
-        return self._converter
+            if isinstance(self._capabilities, str):
+                self._capabilities_obj = get_preset(self._capabilities)
+            elif isinstance(self._capabilities, TTSCapabilities):
+                self._capabilities_obj = self._capabilities
+        return self._capabilities_obj
 
     def _invalidate_cache(self) -> None:
         """Invalidate cached SSML and sentences."""

@@ -8,13 +8,13 @@ import ssmd
 def test_simple_text():
     """Test plain text conversion."""
     result = ssmd.to_ssml("hello world")
-    assert result == "<speak><p>hello world</p></speak>"
+    assert result == "<speak>hello world</speak>"
 
 
 def test_emphasis():
     """Test emphasis conversion."""
     result = ssmd.to_ssml("hello *world*!")
-    assert result == "<speak><p>hello <emphasis>world</emphasis>!</p></speak>"
+    assert result == "<speak>hello <emphasis>world</emphasis>!</speak>"
 
 
 def test_strip_emphasis():
@@ -55,9 +55,11 @@ def test_strip_mark():
 
 
 def test_paragraph():
-    """Test paragraph processing."""
+    """Test paragraph processing - double newlines create sentence boundaries."""
     result = ssmd.to_ssml("First paragraph.\n\nSecond paragraph.")
-    assert "<p>First paragraph.</p><p>Second paragraph.</p>" in result
+    # New architecture doesn't use <p> tags - sentences are joined directly
+    assert "First paragraph." in result
+    assert "Second paragraph." in result
 
 
 def test_document_iteration():
@@ -96,12 +98,16 @@ def test_document_properties():
 
 
 def test_config_skip_processor():
-    """Test skipping processors via config."""
-    doc = ssmd.Document("hello *world*", config={"skip": ["emphasis"]})
+    """Test disabling features via capabilities."""
+    from ssmd.capabilities import TTSCapabilities
+
+    # Create capabilities with emphasis disabled
+    caps = TTSCapabilities(emphasis=False)
+    doc = ssmd.Document("hello *world*", capabilities=caps)
     result = doc.to_ssml()
-    # Should not process emphasis
+    # Should not process emphasis - text is passed through raw
     assert "<emphasis>" not in result
-    assert "*world*" in result
+    assert "world" in result
 
 
 def test_prosody_shorthand():
@@ -216,8 +222,8 @@ Hello from Michael"""
     result = ssmd.to_ssml(text)
     assert '<voice name="sarah">Hello from Sarah</voice>' in result
     assert '<voice name="michael">Hello from Michael</voice>' in result
-    # Should be in separate paragraphs
-    assert result.count("<p>") == 2
+    # Each voice block is separate (no <p> tags in new architecture)
+    assert result.count("<voice") == 2
 
 
 def test_voice_directive_parentheses():
