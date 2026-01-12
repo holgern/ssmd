@@ -34,7 +34,9 @@ class TestEmphasis:
         ssmd_text = ssmd.from_ssml(original_ssml)
 
         # Validate SSMD syntax
-        assert ssmd_text == "*important*", f"Expected '*important*', got '{ssmd_text}'"
+        assert (
+            ssmd_text.strip() == "*important*"
+        ), f"Expected '*important*', got '{ssmd_text}'"
 
         # Validate roundtrip
         result_ssml = ssmd.to_ssml(ssmd_text)
@@ -52,7 +54,7 @@ class TestEmphasis:
 
         # Validate SSMD syntax
         assert (
-            ssmd_text == "**critical**"
+            ssmd_text.strip() == "**critical**"
         ), f"Expected '**critical**', got '{ssmd_text}'"
 
         # Validate roundtrip
@@ -238,7 +240,7 @@ class TestSayAs:
     """Test say-as interpret-as feature."""
 
     def test_say_as_telephone(self):
-        """Telephone: SSML → [text](as: telephone) → SSML."""
+        """Telephone: SSML → [text](say-as: telephone) → SSML."""
         with Speech() as speech:
             with speech.say_as(InterpretAs.TELEPHONE):
                 speech.add_text("+1-555-1234")
@@ -247,14 +249,14 @@ class TestSayAs:
         ssmd_text = ssmd.from_ssml(original_ssml)
 
         # Validate SSMD syntax
-        assert "[+1-555-1234](as: telephone)" in ssmd_text, f"Got '{ssmd_text}'"
+        assert "[+1-555-1234](say-as: telephone)" in ssmd_text, f"Got '{ssmd_text}'"
 
         # Validate roundtrip
         result_ssml = ssmd.to_ssml(ssmd_text)
         assert 'interpret-as="telephone"' in result_ssml
 
     def test_say_as_characters(self):
-        """Characters: SSML → [text](as: characters) → SSML."""
+        """Characters: SSML → [text](say-as: characters) → SSML."""
         with Speech() as speech:
             with speech.say_as(InterpretAs.CHARACTERS):
                 speech.add_text("ABC")
@@ -263,7 +265,7 @@ class TestSayAs:
         ssmd_text = ssmd.from_ssml(original_ssml)
 
         # Validate SSMD syntax
-        assert "[ABC](as: characters)" in ssmd_text, f"Got '{ssmd_text}'"
+        assert "[ABC](say-as: characters)" in ssmd_text, f"Got '{ssmd_text}'"
 
         # Validate roundtrip
         result_ssml = ssmd.to_ssml(ssmd_text)
@@ -274,7 +276,7 @@ class TestPhoneme:
     """Test phonetic pronunciation feature."""
 
     def test_phoneme_ipa(self):
-        """IPA phoneme: SSML → [text](ipa: ...) → SSML."""
+        """IPA phoneme: SSML → [text](ph: ..., alphabet: ipa) → SSML."""
         with Speech() as speech:
             with speech.phoneme(PhoneticAlphabet.IPA, "təˈmeɪtoʊ"):
                 speech.add_text("tomato")
@@ -283,7 +285,9 @@ class TestPhoneme:
         ssmd_text = ssmd.from_ssml(original_ssml)
 
         # Validate SSMD syntax
-        assert "[tomato](ipa: təˈmeɪtoʊ)" in ssmd_text, f"Got '{ssmd_text}'"
+        assert (
+            "[tomato](ph: təˈmeɪtoʊ, alphabet: ipa)" in ssmd_text
+        ), f"Got '{ssmd_text}'"
 
         # Validate roundtrip
         result_ssml = ssmd.to_ssml(ssmd_text)
@@ -394,7 +398,7 @@ class TestComplexScenarios:
         # Validate SSMD syntax
         assert "*Alert*" in ssmd_text
         assert "...500ms" in ssmd_text
-        assert "[911](as: telephone)" in ssmd_text
+        assert "[911](say-as: telephone)" in ssmd_text
 
         # Validate roundtrip
         result_ssml = ssmd.to_ssml(ssmd_text)

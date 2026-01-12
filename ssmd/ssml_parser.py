@@ -4,6 +4,9 @@ import re
 import xml.etree.ElementTree as ET
 from typing import Any
 
+from ssmd.formatter import format_ssmd
+from ssmd.parser import parse_sentences
+
 
 class SSMLParser:
     """Convert SSML to SSMD markdown format.
@@ -85,7 +88,7 @@ class SSMLParser:
             ssml: SSML XML string
 
         Returns:
-            SSMD markdown string
+            SSMD markdown string with proper formatting (each sentence on new line)
 
         Example:
             >>> parser = SSMLParser()
@@ -116,7 +119,9 @@ class SSMLParser:
         # Restore voice directive newlines (protected during whitespace cleaning)
         result = result.replace("{VOICE_NEWLINE}", "\n")
 
-        return result.strip()
+        # Parse into sentences and format with proper line breaks
+        sentences = parse_sentences(result.strip())
+        return format_ssmd(sentences)
 
     def _process_element(self, element: ET.Element) -> str:
         """Process an XML element and its children recursively.
@@ -414,7 +419,7 @@ class SSMLParser:
         return content
 
     def _process_phoneme(self, element: ET.Element) -> str:
-        """Convert <phoneme> to [text](ph: ...).
+        """Convert <phoneme> to [text](ph: ..., alphabet: ...).
 
         Args:
             element: phoneme element
@@ -426,12 +431,8 @@ class SSMLParser:
         alphabet = element.get("alphabet", "ipa")
         ph = element.get("ph", "")
 
-        if alphabet == "ipa":
-            return f"[{content}](ipa: {ph})"
-        elif alphabet == "x-sampa":
-            return f"[{content}](ph: {ph})"
-        else:
-            return f"[{content}]({alphabet}: {ph})"
+        # Use explicit format: [text](ph: value, alphabet: type)
+        return f"[{content}](ph: {ph}, alphabet: {alphabet})"
 
     def _process_substitution(self, element: ET.Element) -> str:
         """Convert <sub> to [text](sub: alias).

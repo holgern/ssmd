@@ -98,6 +98,19 @@ class AudioAttrs:
 
 
 @dataclass
+class PhonemeAttrs:
+    """Phoneme pronunciation attributes.
+
+    Attributes:
+        ph: Phonetic pronunciation string
+        alphabet: Phonetic alphabet (ipa or x-sampa)
+    """
+
+    ph: str
+    alphabet: str = "ipa"
+
+
+@dataclass
 class SSMDSegment:
     """A segment of text with SSMD features.
 
@@ -132,12 +145,13 @@ class SSMDSegment:
     # Text transformation features (mutually exclusive - only one should be set)
     say_as: SayAsAttrs | None = None  # Convert using say-as rules
     substitution: str | None = None  # Replace text with alias
-    phoneme: str | None = None  # IPA pronunciation
+    phoneme: PhonemeAttrs | None = None  # IPA pronunciation
 
     # Styling features (can be combined)
-    emphasis: bool = False
+    emphasis: bool | str = False  # True/"moderate", "strong", "reduced", or False
     language: str | None = None
     prosody: ProsodyAttrs | None = None
+    voice: VoiceAttrs | None = None  # Inline voice annotation
 
     # Audio (replaces text entirely)
     audio: AudioAttrs | None = None

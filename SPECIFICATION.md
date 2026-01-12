@@ -289,6 +289,95 @@ Don't forget to wash them first.</p>
 
 ---
 
+### Formatting Conventions
+
+SSMD files should follow these formatting rules for readability and consistency.
+
+#### Sentence Boundaries
+
+Each sentence should start on a new line. Sentences end with terminal punctuation (`.`,
+`?`, `!`):
+
+```ssmd
+First sentence here.
+Second sentence here.
+Third sentence here?
+```
+
+#### Break Markers
+
+Break markers (e.g., `...s`, `...w`, `...p`) indicate pause duration and are **not**
+sentence boundaries.
+
+**Mid-sentence breaks** stay inline between text:
+
+```ssmd
+I like ...s to sleep.
+The meeting ...w lasted ...w three hours.
+```
+
+**Sentence-boundary breaks** appear at the end of the line:
+
+```ssmd
+First sentence. ...s
+Second sentence starts here.
+```
+
+**Important:** Break markers like `...s`, `...w`, `...p`, `...500ms` are pause lengths,
+not sentence indicators. A sentence ends only with `.`, `?`, or `!`.
+
+#### Paragraphs
+
+Paragraphs are separated by blank lines (double newlines):
+
+```ssmd
+First paragraph with multiple sentences.
+Another sentence in first paragraph.
+
+Second paragraph starts here.
+Still in second paragraph.
+
+Third paragraph.
+```
+
+#### Voice Directives
+
+Voice directives appear on their own line with a blank line after:
+
+```ssmd
+@voice: sarah
+
+Hello! How are you today?
+I'm doing great.
+
+@voice: michael
+
+Thanks for asking!
+```
+
+#### Headings
+
+Headings have blank lines before and after:
+
+```ssmd
+Previous content here.
+
+# Main Heading
+
+Content after heading starts here.
+```
+
+#### Quoted Sentences
+
+When quotes contain multiple sentences, each sentence remains on its own line:
+
+```ssmd
+"First quoted sentence.
+Second quoted sentence here."
+```
+
+---
+
 ### Heading
 
 Headings use markdown-style hash marks and can be configured with custom effects.

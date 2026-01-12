@@ -3,6 +3,8 @@
 from collections.abc import Iterator
 from typing import TYPE_CHECKING, Any, overload
 
+from ssmd.formatter import format_ssmd
+from ssmd.parser import parse_sentences
 from ssmd.utils import extract_sentences
 
 if TYPE_CHECKING:
@@ -271,19 +273,25 @@ class Document:
         return self._cached_ssml
 
     def to_ssmd(self) -> str:
-        """Export document to SSMD format.
+        """Export document to SSMD format with proper formatting.
 
-        This is the same as accessing the .ssmd property.
+        Returns SSMD with proper line breaks (each sentence on a new line).
 
         Returns:
-            SSMD markdown string
+            SSMD markdown string with proper formatting
 
         Example:
             >>> doc = ssmd.Document.from_ssml('<speak><emphasis>Hi</emphasis></speak>')
             >>> doc.to_ssmd()
             '*Hi*'
         """
-        return self.ssmd
+        raw_ssmd = self.ssmd
+        if not raw_ssmd.strip():
+            return raw_ssmd
+
+        # Parse into sentences and format with proper line breaks
+        sentences = parse_sentences(raw_ssmd)
+        return format_ssmd(sentences)
 
     def to_text(self) -> str:
         """Export document to plain text (strips all markup).

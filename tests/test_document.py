@@ -381,6 +381,82 @@ class TestDocumentRepresentation:
         assert str(doc) == "Hello *world*"
 
 
+class TestDocumentSentenceEndingPreservation:
+    """Test that sentence endings (periods) are preserved with break markers."""
+
+    def test_period_preservation_with_break_markers(self):
+        """Verify periods are preserved when break markers are present in Document."""
+        doc = Document("I like ...s to sleep. What a ...c great day.")
+        ssml = doc.to_ssml()
+
+        # Periods must be preserved in SSML
+        assert "sleep." in ssml, f"Period after 'sleep' missing in: {ssml}"
+        assert "day." in ssml, f"Period after 'day' missing in: {ssml}"
+
+        # Plain text should also have periods
+        text = doc.to_text()
+        assert "sleep." in text
+        assert "day." in text
+
+    def test_period_before_break_marker(self):
+        """Verify period is preserved when break marker comes after it."""
+        doc = Document("I like to sleep ...s.")
+        ssml = doc.to_ssml()
+
+        # Period must be in the SSML
+        assert "sleep" in ssml
+        assert "." in ssml
+        # Should not have space before period
+        assert " ." not in ssml, f"Unexpected space before period in: {ssml}"
+
+    def test_multiple_break_markers_preserve_periods(self):
+        """Verify periods with multiple break markers in text."""
+        doc = Document("First ...w word ...s here. Second ...c part.")
+        ssml = doc.to_ssml()
+
+        assert "here." in ssml, f"Period after 'here' missing in: {ssml}"
+        assert "part." in ssml, f"Period after 'part' missing in: {ssml}"
+
+    def test_period_count_matches_with_breaks(self):
+        """Verify the correct number of periods are preserved."""
+        doc = Document("One ...s. Two ...c. Three ...w.")
+        ssml = doc.to_ssml()
+
+        # Should have 3 periods
+        period_count = ssml.count(".")
+        assert period_count == 3, f"Expected 3 periods, found {period_count} in: {ssml}"
+
+    def test_mixed_punctuation_with_breaks(self):
+        """Verify all punctuation types are preserved with break markers."""
+        doc = Document("Question ...s? Exclaim ...c! Period ...w.")
+        ssml = doc.to_ssml()
+
+        assert "?" in ssml, "Question mark missing"
+        assert "!" in ssml, "Exclamation mark missing"
+        assert "." in ssml, "Period missing"
+
+    def test_document_add_methods_preserve_periods(self):
+        """Verify periods are preserved when using Document.add_* methods."""
+        doc = Document()
+        doc.add_sentence("First ...s sentence.")
+        doc.add_sentence("Second ...c sentence.")
+
+        ssml = doc.to_ssml()
+        assert "First" in ssml and "sentence." in ssml
+        assert "Second" in ssml and "sentence." in ssml
+
+    def test_plain_text_extraction_preserves_periods(self):
+        """Verify to_text() preserves periods correctly."""
+        doc = Document("Test ...s one. Test ...c two.")
+        text = doc.to_text()
+
+        # Break markers should be removed but periods kept
+        assert "...s" not in text, "Break marker should be removed"
+        assert "...c" not in text, "Break marker should be removed"
+        assert "one." in text, "Period after 'one' should be preserved"
+        assert "two." in text, "Period after 'two' should be preserved"
+
+
 class TestDocumentEdgeCases:
     """Test edge cases and error conditions."""
 

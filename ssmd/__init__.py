@@ -66,7 +66,9 @@ from ssmd.parser_types import (
     BreakAttrs,
     SayAsAttrs,
     AudioAttrs,
+    PhonemeAttrs,
 )
+from ssmd.formatter import format_ssmd
 
 try:
     from ssmd._version import version as __version__
@@ -157,6 +159,7 @@ __all__ = [
     "parse_sentences",
     "parse_segments",
     "parse_voice_blocks",
+    "format_ssmd",
     # Parser types
     "SSMDSegment",
     "SSMDSentence",
