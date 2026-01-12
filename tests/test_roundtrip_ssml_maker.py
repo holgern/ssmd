@@ -34,9 +34,9 @@ class TestEmphasis:
         ssmd_text = ssmd.from_ssml(original_ssml)
 
         # Validate SSMD syntax
-        assert ssmd_text.strip() == "*important*", (
-            f"Expected '*important*', got '{ssmd_text}'"
-        )
+        assert (
+            ssmd_text.strip() == "*important*"
+        ), f"Expected '*important*', got '{ssmd_text}'"
 
         # Validate roundtrip
         result_ssml = ssmd.to_ssml(ssmd_text)
@@ -53,9 +53,9 @@ class TestEmphasis:
         ssmd_text = ssmd.from_ssml(original_ssml)
 
         # Validate SSMD syntax
-        assert ssmd_text.strip() == "**critical**", (
-            f"Expected '**critical**', got '{ssmd_text}'"
-        )
+        assert (
+            ssmd_text.strip() == "**critical**"
+        ), f"Expected '**critical**', got '{ssmd_text}'"
 
         # Validate roundtrip
         result_ssml = ssmd.to_ssml(ssmd_text)
@@ -150,9 +150,9 @@ class TestProsody:
         ssmd_text = ssmd.from_ssml(original_ssml)
 
         # Validate SSMD syntax
-        assert "++VERY LOUD++" in ssmd_text, (
-            f"Expected '++VERY LOUD++' in '{ssmd_text}'"
-        )
+        assert (
+            "++VERY LOUD++" in ssmd_text
+        ), f"Expected '++VERY LOUD++' in '{ssmd_text}'"
 
         # Validate roundtrip
         result_ssml = ssmd.to_ssml(ssmd_text)
@@ -222,9 +222,9 @@ class TestProsody:
         ssmd_text = ssmd.from_ssml(original_ssml)
 
         # Validate SSMD syntax - should use annotation format
-        assert "[energetic]" in ssmd_text, (
-            f"Expected annotation format in '{ssmd_text}'"
-        )
+        assert (
+            "[energetic]" in ssmd_text
+        ), f"Expected annotation format in '{ssmd_text}'"
         assert "v:" in ssmd_text or "volume" in ssmd_text
         assert "r:" in ssmd_text or "rate" in ssmd_text
         assert "p:" in ssmd_text or "pitch" in ssmd_text
@@ -285,9 +285,9 @@ class TestPhoneme:
         ssmd_text = ssmd.from_ssml(original_ssml)
 
         # Validate SSMD syntax
-        assert "[tomato](ph: təˈmeɪtoʊ, alphabet: ipa)" in ssmd_text, (
-            f"Got '{ssmd_text}'"
-        )
+        assert (
+            "[tomato](ph: təˈmeɪtoʊ, alphabet: ipa)" in ssmd_text
+        ), f"Got '{ssmd_text}'"
 
         # Validate roundtrip
         result_ssml = ssmd.to_ssml(ssmd_text)
@@ -308,9 +308,9 @@ class TestSubstitution:
         ssmd_text = ssmd.from_ssml(original_ssml)
 
         # Validate SSMD syntax
-        assert "[W3C](sub: World Wide Web Consortium)" in ssmd_text, (
-            f"Got '{ssmd_text}'"
-        )
+        assert (
+            "[W3C](sub: World Wide Web Consortium)" in ssmd_text
+        ), f"Got '{ssmd_text}'"
 
         # Validate roundtrip
         result_ssml = ssmd.to_ssml(ssmd_text)
@@ -318,7 +318,12 @@ class TestSubstitution:
 
 
 class TestParagraph:
-    """Test paragraph feature."""
+    """Test paragraph feature.
+
+    Note: The new SSMD architecture intentionally does not generate <p> tags
+    in output. Paragraph boundaries are preserved as double newlines in SSMD
+    but are not wrapped in paragraph tags when converting back to SSML.
+    """
 
     def test_single_paragraph(self):
         """Single paragraph: SSML → text → SSML."""
@@ -332,9 +337,9 @@ class TestParagraph:
         # Validate SSMD syntax
         assert "This is a paragraph" in ssmd_text
 
-        # Validate roundtrip
+        # Validate roundtrip - text is preserved (no <p> tags in new architecture)
         result_ssml = ssmd.to_ssml(ssmd_text)
-        assert "<p>" in result_ssml
+        assert "This is a paragraph" in result_ssml
 
     def test_multiple_paragraphs(self):
         """Multiple paragraphs: SSML → para1\\n\\npara2 → SSML."""
@@ -352,9 +357,10 @@ class TestParagraph:
         assert "Second paragraph" in ssmd_text
         assert "\n\n" in ssmd_text, f"Expected paragraph separator in '{ssmd_text}'"
 
-        # Validate roundtrip
+        # Validate roundtrip - text is preserved (no <p> tags in new architecture)
         result_ssml = ssmd.to_ssml(ssmd_text)
-        assert result_ssml.count("<p>") >= 2
+        assert "First paragraph" in result_ssml
+        assert "Second paragraph" in result_ssml
 
 
 class TestComplexScenarios:
@@ -377,10 +383,10 @@ class TestComplexScenarios:
         assert "This is" in ssmd_text
         assert "text" in ssmd_text
 
-        # Validate roundtrip
+        # Validate roundtrip - emphasis preserved (no <p> tags in new architecture)
         result_ssml = ssmd.to_ssml(ssmd_text)
         assert "<emphasis" in result_ssml
-        assert "<p>" in result_ssml
+        assert "important" in result_ssml
 
     def test_mixed_features(self):
         """Mixed: emphasis, break, say-as in sequence."""

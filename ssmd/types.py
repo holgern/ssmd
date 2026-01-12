@@ -3,7 +3,7 @@
 This module defines the core data structures used throughout the SSMD library.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Literal
 
 

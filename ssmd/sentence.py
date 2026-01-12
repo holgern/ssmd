@@ -112,19 +112,25 @@ class Sentence:
 
     def _wrap_voice(self, content: str) -> str:
         """Wrap content in voice tag."""
+        from ssmd.segment import _escape_xml_attr
+
         if not self.voice:
             return content
 
         attrs = []
         if self.voice.name:
-            attrs.append(f'name="{self.voice.name}"')
+            name = _escape_xml_attr(self.voice.name)
+            attrs.append(f'name="{name}"')
         else:
             if self.voice.language:
-                attrs.append(f'language="{self.voice.language}"')
+                lang = _escape_xml_attr(self.voice.language)
+                attrs.append(f'language="{lang}"')
             if self.voice.gender:
-                attrs.append(f'gender="{self.voice.gender}"')
+                gender = _escape_xml_attr(self.voice.gender)
+                attrs.append(f'gender="{gender}"')
             if self.voice.variant:
-                attrs.append(f'variant="{self.voice.variant}"')
+                variant = _escape_xml_attr(str(self.voice.variant))
+                attrs.append(f'variant="{variant}"')
 
         if attrs:
             return f"<voice {' '.join(attrs)}>{content}</voice>"
@@ -132,10 +138,14 @@ class Sentence:
 
     def _break_to_ssml(self, brk: BreakAttrs) -> str:
         """Convert break to SSML."""
+        from ssmd.segment import _escape_xml_attr
+
         if brk.time:
-            return f'<break time="{brk.time}"/>'
+            time = _escape_xml_attr(brk.time)
+            return f'<break time="{time}"/>'
         elif brk.strength:
-            return f'<break strength="{brk.strength}"/>'
+            strength = _escape_xml_attr(brk.strength)
+            return f'<break strength="{strength}"/>'
         return "<break/>"
 
     def to_ssmd(self) -> str:

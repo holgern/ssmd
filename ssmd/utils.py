@@ -82,21 +82,22 @@ def extract_sentences(ssml: str) -> list[str]:
 
 
 # Unicode private use area characters for placeholders
-# These won't conflict with normal text or SSMD syntax
+# Using \uf000+ range which is not transformed by phrasplit/spaCy
+# (The \ue000-\ue00f range gets converted to dots/ellipses by some NLP tools)
 _PLACEHOLDER_MAP = {
-    "*": "\ue000",  # ASTERISK
-    "_": "\ue001",  # UNDERSCORE
-    "[": "\ue002",  # LEFT BRACKET
-    "]": "\ue003",  # RIGHT BRACKET
-    ".": "\ue004",  # DOT
-    "@": "\ue005",  # AT SIGN
-    "#": "\ue006",  # HASH
-    "~": "\ue007",  # TILDE
-    "+": "\ue008",  # PLUS
-    "-": "\ue009",  # HYPHEN
-    "<": "\ue00a",  # LESS THAN
-    ">": "\ue00b",  # GREATER THAN
-    "^": "\ue00c",  # CARET
+    "*": "\uf000",  # ASTERISK
+    "_": "\uf001",  # UNDERSCORE
+    "[": "\uf002",  # LEFT BRACKET
+    "]": "\uf003",  # RIGHT BRACKET
+    ".": "\uf004",  # DOT
+    "@": "\uf005",  # AT SIGN
+    "#": "\uf006",  # HASH
+    "~": "\uf007",  # TILDE
+    "+": "\uf008",  # PLUS
+    "-": "\uf009",  # HYPHEN
+    "<": "\uf00a",  # LESS THAN
+    ">": "\uf00b",  # GREATER THAN
+    "^": "\uf00c",  # CARET
 }
 
 # Reverse map for unescaping

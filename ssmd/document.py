@@ -109,7 +109,7 @@ class Document:
         self._separators: list[str] = []
         self._config = config or {}
         self._capabilities = capabilities
-        self._capabilities_obj: "TTSCapabilities | None" = None  # Resolved capabilities
+        self._capabilities_obj: TTSCapabilities | None = None  # Resolved capabilities
         self._cached_ssml: str | None = None
         self._cached_sentences: list[str] | None = None
         self._escape_syntax = escape_syntax
@@ -292,12 +292,6 @@ class Document:
         if self._cached_ssml is None:
             ssmd_content = self.ssmd
 
-            # Unescape placeholders if escaping was used (before parsing)
-            if self._escape_syntax:
-                from ssmd.utils import unescape_ssmd_syntax
-
-                ssmd_content = unescape_ssmd_syntax(ssmd_content)
-
             # Get resolved capabilities
             capabilities = self._get_capabilities()
 
@@ -312,7 +306,7 @@ class Document:
             spacy_model = self._config.get("sentence_spacy_model")
             use_spacy = self._config.get("sentence_use_spacy")
 
-            # Parse SSMD into sentences
+            # Parse SSMD into sentences (with placeholders if escape_syntax=True)
             sentences = parse_sentences(
                 ssmd_content,
                 capabilities=capabilities,
@@ -337,6 +331,12 @@ class Document:
             # Wrap in <speak> tags if configured
             if output_speak_tag:
                 ssml = f"<speak>{ssml}</speak>"
+
+            # Unescape placeholders AFTER generating SSML (restore original characters in output)
+            if self._escape_syntax:
+                from ssmd.utils import unescape_ssmd_syntax
+
+                ssml = unescape_ssmd_syntax(ssml)
 
             # Pretty print if configured
             if pretty_print:

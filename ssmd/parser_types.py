@@ -9,6 +9,8 @@ Import from ssmd.types, ssmd.segment, and ssmd.sentence instead.
 """
 
 # Re-export types from new locations for backward compatibility
+from ssmd.segment import Segment
+from ssmd.sentence import Sentence
 from ssmd.types import (
     AudioAttrs,
     BreakAttrs,
@@ -17,8 +19,6 @@ from ssmd.types import (
     SayAsAttrs,
     VoiceAttrs,
 )
-from ssmd.segment import Segment
-from ssmd.sentence import Sentence
 
 # Backward compatibility aliases
 SSMDSegment = Segment

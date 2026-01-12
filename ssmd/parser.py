@@ -7,16 +7,16 @@ that can be used for TTS processing or conversion to SSML.
 import re
 from typing import TYPE_CHECKING
 
-from ssmd.segment import Segment, expand_language_code, xsampa_to_ipa
+from ssmd.segment import Segment
 from ssmd.sentence import Sentence
 from ssmd.types import (
+    DEFAULT_HEADING_LEVELS,
     AudioAttrs,
     BreakAttrs,
     PhonemeAttrs,
     ProsodyAttrs,
     SayAsAttrs,
     VoiceAttrs,
-    DEFAULT_HEADING_LEVELS,
 )
 
 if TYPE_CHECKING:
@@ -806,7 +806,10 @@ def _parse_prosody_annotation(params: str) -> ProsodyAttrs:
 
 
 def _parse_prosody_shorthand(markup: str) -> Segment | None:
-    """Parse prosody shorthand markup like ++loud++ or <<slow<<."""
+    """Parse prosody shorthand markup like ++loud++ or <<slow<<.
+
+    Also handles nested emphasis inside prosody, e.g., +**WARNING**+
+    """
     # Volume: ~~silent~~, --x-soft--, -soft-, +loud+, ++x-loud++
     # Order by length (longest first) to ensure ++ matches before +
     volume_patterns = [
@@ -837,19 +840,66 @@ def _parse_prosody_shorthand(markup: str) -> Segment | None:
         pattern = re.compile(rf"^{re.escape(marker)}(.+?){re.escape(marker)}$")
         match = pattern.match(markup)
         if match:
-            return Segment(text=match.group(1), prosody=ProsodyAttrs(volume=value))
+            inner_text = match.group(1)
+            emphasis = _check_inner_emphasis(inner_text)
+            if emphasis:
+                return Segment(
+                    text=emphasis[0],
+                    emphasis=emphasis[1],
+                    prosody=ProsodyAttrs(volume=value),
+                )
+            return Segment(text=inner_text, prosody=ProsodyAttrs(volume=value))
 
     for marker, value in rate_patterns:
         pattern = re.compile(rf"^{re.escape(marker)}(.+?){re.escape(marker)}$")
         match = pattern.match(markup)
         if match:
-            return Segment(text=match.group(1), prosody=ProsodyAttrs(rate=value))
+            inner_text = match.group(1)
+            emphasis = _check_inner_emphasis(inner_text)
+            if emphasis:
+                return Segment(
+                    text=emphasis[0],
+                    emphasis=emphasis[1],
+                    prosody=ProsodyAttrs(rate=value),
+                )
+            return Segment(text=inner_text, prosody=ProsodyAttrs(rate=value))
 
     for marker, value in pitch_patterns:
         pattern = re.compile(rf"^{re.escape(marker)}(.+?){re.escape(marker)}$")
         match = pattern.match(markup)
         if match:
-            return Segment(text=match.group(1), prosody=ProsodyAttrs(pitch=value))
+            inner_text = match.group(1)
+            emphasis = _check_inner_emphasis(inner_text)
+            if emphasis:
+                return Segment(
+                    text=emphasis[0],
+                    emphasis=emphasis[1],
+                    prosody=ProsodyAttrs(pitch=value),
+                )
+            return Segment(text=inner_text, prosody=ProsodyAttrs(pitch=value))
+
+    return None
+
+
+def _check_inner_emphasis(text: str) -> tuple[str, str | bool] | None:
+    """Check if text is wrapped in emphasis markers.
+
+    Returns (inner_text, emphasis_level) or None if no emphasis found.
+    """
+    # Strong emphasis: **text**
+    strong_match = STRONG_EMPHASIS_PATTERN.fullmatch(text)
+    if strong_match:
+        return (strong_match.group(1), "strong")
+
+    # Moderate emphasis: *text*
+    moderate_match = MODERATE_EMPHASIS_PATTERN.fullmatch(text)
+    if moderate_match:
+        return (moderate_match.group(1), True)
+
+    # Reduced emphasis: _text_
+    reduced_match = REDUCED_EMPHASIS_PATTERN.fullmatch(text)
+    if reduced_match:
+        return (reduced_match.group(1), "reduced")
 
     return None
 

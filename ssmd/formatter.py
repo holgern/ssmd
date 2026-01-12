@@ -5,8 +5,8 @@ line breaks, paragraph spacing, and structural elements according to SSMD
 formatting conventions.
 """
 
-from ssmd.sentence import Sentence
 from ssmd.segment import Segment
+from ssmd.sentence import Sentence
 from ssmd.types import BreakAttrs, VoiceAttrs
 
 # Backward compatibility aliases

@@ -99,6 +99,36 @@ DEFAULT_EXTENSIONS = {
 }
 
 
+def _escape_xml_attr(value: str) -> str:
+    """Escape a value for use in an XML attribute.
+
+    Args:
+        value: The attribute value to escape
+
+    Returns:
+        Escaped string safe for XML attribute
+    """
+    return (
+        value.replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace('"', "&quot;")
+        .replace("'", "&apos;")
+    )
+
+
+def _escape_xml_text(value: str) -> str:
+    """Escape a value for use in XML text content.
+
+    Args:
+        value: The text content to escape
+
+    Returns:
+        Escaped string safe for XML text
+    """
+    return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
 # X-SAMPA to IPA conversion table (lazy-loaded)
 _XSAMPA_TABLE: dict[str, str] | None = None
 
@@ -235,7 +265,8 @@ class Segment:
         # Add marks before
         if not capabilities or capabilities.mark:
             for mark in self.marks_before:
-                result += f'<mark name="{mark}"/>'
+                mark_escaped = _escape_xml_attr(mark)
+                result += f'<mark name="{mark_escaped}"/>'
 
         # Add breaks before
         if not capabilities or capabilities.break_tags:
@@ -254,7 +285,8 @@ class Segment:
         # Add marks after
         if not capabilities or capabilities.mark:
             for mark in self.marks_after:
-                result += f'<mark name="{mark}"/>'
+                mark_escaped = _escape_xml_attr(mark)
+                result += f'<mark name="{mark_escaped}"/>'
 
         return result
 
@@ -275,16 +307,17 @@ class Segment:
         # Handle audio (replaces text)
         if self.audio:
             if capabilities and not capabilities.audio:
-                return self.text  # Fallback to description
+                return _escape_xml_text(self.text)  # Fallback to description
             return self._audio_to_ssml(self.audio)
 
-        # Start with text
-        content = self.text
+        # Start with escaped text
+        content = _escape_xml_text(self.text)
 
         # Apply substitution
         if self.substitution:
             if not capabilities or capabilities.substitution:
-                content = f'<sub alias="{self.substitution}">{content}</sub>'
+                alias = _escape_xml_attr(self.substitution)
+                content = f'<sub alias="{alias}">{content}</sub>'
 
         # Apply phoneme
         elif self.phoneme:
@@ -293,6 +326,7 @@ class Segment:
                 # Convert X-SAMPA to IPA if needed
                 if self.phoneme.alphabet.lower() in ("x-sampa", "sampa"):
                     ph = xsampa_to_ipa(ph)
+                ph = _escape_xml_attr(ph)
                 content = f'<phoneme alphabet="ipa" ph="{ph}">{content}</phoneme>'
 
         # Apply say-as
@@ -354,14 +388,17 @@ class Segment:
         if prosody.volume and (not capabilities or capabilities.prosody_volume):
             # Map numeric to named if needed
             vol = VOLUME_MAP.get(prosody.volume, prosody.volume)
+            vol = _escape_xml_attr(vol)
             attrs.append(f'volume="{vol}"')
 
         if prosody.rate and (not capabilities or capabilities.prosody_rate):
             rate = RATE_MAP.get(prosody.rate, prosody.rate)
+            rate = _escape_xml_attr(rate)
             attrs.append(f'rate="{rate}"')
 
         if prosody.pitch and (not capabilities or capabilities.prosody_pitch):
             pitch = PITCH_MAP.get(prosody.pitch, prosody.pitch)
+            pitch = _escape_xml_attr(pitch)
             attrs.append(f'pitch="{pitch}"')
 
         if attrs:
@@ -373,14 +410,18 @@ class Segment:
         attrs = []
 
         if voice.name:
-            attrs.append(f'name="{voice.name}"')
+            name = _escape_xml_attr(voice.name)
+            attrs.append(f'name="{name}"')
         else:
             if voice.language:
-                attrs.append(f'language="{voice.language}"')
+                lang = _escape_xml_attr(voice.language)
+                attrs.append(f'language="{lang}"')
             if voice.gender:
-                attrs.append(f'gender="{voice.gender}"')
+                gender = _escape_xml_attr(voice.gender)
+                attrs.append(f'gender="{gender}"')
             if voice.variant:
-                attrs.append(f'variant="{voice.variant}"')
+                variant = _escape_xml_attr(str(voice.variant))
+                attrs.append(f'variant="{variant}"')
 
         if attrs:
             return f"<voice {' '.join(attrs)}>{content}</voice>"
@@ -388,43 +429,55 @@ class Segment:
 
     def _say_as_to_ssml(self, say_as: SayAsAttrs, content: str) -> str:
         """Convert say-as to SSML."""
-        attrs = [f'interpret-as="{say_as.interpret_as}"']
+        interpret = _escape_xml_attr(say_as.interpret_as)
+        attrs = [f'interpret-as="{interpret}"']
 
         if say_as.format:
-            attrs.append(f'format="{say_as.format}"')
+            fmt = _escape_xml_attr(say_as.format)
+            attrs.append(f'format="{fmt}"')
         if say_as.detail:
-            attrs.append(f'detail="{say_as.detail}"')
+            detail = _escape_xml_attr(str(say_as.detail))
+            attrs.append(f'detail="{detail}"')
 
         return f"<say-as {' '.join(attrs)}>{content}</say-as>"
 
     def _audio_to_ssml(self, audio: AudioAttrs) -> str:
         """Convert audio to SSML."""
-        attrs = [f'src="{audio.src}"']
+        src = _escape_xml_attr(audio.src)
+        attrs = [f'src="{src}"']
 
         if audio.clip_begin:
-            attrs.append(f'clipBegin="{audio.clip_begin}"')
+            cb = _escape_xml_attr(audio.clip_begin)
+            attrs.append(f'clipBegin="{cb}"')
         if audio.clip_end:
-            attrs.append(f'clipEnd="{audio.clip_end}"')
+            ce = _escape_xml_attr(audio.clip_end)
+            attrs.append(f'clipEnd="{ce}"')
         if audio.speed:
-            attrs.append(f'speed="{audio.speed}"')
+            speed = _escape_xml_attr(audio.speed)
+            attrs.append(f'speed="{speed}"')
         if audio.repeat_count:
-            attrs.append(f'repeatCount="{audio.repeat_count}"')
+            rc = _escape_xml_attr(str(audio.repeat_count))
+            attrs.append(f'repeatCount="{rc}"')
         if audio.repeat_dur:
-            attrs.append(f'repeatDur="{audio.repeat_dur}"')
+            rd = _escape_xml_attr(audio.repeat_dur)
+            attrs.append(f'repeatDur="{rd}"')
         if audio.sound_level:
-            attrs.append(f'soundLevel="{audio.sound_level}"')
+            sl = _escape_xml_attr(audio.sound_level)
+            attrs.append(f'soundLevel="{sl}"')
 
         desc = f"<desc>{self.text}</desc>" if self.text else ""
-        alt = audio.alt_text or ""
+        alt = _escape_xml_text(audio.alt_text) if audio.alt_text else ""
 
         return f"<audio {' '.join(attrs)}>{desc}{alt}</audio>"
 
     def _break_to_ssml(self, brk: BreakAttrs) -> str:
         """Convert break to SSML."""
         if brk.time:
-            return f'<break time="{brk.time}"/>'
+            time = _escape_xml_attr(brk.time)
+            return f'<break time="{time}"/>'
         elif brk.strength:
-            return f'<break strength="{brk.strength}"/>'
+            strength = _escape_xml_attr(brk.strength)
+            return f'<break strength="{strength}"/>'
         return "<break/>"
 
     def to_ssmd(self) -> str:
