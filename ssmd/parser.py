@@ -457,19 +457,19 @@ def _parse_segments(  # noqa: C901
 
         elif markup.startswith("["):
             # Annotation
-            seg = _parse_annotation(markup, extensions)
-            if seg:
-                _apply_pending(seg, pending_breaks, pending_marks)
+            annotation_seg = _parse_annotation(markup, extensions)
+            if annotation_seg:
+                _apply_pending(annotation_seg, pending_breaks, pending_marks)
                 pending_breaks, pending_marks = [], []
-                segments.append(seg)
+                segments.append(annotation_seg)
 
         else:
             # Prosody shorthand
-            seg = _parse_prosody_shorthand(markup)
-            if seg:
-                _apply_pending(seg, pending_breaks, pending_marks)
+            prosody_seg = _parse_prosody_shorthand(markup)
+            if prosody_seg:
+                _apply_pending(prosody_seg, pending_breaks, pending_marks)
                 pending_breaks, pending_marks = [], []
-                segments.append(seg)
+                segments.append(prosody_seg)
 
         position = match.end()
 
