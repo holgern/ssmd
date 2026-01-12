@@ -31,25 +31,26 @@ class TestSSMLToSSMD:
         """Test default break conversion."""
         ssml = '<speak>Hello<break time="1000ms"/>world</speak>'
         result = ssmd.from_ssml(ssml)
-        assert result.strip() == "Hello...1000msworld"
+        # Breaks have space before and after per SSMD spec
+        assert result.strip() == "Hello ...1000ms world"
 
     def test_break_custom_time(self):
         """Test break with custom time."""
         ssml = '<speak>Hello<break time="500ms"/>world</speak>'
         result = ssmd.from_ssml(ssml)
-        assert result.strip() == "Hello...500msworld"
+        assert result.strip() == "Hello ...500ms world"
 
     def test_break_seconds(self):
         """Test break with seconds."""
         ssml = '<speak>Hello<break time="2s"/>world</speak>'
         result = ssmd.from_ssml(ssml)
-        assert result.strip() == "Hello...2sworld"
+        assert result.strip() == "Hello ...2s world"
 
     def test_break_strength(self):
         """Test break with strength."""
         ssml = '<speak>Hello<break strength="strong"/>world</speak>'
         result = ssmd.from_ssml(ssml)
-        assert result.strip() == "Hello...sworld"
+        assert result.strip() == "Hello ...s world"
 
     def test_paragraph(self):
         """Test paragraph conversion."""
@@ -64,13 +65,14 @@ class TestSSMLToSSMD:
         """Test language tag conversion."""
         ssml = '<speak><lang xml:lang="en-US">Hello</lang></speak>'
         result = ssmd.from_ssml(ssml)
-        assert result.strip() == "[Hello](lang: en)"
+        # Per SSMD spec, language is just the code: [text](en)
+        assert result.strip() == "[Hello](en)"
 
     def test_language_non_standard(self):
         """Test non-standard language locale."""
         ssml = '<speak><lang xml:lang="en-GB">Hello</lang></speak>'
         result = ssmd.from_ssml(ssml)
-        assert result.strip() == "[Hello](lang: en-GB)"
+        assert result.strip() == "[Hello](en-GB)"
 
     def test_phoneme_ipa(self):
         """Test phoneme with IPA."""
@@ -96,7 +98,8 @@ class TestSSMLToSSMD:
         """Test say-as conversion."""
         ssml = '<speak><say-as interpret-as="telephone">+1-555-1234</say-as></speak>'
         result = ssmd.from_ssml(ssml)
-        assert result.strip() == "[+1-555-1234](say-as: telephone)"
+        # Per SSMD spec, uses "as:" not "say-as:"
+        assert result.strip() == "[+1-555-1234](as: telephone)"
 
     def test_say_as_with_format(self):
         """Test say-as with format attribute."""
@@ -105,7 +108,8 @@ class TestSSMLToSSMD:
             "12/31/2024</say-as></speak>"
         )
         result = ssmd.from_ssml(ssml)
-        assert result.strip() == "[12/31/2024](say-as: date, format: mdy)"
+        # Format is quoted in SSMD per spec
+        assert result.strip() == '[12/31/2024](as: date, format: "mdy")'
 
     def test_audio(self):
         """Test audio tag conversion."""
@@ -123,7 +127,8 @@ class TestSSMLToSSMD:
         """Test mark conversion."""
         ssml = '<speak>Hello<mark name="point1"/>world</speak>'
         result = ssmd.from_ssml(ssml)
-        assert result.strip() == "Hello@point1world"
+        # Marks have space before
+        assert result.strip() == "Hello @point1 world"
 
     def test_prosody_volume_shorthand(self):
         """Test prosody volume with shorthand."""
@@ -159,10 +164,10 @@ class TestSSMLToSSMD:
         """Test prosody with multiple attributes."""
         ssml = '<speak><prosody volume="loud" rate="fast">Hello</prosody></speak>'
         result = ssmd.from_ssml(ssml)
-        # Should use annotation syntax for multiple attributes
+        # Should use annotation syntax for multiple attributes with v: and r: shorthand
         assert "[Hello]" in result
-        assert "rate: fast" in result
-        assert "volume: loud" in result
+        assert "v:" in result or "volume:" in result
+        assert "r:" in result or "rate:" in result
 
     def test_amazon_whisper_effect(self):
         """Test Amazon whisper effect."""
@@ -200,14 +205,14 @@ class TestSSMLToSSMD:
 
     def test_roundtrip_break(self):
         """Test roundtrip with break."""
-        original = "Hello...1sworld"
+        original = "Hello ...1s world"
         ssml_out = ssmd.to_ssml(original)
         ssmd_back = ssmd.from_ssml(ssml_out)
         assert ssmd_back.strip() == original
 
     def test_roundtrip_language(self):
         """Test roundtrip with language."""
-        original = "[Bonjour](lang: fr) world"
+        original = "[Bonjour](fr) world"
         ssml_out = ssmd.to_ssml(original)
         ssmd_back = ssmd.from_ssml(ssml_out)
         assert ssmd_back.strip() == original

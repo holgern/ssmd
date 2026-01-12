@@ -223,7 +223,7 @@ class SSMLParser:
             element: break element
 
         Returns:
-            SSMD break syntax
+            SSMD break syntax with spaces
         """
         time = element.get("time")
         strength = element.get("strength")
@@ -232,17 +232,17 @@ class SSMLParser:
             # Parse time value (e.g., "500ms", "2s")
             match = re.match(r"(\d+)(ms|s)", time)
             if match:
-                value, unit = match.groups()
-                # Always use explicit time notation
-                return f"...{time}"
+                # Breaks have spaces before and after per SSMD spec
+                return f" ...{time} "
             # Fallback to 1s if time format is invalid
-            return "...1s"
+            return " ...1s "
 
         elif strength:
-            return self.BREAK_STRENGTH_TO_SSMD.get(strength, "...s")
+            marker = self.BREAK_STRENGTH_TO_SSMD.get(strength, "...s")
+            return f" {marker} "
 
         # Default to sentence break
-        return "...s"
+        return " ...s "
 
     def _process_prosody(self, element: ET.Element) -> str:
         """Convert <prosody> to SSMD prosody syntax.
@@ -577,12 +577,13 @@ class SSMLParser:
             element: mark element
 
         Returns:
-            SSMD mark syntax
+            SSMD mark syntax with spaces
         """
         name = element.get("name", "")
 
         if name:
-            return f"@{name}"
+            # Marks have space before and after
+            return f" @{name} "
 
         return ""
 

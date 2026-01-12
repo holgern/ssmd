@@ -1,929 +1,299 @@
-"""SSMD parser for extracting structured data from SSMD text.
+"""SSMD parser - Parse SSMD text into structured Sentence/Segment objects.
 
-This module provides functions to parse SSMD markup into structured data
-(segments and sentences) without converting to SSML. This allows TTS engines
-to handle SSMD features programmatically.
+This module provides functions to parse SSMD markdown into structured data
+that can be used for TTS processing or conversion to SSML.
 """
 
-import logging
 import re
 from typing import TYPE_CHECKING
 
-from ssmd.parser_types import (
+from ssmd.segment import Segment, expand_language_code, xsampa_to_ipa
+from ssmd.sentence import Sentence
+from ssmd.types import (
     AudioAttrs,
     BreakAttrs,
     PhonemeAttrs,
     ProsodyAttrs,
     SayAsAttrs,
-    SSMDSegment,
-    SSMDSentence,
     VoiceAttrs,
+    DEFAULT_HEADING_LEVELS,
 )
 
 if TYPE_CHECKING:
     from ssmd.capabilities import TTSCapabilities
 
-logger = logging.getLogger(__name__)
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# REGEX PATTERNS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Voice directive: @voice: name or @voice(name)
+VOICE_DIRECTIVE_PATTERN = re.compile(
+    r"^@voice(?::\s*|\()"
+    r"([a-zA-Z0-9_-]+(?:\s*,\s*(?:gender|variant):\s*[a-zA-Z0-9]+)*)"
+    r"\)?\s*$",
+    re.MULTILINE,
+)
+
+# Emphasis patterns
+STRONG_EMPHASIS_PATTERN = re.compile(r"\*\*([^\*]+)\*\*")
+MODERATE_EMPHASIS_PATTERN = re.compile(r"\*([^\*]+)\*")
+REDUCED_EMPHASIS_PATTERN = re.compile(r"(?<!_)_(?!_)([^_]+?)(?<!_)_(?!_)")
+
+# Annotation pattern: [text](annotation)
+ANNOTATION_PATTERN = re.compile(r"\[([^\]]*)\]\(([^\)]+)\)")
+
+# Break pattern: ...500ms, ...2s, ...n, ...w, ...c, ...s, ...p
+BREAK_PATTERN = re.compile(r"\.\.\.(\d+(?:s|ms)|[nwcsp])")
+
+# Mark pattern: @name (but not @voice)
+MARK_PATTERN = re.compile(r"@(?!voice[:(])(\w+)")
+
+# Heading pattern: # ## ###
+HEADING_PATTERN = re.compile(r"^\s*(#{1,6})\s*(.+)$", re.MULTILINE)
+
+# Prosody shorthand patterns (applied after XML escaping, but we handle raw here)
+PROSODY_VOLUME_PATTERN = re.compile(
+    r"(?<![a-zA-Z0-9])"
+    r"(~~|--|\+\+|-(?!-)|(?<!\+)\+|~)"  # Volume markers
+    r"([^~\-+<>_^]+?)"
+    r"\1"
+    r"(?![a-zA-Z0-9])"
+)
+
+PROSODY_RATE_PATTERN = re.compile(
+    r"(?<![a-zA-Z0-9])"
+    r"(<<|<(?!<)|(?<!>)>|>>)"  # Rate markers
+    r"([^<>]+?)"
+    r"\1"
+    r"(?![a-zA-Z0-9])"
+)
+
+PROSODY_PITCH_PATTERN = re.compile(
+    r"(?<![a-zA-Z0-9_])"
+    r"(__|\^\^|(?<!_)_(?!_)|(?<!\^)\^(?!\^))"  # Pitch markers
+    r"([^_^]+?)"
+    r"\1"
+    r"(?![a-zA-Z0-9_])"
+)
+
+# Paragraph break: two or more newlines
+PARAGRAPH_PATTERN = re.compile(r"\n\n+")
+
+# Space before punctuation (to normalize)
+SPACE_BEFORE_PUNCT = re.compile(r"\s+([.!?,:;])")
 
 
-def parse_voice_blocks(ssmd_text: str) -> list[tuple[VoiceAttrs | None, str]]:
-    """Parse SSMD text into voice blocks.
+# ═══════════════════════════════════════════════════════════════════════════════
+# MAIN PARSING FUNCTIONS
+# ═══════════════════════════════════════════════════════════════════════════════
 
-    Splits text at @voice: directives and extracts voice parameters.
+
+def _normalize_text(text: str) -> str:
+    """Normalize text by removing extra whitespace and fixing spacing.
+
+    - Removes space before punctuation
+    - Collapses multiple spaces
+    """
+    text = SPACE_BEFORE_PUNCT.sub(r"\1", text)
+    text = re.sub(r"\s+", " ", text)
+    return text.strip()
+
+
+def parse_ssmd(
+    text: str,
+    *,
+    capabilities: "TTSCapabilities | str | None" = None,
+    heading_levels: dict | None = None,
+    extensions: dict | None = None,
+    sentence_detection: bool = True,
+    language: str = "en",
+    use_spacy: bool | None = None,
+    model_size: str | None = None,
+) -> list[Sentence]:
+    """Parse SSMD text into a list of Sentences.
+
+    This is the main parsing function. It handles:
+    - Voice directives (@voice: name)
+    - Paragraph and sentence splitting
+    - All SSMD markup (emphasis, annotations, breaks, etc.)
 
     Args:
-        ssmd_text: SSMD markdown text
+        text: SSMD markdown text
+        capabilities: TTS capabilities for filtering (optional)
+        heading_levels: Custom heading configurations
+        extensions: Custom extension handlers
+        sentence_detection: If True, split text into sentences
+        language: Default language for sentence detection
+        use_spacy: If True, use spaCy for sentence detection
+        model_size: spaCy model size ("sm", "md", "lg")
 
     Returns:
-        List of (voice_attrs, text_content) tuples
-
-    Example:
-        >>> for voice, text in parse_voice_blocks(script):
-        ...     print(f"Voice: {voice}, Text: {text}")
+        List of Sentence objects
     """
-    # Pattern to match @voice: directives
-    # Matches: @voice: name or @voice: lang, gender: X, variant: Y
-    voice_pattern = re.compile(
-        r"^@voice(?::\s*|\()"
-        r"([a-zA-Z0-9_-]+(?:\s*,\s*(?:gender|variant):\s*[a-zA-Z0-9]+)*)"
-        r"\)?\s*\n",
-        re.MULTILINE,
-    )
+    if not text or not text.strip():
+        return []
 
+    # Resolve capabilities
+    caps = _resolve_capabilities(capabilities)
+
+    # Split text into voice blocks
+    voice_blocks = _split_voice_blocks(text)
+
+    sentences = []
+
+    for voice, block_text in voice_blocks:
+        # Split block into paragraphs
+        paragraphs = PARAGRAPH_PATTERN.split(block_text)
+
+        for para_idx, paragraph in enumerate(paragraphs):
+            paragraph = paragraph.strip()
+            if not paragraph:
+                continue
+
+            is_last_paragraph = para_idx == len(paragraphs) - 1
+
+            # Split paragraph into sentences if enabled
+            if sentence_detection:
+                sent_texts = _split_sentences(
+                    paragraph,
+                    language=language,
+                    use_spacy=use_spacy,
+                    model_size=model_size,
+                )
+            else:
+                sent_texts = [paragraph]
+
+            for sent_idx, sent_text in enumerate(sent_texts):
+                sent_text = sent_text.strip()
+                if not sent_text:
+                    continue
+
+                is_last_sent_in_para = sent_idx == len(sent_texts) - 1
+
+                # Parse the sentence content into segments
+                segments = _parse_segments(
+                    sent_text,
+                    capabilities=caps,
+                    heading_levels=heading_levels,
+                    extensions=extensions,
+                )
+
+                if segments:
+                    sentence = Sentence(
+                        segments=segments,
+                        voice=voice,
+                        is_paragraph_end=is_last_sent_in_para and not is_last_paragraph,
+                    )
+                    sentences.append(sentence)
+
+    return sentences
+
+
+def _resolve_capabilities(
+    capabilities: "TTSCapabilities | str | None",
+) -> "TTSCapabilities | None":
+    """Resolve capabilities from string or object."""
+    if capabilities is None:
+        return None
+    if isinstance(capabilities, str):
+        from ssmd.capabilities import get_preset
+
+        return get_preset(capabilities)
+    return capabilities
+
+
+def _split_voice_blocks(text: str) -> list[tuple[VoiceAttrs | None, str]]:
+    """Split text into voice blocks.
+
+    Args:
+        text: SSMD text
+
+    Returns:
+        List of (voice, text) tuples
+    """
     blocks: list[tuple[VoiceAttrs | None, str]] = []
-    last_end = 0
+    lines = text.split("\n")
+
     current_voice: VoiceAttrs | None = None
+    current_lines: list[str] = []
 
-    for match in voice_pattern.finditer(ssmd_text):
-        # Extract text before this voice directive
-        text_before = ssmd_text[last_end : match.start()].strip()
-        if text_before:
-            blocks.append((current_voice, text_before))
+    for line in lines:
+        # Check if this line is a voice directive
+        match = VOICE_DIRECTIVE_PATTERN.match(line)
+        if match:
+            # Save previous block if any
+            if current_lines:
+                block_text = "\n".join(current_lines)
+                if block_text.strip():
+                    blocks.append((current_voice, block_text))
+                current_lines = []
 
-        # Parse voice parameters
-        params_str = match.group(1)
-        current_voice = _parse_voice_params(params_str)
+            # Parse new voice
+            params = match.group(1)
+            current_voice = _parse_voice_params(params)
+        else:
+            current_lines.append(line)
 
-        last_end = match.end()
+    # Save final block
+    if current_lines:
+        block_text = "\n".join(current_lines)
+        if block_text.strip():
+            blocks.append((current_voice, block_text))
 
-    # Extract remaining text after last voice directive
-    text_after = ssmd_text[last_end:].strip()
-    if text_after:
-        blocks.append((current_voice, text_after))
-
-    # If no voice directives found, return entire text with None voice
-    if not blocks and ssmd_text.strip():
-        blocks.append((None, ssmd_text.strip()))
+    # If no blocks, return entire text with no voice
+    if not blocks and text.strip():
+        blocks.append((None, text.strip()))
 
     return blocks
 
 
-def _parse_voice_params(params_str: str) -> VoiceAttrs:
-    """Parse voice parameters from directive string.
-
-    Args:
-        params_str: Parameter string like "sarah" or "fr-FR, gender: female"
-
-    Returns:
-        VoiceAttrs object
-    """
+def _parse_voice_params(params: str) -> VoiceAttrs:
+    """Parse voice parameters from directive string."""
     voice = VoiceAttrs()
 
-    # Check for gender or variant attributes
-    has_gender = "gender:" in params_str
-    has_variant = "variant:" in params_str
+    has_gender = "gender:" in params
+    has_variant = "variant:" in params
 
-    # Extract the first parameter (voice name or language)
-    voice_match = re.match(r"([a-zA-Z0-9_-]+)", params_str)
+    # Extract voice name or language
+    voice_match = re.match(r"([a-zA-Z0-9_-]+)", params)
     if voice_match:
-        voice_value = voice_match.group(1)
-
-        # If gender/variant specified, or if it looks like a language code,
-        # treat as language
-        if (
-            has_gender
-            or has_variant
-            or re.match(r"^[a-z]{2}(-[A-Z]{2})?$", voice_value)
-        ):
-            voice.language = voice_value
+        value = voice_match.group(1)
+        # If gender/variant present, or looks like language code, treat as language
+        if has_gender or has_variant or re.match(r"^[a-z]{2}(-[A-Z]{2})?$", value):
+            voice.language = value
         else:
-            # Otherwise it's a voice name
-            voice.name = voice_value
+            voice.name = value
 
-    # Parse gender if present
-    gender_match = re.search(r"gender:\s*([a-zA-Z]+)", params_str)
+    # Parse gender
+    gender_match = re.search(r"gender:\s*(male|female|neutral)", params, re.IGNORECASE)
     if gender_match:
-        gender_value = gender_match.group(1).lower()
-        if gender_value in ("male", "female", "neutral"):
-            voice.gender = gender_value  # type: ignore
+        voice.gender = gender_match.group(1).lower()  # type: ignore
 
-    # Parse variant if present
-    variant_match = re.search(r"variant:\s*(\d+)", params_str)
+    # Parse variant
+    variant_match = re.search(r"variant:\s*(\d+)", params)
     if variant_match:
         voice.variant = int(variant_match.group(1))
 
     return voice
 
 
-def parse_segments(
-    ssmd_text: str,
-    *,
-    capabilities: "TTSCapabilities | str | None" = None,
-    voice_context: VoiceAttrs | None = None,
-) -> list[SSMDSegment]:
-    """Parse SSMD text into flat list of segments.
-
-    This is a lower-level function that doesn't group segments into sentences.
-    Use parse_sentences() for most use cases.
-
-    Args:
-        ssmd_text: SSMD markdown text
-        capabilities: TTS engine capabilities (filters unsupported features)
-        voice_context: Voice context inherited from parent block
-
-    Returns:
-        List of SSMDSegment objects
-
-    Example:
-        >>> segments = parse_segments("Hello *world*!")
-        >>> for seg in segments:
-        ...     print(f"{seg.text} (emphasis={seg.emphasis})")
-    """
-    from ssmd.capabilities import get_preset
-
-    # Resolve capabilities if string preset provided
-    caps = None
-    if isinstance(capabilities, str):
-        caps = get_preset(capabilities)
-    elif capabilities is not None:
-        caps = capabilities
-
-    # Strategy: Use existing SSMD → SSML conversion, then extract features
-    # from the intermediate representation
-    # This reuses all existing processors and ensures consistency
-
-    # For the initial implementation, we'll use a simpler approach:
-    # Extract features using regex patterns similar to the processors
-
-    segments = []
-    text = ssmd_text
-    position = 0
-
-    # Process inline voice annotations first (they create segment boundaries)
-    voice_pattern = re.compile(r"\[([^\]]+)\]\(voice:\s*([^)]+)\)")
-    for match in voice_pattern.finditer(text):
-        # Text before this voice annotation
-        before_text = text[position : match.start()]
-        if before_text.strip():
-            # Parse the text before voice change
-            pre_segments = _parse_text_segments(before_text, caps)
-            segments.extend(pre_segments)
-
-        # Voice annotation segment
-        voice_text = match.group(1)
-        voice_params = match.group(2)
-        voice_attrs = _parse_voice_params(voice_params)
-
-        # Create segment with voice annotation
-        seg = SSMDSegment(
-            text=voice_text,
-            voice=voice_attrs,
-            position=match.start(),
-        )
-        segments.append(seg)
-
-        position = match.end()
-
-    # Process remaining text
-    remaining = text[position:]
-    if remaining.strip():
-        remaining_segments = _parse_text_segments(remaining, caps)
-        segments.extend(remaining_segments)
-
-    # If no segments created, create a simple text segment
-    if not segments and text.strip():
-        segments.append(SSMDSegment(text=text.strip(), position=0))
-
-    return segments
-
-
-def _parse_text_segments(  # noqa: C901
-    text: str,
-    capabilities: "TTSCapabilities | None" = None,
-) -> list[SSMDSegment]:
-    """Parse text segment extracting all SSMD features.
-
-    This function splits text into segments at markup boundaries, ensuring
-    that emphasis, annotations, breaks, etc. are properly separated.
-
-    A segment is a part of a sentence with consistent styling/attributes.
-    For example, "*Hello* world" has two segments: "Hello" (emphasized) and
-    "world" (plain text).
-
-    Args:
-        text: Text to parse
-        capabilities: TTS capabilities for filtering
-
-    Returns:
-        List of SSMDSegment objects
-    """
-    segments = []
-    position = 0
-
-    # Patterns for different markup types
-    strong_emphasis_pattern = re.compile(r"\*\*([^\*]+)\*\*")
-    emphasis_pattern = re.compile(r"\*([^\*]+)\*")
-    reduced_emphasis_pattern = re.compile(r"_([^_]+)_")
-    annotation_pattern = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
-
-    # Combined pattern to find ALL markup boundaries  # noqa: C901
-    # This matches: emphasis, annotations, breaks, marks
-    # Order matters: match ** before *
-    combined_pattern = re.compile(
-        r"("
-        r"\*\*[^\*]+\*\*"  # Strong emphasis (must come before single *)
-        r"|\*[^\*]+\*"  # Regular emphasis
-        r"|_[^_]+_"  # Reduced emphasis
-        r"|\[[^\]]+\]\([^)]+\)"  # Annotations (including audio)
-        r"|\.\.\.(?:\d+(?:s|ms)|[nwcsp])"  # Breaks
-        r"|@(?!voice[:(])\w+"  # Marks
-        r")"
-    )
-
-    # Split text into markup and non-markup parts
-    current_pos = 0
-    pending_breaks = []
-    pending_marks_before = []
-
-    for match in combined_pattern.finditer(text):
-        # Get any plain text before this markup
-        if match.start() > current_pos:
-            plain_text = text[current_pos : match.start()]
-            # Normalize: strip leading and trailing spaces
-            # Also remove space before punctuation
-            plain_text = plain_text.strip()
-            # Remove space before punctuation
-            plain_text = re.sub(r"\s+([.!?,;:])", r"\1", plain_text)
-            if plain_text:
-                seg = SSMDSegment(text=plain_text, position=position)
-                if pending_breaks:
-                    seg.breaks_before.extend(pending_breaks)
-                    pending_breaks = []
-                if pending_marks_before:
-                    seg.marks_before = pending_marks_before
-                    pending_marks_before = []
-                segments.append(seg)
-                position += len(plain_text)
-
-        # Process the markup
-        markup = match.group(0)
-
-        # Check what type of markup this is
-        if markup.startswith("..."):
-            # This is a break
-            break_val = markup[3:]
-            break_attr = _parse_break(break_val)
-            if segments:
-                # Add to last segment
-                segments[-1].breaks_after.append(break_attr)
-            else:
-                # Break before any segment
-                pending_breaks.append(break_attr)
-
-        elif markup.startswith("@"):
-            # This is a mark
-            mark_name = markup[1:]
-
-            if segments:
-                # Add mark after last segment
-                segments[-1].marks_after.append(mark_name)
-            else:
-                # Mark before any text - will be added to next segment
-                pending_marks_before.append(mark_name)
-
-        elif markup.startswith("**"):
-            # Strong emphasis
-            strong_match = strong_emphasis_pattern.match(markup)
-            if strong_match:
-                emph_text = strong_match.group(1)
-                seg = SSMDSegment(text=emph_text, emphasis="strong", position=position)
-                if pending_breaks:
-                    seg.breaks_before.extend(pending_breaks)
-                    pending_breaks = []
-                if pending_marks_before:
-                    seg.marks_before = pending_marks_before
-                    pending_marks_before = []
-                segments.append(seg)
-                position += len(emph_text)
-
-        elif markup.startswith("_"):
-            # Reduced emphasis
-            reduced_match = reduced_emphasis_pattern.match(markup)
-            if reduced_match:
-                emph_text = reduced_match.group(1)
-                seg = SSMDSegment(text=emph_text, emphasis="reduced", position=position)
-                if pending_breaks:
-                    seg.breaks_before.extend(pending_breaks)
-                    pending_breaks = []
-                if pending_marks_before:
-                    seg.marks_before = pending_marks_before
-                    pending_marks_before = []
-                segments.append(seg)
-                position += len(emph_text)
-
-        elif markup.startswith("*"):
-            # Regular emphasis
-            emph_match = emphasis_pattern.match(markup)
-            if emph_match:
-                emph_text = emph_match.group(1)
-                seg = SSMDSegment(text=emph_text, emphasis=True, position=position)
-                if pending_breaks:
-                    seg.breaks_before.extend(pending_breaks)
-                    pending_breaks = []
-                if pending_marks_before:
-                    seg.marks_before = pending_marks_before
-                    pending_marks_before = []
-                segments.append(seg)
-                position += len(emph_text)
-
-        elif markup.startswith("["):
-            # Annotation (including audio detected by URL pattern)
-            ann_match = annotation_pattern.match(markup)
-            if ann_match:
-                ann_text = ann_match.group(1)
-                ann_params = ann_match.group(2)
-                seg = _parse_annotation_segment(ann_text, ann_params, position)
-                if pending_breaks:
-                    seg.breaks_before.extend(pending_breaks)
-                    pending_breaks = []
-                if pending_marks_before:
-                    seg.marks_before = pending_marks_before
-                    pending_marks_before = []
-                segments.append(seg)
-                position += len(ann_text)
-
-        current_pos = match.end()
-
-    # Handle any remaining text after last markup
-    if current_pos < len(text):
-        remaining_text = text[current_pos:].strip()
-        # Remove space before punctuation
-        remaining_text = re.sub(r"\s+([.!?,;:])", r"\1", remaining_text)
-        if remaining_text:
-            seg = SSMDSegment(text=remaining_text, position=position)
-            if pending_breaks:
-                seg.breaks_before.extend(pending_breaks)
-                pending_breaks = []
-            if pending_marks_before:
-                seg.marks_before = pending_marks_before
-                pending_marks_before = []
-            segments.append(seg)
-
-    # If no segments created, create simple text segment
-    if not segments and text.strip():
-        seg = SSMDSegment(text=text.strip(), position=0)
-        if pending_breaks:
-            seg.breaks_before.extend(pending_breaks)
-        if pending_marks_before:
-            seg.marks_before = pending_marks_before
-        segments.append(seg)
-
-    return segments
-
-
-def _parse_annotation_segment(  # noqa: C901
-    text: str, params: str, position: int
-) -> SSMDSegment:
-    """Parse annotation parameters and create segment.
-
-    Args:
-        text: Annotation text
-        params: Annotation parameters
-        position: Position in source text
-
-    Returns:
-        SSMDSegment with appropriate attributes set
-    """
-    seg = SSMDSegment(text=text, position=position)
-
-    # Parse different annotation types
-    if params.startswith("sub:"):
-        # Substitution
-        alias = params[4:].strip()
-        seg.substitution = alias
-    elif params.startswith("lang:"):
-        # Language annotation
-        lang_code = params[5:].strip()
-        seg.language = lang_code
-    elif params.startswith("say-as:"):
-        # Say-as
-        rest = params[7:].strip()
-        parts = rest.split(",")
-        interpret_as = parts[0].strip()
-        format_val = None
-        if len(parts) > 1 and "format:" in parts[1]:
-            format_val = parts[1].split("format:")[1].strip().strip("\"'")
-        seg.say_as = SayAsAttrs(interpret_as=interpret_as, format=format_val)
-    elif params.startswith("as:"):
-        # Say-as (short form)
-        parts = params[3:].split(",")
-        interpret_as = parts[0].strip()
-        format_val = None
-        if len(parts) > 1 and "format:" in parts[1]:
-            format_val = parts[1].split("format:")[1].strip().strip("\"'")
-        seg.say_as = SayAsAttrs(interpret_as=interpret_as, format=format_val)
-    elif params.startswith("ph:") or params.startswith("ipa:"):
-        # Phoneme
-        rest = params.split(":", 1)[1].strip()
-
-        # Parse phoneme and alphabet
-        alphabet = "ipa" if params.startswith("ipa:") else "ipa"  # Default to ipa
-        ph = rest
-
-        # Check if alphabet is specified
-        if ", alphabet:" in rest:
-            parts = rest.split(", alphabet:")
-            ph = parts[0].strip()
-            alphabet = parts[1].strip()
-        elif ",alphabet:" in rest:
-            parts = rest.split(",alphabet:")
-            ph = parts[0].strip()
-            alphabet = parts[1].strip()
-
-        seg.phoneme = PhonemeAttrs(ph=ph, alphabet=alphabet)
-    elif (
-        params.startswith("rate:")
-        or params.startswith("pitch:")
-        or params.startswith("volume:")
-    ):
-        # Prosody with explicit parameter names
-        seg.prosody = _parse_prosody_annotation(params)
-    elif (
-        params.startswith("v:")
-        or params.startswith("r:")
-        or params.startswith("p:")
-        or params.startswith("vrp:")
-    ):
-        # Prosody (short form)
-        seg.prosody = _parse_prosody_annotation(params)
-    elif params.startswith("ext:"):
-        # Extension
-        ext_name = params[4:].strip()
-        seg.extension = ext_name
-    elif params.startswith("voice:"):
-        # Voice annotation: [text](voice: name)
-        # or [text](voice: lang, gender: X, variant: Y)
-        voice_params = params[6:].strip()
-        seg.voice = _parse_voice_annotation(voice_params)
-    elif re.match(r"^[a-z]{2}(-[A-Z]{2})?$", params):
-        # Language code (standalone, without "lang:" prefix)
-        seg.language = params
-    elif (
-        params.startswith("http://")
-        or params.startswith("https://")
-        or params.startswith("file://")
-        or (
-            "." in params
-            and any(
-                params.split()[0].endswith(ext)
-                for ext in [".mp3", ".ogg", ".wav", ".m4a", ".flac"]
-            )
-        )
-    ):
-        # Audio file: [text](url.mp3) or [text](url.mp3 alt)
-        # or [text](url.mp3 attrs alt)
-        # Parse URL and optional attributes
-        parts = params.split()
-        url = parts[0] if parts else params
-
-        # Check for 'alt' marker (indicates alt text in description)
-        has_alt_marker = "alt" in parts[1:] if len(parts) > 1 else False
-
-        # Parse additional attributes (clip, speed, repeat, level)
-        attrs = {}
-        i = 1
-        while i < len(parts):
-            part = parts[i]
-            if part == "alt":
-                # Skip the 'alt' marker
-                i += 1
-                continue
-            elif ":" in part:
-                # Parse attribute (e.g., "clip: 0s-5s", "speed: 150%")
-                key_val = part.split(":", 1)
-                if len(key_val) == 2:
-                    key = key_val[0].strip()
-                    val = key_val[1].strip()
-                    # Handle multi-word values
-                    if i + 1 < len(parts) and ":" not in parts[i + 1]:
-                        val += " " + parts[i + 1]
-                        i += 1
-                    attrs[key] = val
-            i += 1
-
-        # Create AudioAttrs
-        audio_attrs = AudioAttrs(src=url)
-        if has_alt_marker:
-            audio_attrs.alt_text = "alt"  # Marker that alt text is in description
-
-        # Set additional attributes if present
-        if "clip" in attrs:
-            clip_range = attrs["clip"].split("-")
-            if len(clip_range) == 2:
-                audio_attrs.clip_begin = clip_range[0].strip()
-                audio_attrs.clip_end = clip_range[1].strip()
-        if "speed" in attrs:
-            audio_attrs.speed = attrs["speed"]
-        if "repeat" in attrs:
-            try:
-                audio_attrs.repeat_count = int(attrs["repeat"])
-            except ValueError:
-                pass
-        if "repeatDur" in attrs:
-            audio_attrs.repeat_dur = attrs["repeatDur"]
-        if "level" in attrs:
-            audio_attrs.sound_level = attrs["level"]
-
-        seg.audio = audio_attrs
-
-    return seg
-
-
-def _parse_audio_segment(text: str, params: str, position: int) -> SSMDSegment:
-    """Parse audio annotation parameters and create segment.
-
-    Args:
-        text: Audio description text
-        params: Audio parameters (e.g., "sound.mp3" or "sound.mp3 alt")
-        position: Position in source text
-
-    Returns:
-        SSMDSegment with audio attribute set
-    """
-    seg = SSMDSegment(text=text, position=position)
-
-    # Parse URL and optional attributes
-    parts = params.split()
-    url = parts[0] if parts else params
-
-    # Check for 'alt' marker (indicates alt text in description)
-    has_alt_marker = "alt" in parts[1:] if len(parts) > 1 else False
-
-    # Parse additional attributes (clip, speed, repeat, level)
-    attrs = {}
-    i = 1
-    while i < len(parts):
-        part = parts[i]
-        if part == "alt":
-            # Skip the 'alt' marker
-            i += 1
-            continue
-        elif ":" in part:
-            # Parse attribute (e.g., "clip: 0s-5s", "speed: 150%")
-            key_val = part.split(":", 1)
-            if len(key_val) == 2:
-                key = key_val[0].strip()
-                val = key_val[1].strip()
-                # Handle multi-word values
-                if i + 1 < len(parts) and ":" not in parts[i + 1]:
-                    val += " " + parts[i + 1]
-                    i += 1
-                attrs[key] = val
-        i += 1
-
-    # Create AudioAttrs
-    audio_attrs = AudioAttrs(src=url)
-    if has_alt_marker:
-        audio_attrs.alt_text = "alt"  # Marker that alt text is in description
-
-    # Set additional attributes if present
-    if "clip" in attrs:
-        clip_range = attrs["clip"].split("-")
-        if len(clip_range) == 2:
-            audio_attrs.clip_begin = clip_range[0].strip()
-            audio_attrs.clip_end = clip_range[1].strip()
-    if "speed" in attrs:
-        audio_attrs.speed = attrs["speed"]
-    if "repeat" in attrs:
-        try:
-            audio_attrs.repeat_count = int(attrs["repeat"])
-        except ValueError:
-            pass
-    if "repeatDur" in attrs:
-        audio_attrs.repeat_dur = attrs["repeatDur"]
-    if "level" in attrs:
-        audio_attrs.sound_level = attrs["level"]
-
-    seg.audio = audio_attrs
-    return seg
-
-
-def _parse_prosody_annotation(params: str) -> ProsodyAttrs:
-    """Parse prosody annotation parameters.
-
-    Args:
-        params: Prosody parameters (e.g., "v: 5", "vrp: 555")
-
-    Returns:
-        ProsodyAttrs object
-    """
-    prosody = ProsodyAttrs()
-
-    # VRP shorthand
-    if params.startswith("vrp:"):
-        vrp = params[4:].strip()
-        volume_map = {
-            "0": "silent",
-            "1": "x-soft",
-            "2": "soft",
-            "3": "medium",
-            "4": "loud",
-            "5": "x-loud",
-        }
-        rate_map = {
-            "1": "x-slow",
-            "2": "slow",
-            "3": "medium",
-            "4": "fast",
-            "5": "x-fast",
-        }
-        pitch_map = {
-            "1": "x-low",
-            "2": "low",
-            "3": "medium",
-            "4": "high",
-            "5": "x-high",
-        }
-
-        if len(vrp) >= 1:
-            prosody.volume = volume_map.get(vrp[0])
-        if len(vrp) >= 2:
-            prosody.rate = rate_map.get(vrp[1])
-        if len(vrp) >= 3:
-            prosody.pitch = pitch_map.get(vrp[2])
-    else:
-        # Individual parameters
-        for part in params.split(","):
-            part = part.strip()
-            if ":" in part:
-                key, value = part.split(":", 1)
-                key = key.strip()
-                value = value.strip()
-
-                # Map numeric values or handle full names
-                if key in ("v", "volume"):
-                    if value.startswith(("+", "-")) or value.endswith(("dB", "%")):
-                        prosody.volume = value
-                    else:
-                        volume_map = {
-                            "0": "silent",
-                            "1": "x-soft",
-                            "2": "soft",
-                            "3": "medium",
-                            "4": "loud",
-                            "5": "x-loud",
-                        }
-                        prosody.volume = volume_map.get(value, value)
-                elif key in ("r", "rate"):
-                    if value.startswith(("+", "-")) or value.endswith("%"):
-                        prosody.rate = value
-                    else:
-                        rate_map = {
-                            "1": "x-slow",
-                            "2": "slow",
-                            "3": "medium",
-                            "4": "fast",
-                            "5": "x-fast",
-                        }
-                        prosody.rate = rate_map.get(value, value)
-                elif key in ("p", "pitch"):
-                    if value.startswith(("+", "-")) or value.endswith("%"):
-                        prosody.pitch = value
-                    else:
-                        pitch_map = {
-                            "1": "x-low",
-                            "2": "low",
-                            "3": "medium",
-                            "4": "high",
-                            "5": "x-high",
-                        }
-                        prosody.pitch = pitch_map.get(value, value)
-
-    return prosody
-
-
-def _parse_voice_annotation(params: str) -> VoiceAttrs:
-    """Parse voice annotation parameters.
-
-    Args:
-        params: Voice parameters
-            (e.g., "Joanna", "en-US", "en-GB, gender: male, variant: 1")
-
-    Returns:
-        VoiceAttrs object
-    """
-    voice = VoiceAttrs()
-
-    # Check if it's a simple name (no commas)
-    if "," not in params:
-        # Could be a name or just a language code
-        # If it looks like a language code, set language; otherwise set name
-        if re.match(r"^[a-z]{2}(-[A-Z]{2})?$", params.strip()):
-            voice.language = params.strip()
-        else:
-            voice.name = params.strip()
-    else:
-        # Parse multiple parameters
-        parts = params.split(",")
-        for i, part in enumerate(parts):
-            part = part.strip()
-
-            if ":" in part:
-                # Key-value parameter
-                key, value = part.split(":", 1)
-                key = key.strip()
-                value = value.strip()
-
-                if key == "gender":
-                    voice.gender = value  # type: ignore
-                elif key == "variant":
-                    try:
-                        voice.variant = int(value)
-                    except ValueError:
-                        pass
-            elif i == 0:
-                # First part without colon is the language or name
-                if re.match(r"^[a-z]{2}(-[A-Z]{2})?$", part):
-                    voice.language = part
-                else:
-                    voice.name = part
-
-    return voice
-
-
-def _parse_break(modifier: str) -> BreakAttrs:
-    """Parse break modifier into BreakAttrs.
-
-    Args:
-        modifier: Break modifier (e.g., "500ms", "2s", "n", "w", "c", "s", "p")
-
-    Returns:
-        BreakAttrs object
-    """
-    if modifier == "n":
-        return BreakAttrs(strength="none")
-    elif modifier == "w":
-        return BreakAttrs(strength="x-weak")
-    elif modifier == "c":
-        return BreakAttrs(strength="medium")
-    elif modifier == "s":
-        return BreakAttrs(strength="strong")
-    elif modifier == "p":
-        return BreakAttrs(strength="x-strong")
-    elif modifier.endswith("s") or modifier.endswith("ms"):
-        return BreakAttrs(time=modifier)
-    else:
-        # Number without unit = milliseconds
-        return BreakAttrs(time=f"{modifier}ms")
-
-
-def parse_sentences(
-    ssmd_text: str,
-    *,
-    capabilities: "TTSCapabilities | str | None" = None,
-    include_default_voice: bool = True,
-    sentence_detection: bool = True,
-    language: str = "en",
-    model_size: str | None = None,
-    spacy_model: str | None = None,
-    use_spacy: bool | None = None,
-) -> list[SSMDSentence]:
-    """Parse SSMD text into sentences with segments.
-
-    This is the main parser function. It splits text by voice changes and
-    sentence boundaries, then extracts all SSMD features into structured segments.
-
-    Args:
-        ssmd_text: SSMD markdown text
-        capabilities: TTS engine capabilities (auto-filters unsupported features)
-        include_default_voice: If True, include text before first @voice: directive
-        sentence_detection: If True, auto-split on sentence boundaries using phrasplit
-        language: Language code for sentence detection (default: "en")
-        model_size: spaCy model size: "sm", "md", "lg", "trf" (default: "sm")
-        spacy_model: Custom spaCy model name (overrides model_size)
-        use_spacy: If False, use fast regex splitting instead of spaCy (default: True)
-
-    Returns:
-        List of SSMDSentence objects
-
-    Example:
-        >>> # Default: uses small models (en_core_web_sm)
-        >>> for sentence in parse_sentences(script):
-        ...     full_text = "".join(seg.text for seg in sentence.segments)
-        ...     tts.speak(full_text, voice=sentence.voice)
-        >>>
-        >>> # Fast mode: no spaCy required
-        >>> sentences = parse_sentences(script, use_spacy=False)
-        >>>
-        >>> # High quality: use large model
-        >>> sentences = parse_sentences(script, model_size="lg")
-    """
-    sentences = []
-
-    # Step 1: Split into voice blocks
-    voice_blocks = parse_voice_blocks(ssmd_text)
-
-    if not include_default_voice:
-        # Filter out blocks with no voice
-        voice_blocks = [(v, t) for v, t in voice_blocks if v is not None]
-
-    # Step 2: Process each voice block
-    for voice, text in voice_blocks:
-        # Determine language for sentence splitting
-        # Use voice language if available, otherwise use default
-        split_language = language
-        if voice and voice.language:
-            # Extract language code from BCP-47 (e.g., "en-US" -> "en")
-            split_language = voice.language.split("-")[0]
-
-        # Step 3: Split by sentence boundaries if enabled
-        if sentence_detection:
-            sentence_texts = _split_sentences(
-                text,
-                language=split_language,
-                model_size=model_size,
-                spacy_model=spacy_model,
-                use_spacy=use_spacy,
-            )
-        else:
-            sentence_texts = [text]
-
-        # Step 4: Parse each sentence into segments
-        for sent_text in sentence_texts:
-            # Check for paragraph break
-            is_para_end = sent_text.endswith("\n\n")
-            sent_text_clean = sent_text.rstrip()
-
-            if not sent_text_clean:
-                continue
-
-            # Parse segments
-            segments = parse_segments(
-                sent_text_clean,
-                capabilities=capabilities,
-                voice_context=voice,
-            )
-
-            # Create sentence
-            sentence = SSMDSentence(
-                voice=voice,
-                segments=segments,
-                is_paragraph_end=is_para_end,
-            )
-            sentences.append(sentence)
-
-    return sentences
-
-
 def _split_sentences(
     text: str,
     language: str = "en",
-    model_size: str | None = None,
-    spacy_model: str | None = None,
     use_spacy: bool | None = None,
+    model_size: str | None = None,
 ) -> list[str]:
-    """Split text into sentences using phrasplit.
+    """Split text into sentences using phrasplit."""
+    try:
+        from phrasplit import split_text
 
-    phrasplit handles all the complexity: spaCy detection, model loading,
-    fallback to regex, error handling, and multi-language support.
-
-    Args:
-        text: Text to split
-        language: Language code (e.g., "en", "fr", "de")
-        model_size: spaCy model size ("sm", "md", "lg", "trf")
-        spacy_model: Custom spaCy model name (overrides model_size/language)
-        use_spacy: Force spaCy mode (True), regex mode (False), or auto-detect (None)
-
-    Returns:
-        List of sentence strings (preserving paragraph breaks)
-    """
-    from phrasplit import split_text
-
-    # Determine language model name
-    if spacy_model is not None:
-        # Custom model name provided - use it directly
-        language_model = spacy_model
-    else:
-        # Build model name from language + size
-        # phrasplit will auto-detect if spaCy is available and fall back to regex
+        # Build model name
         size = model_size or "sm"
-        # Extract 2-letter language code from BCP-47 locale (e.g., "en-US" -> "en")
-        # spaCy models use simple 2-letter codes: en_core_web_sm, not en-US_core_web_sm
         lang_code = language.split("-")[0] if "-" in language else language
 
-        # Language-specific model name patterns
-        # Some languages use "news" instead of "web"
-        if lang_code in (
+        # Language-specific model patterns
+        news_langs = {
             "fr",
             "ca",
             "da",
@@ -937,59 +307,679 @@ def _split_sentences(
             "pt",
             "ro",
             "ru",
-        ):
-            language_model = f"{lang_code}_core_news_{size}"
+        }
+        if lang_code in news_langs:
+            model = f"{lang_code}_core_news_{size}"
         else:
-            # Most languages use "web"
-            language_model = f"{lang_code}_core_web_{size}"
+            model = f"{lang_code}_core_web_{size}"
 
-    # phrasplit handles everything: spaCy detection, fallback, errors
-    segments = split_text(
-        text,
-        mode="sentence",
-        language_model=language_model,
-        apply_corrections=True,
-        split_on_colon=True,
-        use_spacy=use_spacy,  # None = auto-detect, True = force, False = regex
+        segments = split_text(
+            text,
+            mode="sentence",
+            language_model=model,
+            apply_corrections=True,
+            split_on_colon=True,
+            use_spacy=use_spacy,
+        )
+
+        # Group segments by sentence
+        sentences = []
+        current = ""
+        last_sent_id = None
+
+        for seg in segments:
+            if last_sent_id is not None and seg.sentence != last_sent_id:
+                if current.strip():
+                    sentences.append(current)
+                current = ""
+            current += seg.text
+            last_sent_id = seg.sentence
+
+        if current.strip():
+            sentences.append(current)
+
+        return sentences if sentences else [text]
+
+    except ImportError:
+        # Fallback: simple sentence splitting
+        return _simple_sentence_split(text)
+
+
+def _simple_sentence_split(text: str) -> list[str]:
+    """Simple regex-based sentence splitting."""
+    # Split on sentence-ending punctuation followed by space or newline
+    parts = re.split(r"(?<=[.!?])\s+", text)
+    return [p.strip() for p in parts if p.strip()]
+
+
+def _parse_segments(
+    text: str,
+    capabilities: "TTSCapabilities | None" = None,
+    heading_levels: dict | None = None,
+    extensions: dict | None = None,
+) -> list[Segment]:
+    """Parse text into segments with SSMD features."""
+    # Check for heading
+    heading_match = HEADING_PATTERN.match(text)
+    if heading_match:
+        return _parse_heading(heading_match, heading_levels or DEFAULT_HEADING_LEVELS)
+
+    segments: list[Segment] = []
+    remaining = text
+    position = 0
+
+    # Build combined pattern for all markup
+    # Order matters: longer patterns first
+    combined = re.compile(
+        r"("
+        r"\*\*[^\*]+\*\*"  # **strong**
+        r"|\*[^\*]+\*"  # *moderate*
+        r"|(?<![_a-zA-Z0-9])_(?!_)[^_]+?(?<!_)_(?![_a-zA-Z0-9])"  # _reduced_
+        r"|\[[^\]]*\]\([^\)]+\)"  # [text](annotation)
+        r"|\.\.\.(?:\d+(?:s|ms)|[nwcsp])"  # breaks
+        r"|@(?!voice[:(])\w+"  # marks
+        r"|~~[^~]+~~"  # ~silent~
+        r"|--[^-]+--"  # --x-soft--
+        r"|\+\+[^+]+\+\+"  # ++x-loud++
+        r"|(?<![a-zA-Z0-9+])\+[^+]+\+(?![a-zA-Z0-9+])"  # +loud+
+        r"|(?<![a-zA-Z0-9-])-[^-]+-(?![a-zA-Z0-9-])"  # -soft-
+        r"|<<[^<>]+<<"  # <<x-slow<<
+        r"|(?<![<a-zA-Z0-9])<[^<>]+<(?![<a-zA-Z0-9])"  # <slow<
+        r"|>>[^<>]+>>"  # >>x-fast>>
+        r"|(?<![>a-zA-Z0-9])>[^<>]+>(?![>a-zA-Z0-9])"  # >fast>
+        r"|__[^_]+__"  # __x-low__
+        r"|\^\^[^^]+\^\^"  # ^^x-high^^
+        r"|(?<![a-zA-Z0-9^])\^[^^]+\^(?![a-zA-Z0-9^])"  # ^high^
+        r")"
     )
 
-    # Convert phrasplit.Segment to sentence strings
-    # Group by sentence, track paragraph boundaries
-    sentences = []
-    current_sentence = ""
-    last_sentence_id = None
-    last_paragraph_id = None
+    pending_breaks: list[BreakAttrs] = []
+    pending_marks: list[str] = []
 
-    for seg in segments:
-        seg_text = seg.text.strip()
-        if not seg_text:
+    for match in combined.finditer(text):
+        # Add plain text before this match
+        if match.start() > position:
+            plain = _normalize_text(text[position : match.start()])
+            if plain:
+                seg = Segment(text=plain)
+                if pending_breaks:
+                    seg.breaks_before = pending_breaks
+                    pending_breaks = []
+                if pending_marks:
+                    seg.marks_before = pending_marks
+                    pending_marks = []
+                segments.append(seg)
+
+        markup = match.group(0)
+
+        # Determine markup type and create segment
+        if markup.startswith("..."):
+            # Break
+            brk = _parse_break(markup[3:])
+            if segments:
+                segments[-1].breaks_after.append(brk)
+            else:
+                pending_breaks.append(brk)
+
+        elif markup.startswith("@"):
+            # Mark
+            mark_name = markup[1:]
+            if segments:
+                segments[-1].marks_after.append(mark_name)
+            else:
+                pending_marks.append(mark_name)
+
+        elif markup.startswith("**"):
+            # Strong emphasis
+            inner = STRONG_EMPHASIS_PATTERN.match(markup)
+            if inner:
+                seg = Segment(text=inner.group(1), emphasis="strong")
+                _apply_pending(seg, pending_breaks, pending_marks)
+                pending_breaks, pending_marks = [], []
+                segments.append(seg)
+
+        elif markup.startswith("*"):
+            # Moderate emphasis
+            inner = MODERATE_EMPHASIS_PATTERN.match(markup)
+            if inner:
+                seg = Segment(text=inner.group(1), emphasis=True)
+                _apply_pending(seg, pending_breaks, pending_marks)
+                pending_breaks, pending_marks = [], []
+                segments.append(seg)
+
+        elif markup.startswith("_") and not markup.startswith("__"):
+            # Reduced emphasis (single underscore)
+            inner = REDUCED_EMPHASIS_PATTERN.match(markup)
+            if inner:
+                seg = Segment(text=inner.group(1), emphasis="reduced")
+                _apply_pending(seg, pending_breaks, pending_marks)
+                pending_breaks, pending_marks = [], []
+                segments.append(seg)
+
+        elif markup.startswith("["):
+            # Annotation
+            seg = _parse_annotation(markup, extensions)
+            if seg:
+                _apply_pending(seg, pending_breaks, pending_marks)
+                pending_breaks, pending_marks = [], []
+                segments.append(seg)
+
+        else:
+            # Prosody shorthand
+            seg = _parse_prosody_shorthand(markup)
+            if seg:
+                _apply_pending(seg, pending_breaks, pending_marks)
+                pending_breaks, pending_marks = [], []
+                segments.append(seg)
+
+        position = match.end()
+
+    # Add remaining text
+    if position < len(text):
+        plain = _normalize_text(text[position:])
+        if plain:
+            seg = Segment(text=plain)
+            _apply_pending(seg, pending_breaks, pending_marks)
+            segments.append(seg)
+
+    # If no segments created but we have text, create a plain segment
+    if not segments and text.strip():
+        seg = Segment(text=text.strip())
+        _apply_pending(seg, pending_breaks, pending_marks)
+        segments.append(seg)
+
+    return segments
+
+
+def _apply_pending(
+    seg: Segment,
+    pending_breaks: list[BreakAttrs],
+    pending_marks: list[str],
+) -> None:
+    """Apply pending breaks and marks to a segment."""
+    if pending_breaks:
+        seg.breaks_before = pending_breaks.copy()
+    if pending_marks:
+        seg.marks_before = pending_marks.copy()
+
+
+def _parse_heading(
+    match: re.Match,
+    heading_levels: dict,
+) -> list[Segment]:
+    """Parse heading into segments."""
+    level = len(match.group(1))
+    text = match.group(2).strip()
+
+    if level not in heading_levels:
+        return [Segment(text=text)]
+
+    # Build segment with heading effects
+    seg = Segment(text=text)
+
+    for effect_type, value in heading_levels[level]:
+        if effect_type == "emphasis":
+            seg.emphasis = value
+        elif effect_type == "pause":
+            seg.breaks_after.append(BreakAttrs(time=value))
+        elif effect_type == "prosody" and isinstance(value, dict):
+            seg.prosody = ProsodyAttrs(
+                volume=value.get("volume"),
+                rate=value.get("rate"),
+                pitch=value.get("pitch"),
+            )
+
+    return [seg]
+
+
+def _parse_break(modifier: str) -> BreakAttrs:
+    """Parse break modifier into BreakAttrs."""
+    strength_map = {
+        "n": "none",
+        "w": "x-weak",
+        "c": "medium",
+        "s": "strong",
+        "p": "x-strong",
+    }
+
+    if modifier in strength_map:
+        return BreakAttrs(strength=strength_map[modifier])
+    elif modifier.endswith("s") or modifier.endswith("ms"):
+        return BreakAttrs(time=modifier)
+    else:
+        return BreakAttrs(time=f"{modifier}ms")
+
+
+def _parse_annotation(markup: str, extensions: dict | None = None) -> Segment | None:
+    """Parse [text](annotation) markup."""
+    match = ANNOTATION_PATTERN.match(markup)
+    if not match:
+        return None
+
+    text = match.group(1)
+    params = match.group(2).strip()
+
+    seg = Segment(text=text)
+
+    # Try to identify annotation type
+    # Audio (URL or file extension)
+    if _is_audio_annotation(params):
+        seg.audio = _parse_audio_params(params)
+        return seg
+
+    # Extension: ext: name
+    ext_match = re.match(r"^ext:\s*(\w+)$", params)
+    if ext_match:
+        seg.extension = ext_match.group(1)
+        return seg
+
+    # Voice: voice: name or voice: lang, gender: X
+    if params.startswith("voice:"):
+        seg.voice = _parse_voice_annotation(params[6:].strip())
+        return seg
+
+    # Say-as: as: type or say-as: type
+    sayas_match = re.match(
+        r"^(?:say-as|as):\s*(\w+)"
+        r'(?:\s*,\s*format:\s*["\']?([^"\']+)["\']?)?'
+        r"(?:\s*,\s*detail:\s*(\d+))?$",
+        params,
+    )
+    if sayas_match:
+        seg.say_as = SayAsAttrs(
+            interpret_as=sayas_match.group(1),
+            format=sayas_match.group(2),
+            detail=sayas_match.group(3),
+        )
+        return seg
+
+    # Phoneme: ph: or ipa: or sampa:
+    # Stop at comma to allow combined annotations like "ph: value, alphabet: ipa"
+    ph_match = re.match(r"^(ph|ipa|sampa):\s*([^,]+)", params)
+    if ph_match:
+        alphabet_type = ph_match.group(1)
+        phonemes = ph_match.group(2).strip()
+
+        # Map shorthand alphabet names
+        if alphabet_type == "sampa":
+            alphabet_type = "x-sampa"
+        elif alphabet_type == "ph":
+            # Default to ipa when using generic "ph:"
+            alphabet_type = "ipa"
+
+        # Check for explicit alphabet specification in remaining params
+        remaining = params[ph_match.end() :].strip()
+        if remaining.startswith(","):
+            remaining = remaining[1:].strip()
+            alph_match = re.match(r"^alphabet:\s*([^,]+)", remaining)
+            if alph_match:
+                specified_alphabet = alph_match.group(1).strip().lower()
+                if specified_alphabet in ("ipa", "x-sampa", "sampa"):
+                    # Normalize sampa to x-sampa
+                    alphabet_type = (
+                        "x-sampa"
+                        if specified_alphabet == "sampa"
+                        else specified_alphabet
+                    )
+
+        # Store phonemes as-is - conversion to IPA happens at SSML render time
+        seg.phoneme = PhonemeAttrs(ph=phonemes, alphabet=alphabet_type)
+        return seg
+
+    # Substitution: sub: alias
+    sub_match = re.match(r"^sub:\s*(.+)$", params)
+    if sub_match:
+        seg.substitution = sub_match.group(1).strip()
+        return seg
+
+    # Emphasis: emphasis: level
+    emph_match = re.match(
+        r"^emphasis:\s*(none|reduced|moderate|strong)$", params, re.IGNORECASE
+    )
+    if emph_match:
+        level = emph_match.group(1).lower()
+        seg.emphasis = level if level != "moderate" else True
+        return seg
+
+    # Prosody: vrp:, v:, r:, p:, volume:, rate:, pitch:
+    if _is_prosody_annotation(params):
+        seg.prosody = _parse_prosody_annotation(params)
+        return seg
+
+    # Language code: en, en-US, fr-FR, etc.
+    lang_match = re.match(r"^(?:lang:\s*)?([a-z]{2}(?:-[A-Z]{2})?)$", params)
+    if lang_match:
+        seg.language = lang_match.group(1)
+        return seg
+
+    # Combined annotations (comma-separated)
+    if "," in params:
+        _parse_combined_annotations(seg, params, extensions)
+
+    return seg
+
+
+def _is_audio_annotation(params: str) -> bool:
+    """Check if params represent an audio annotation."""
+    audio_extensions = (".mp3", ".ogg", ".wav", ".m4a", ".aac", ".flac")
+    first_part = params.split()[0] if params else ""
+    return first_part.startswith(("http://", "https://", "file://")) or any(
+        first_part.lower().endswith(ext) for ext in audio_extensions
+    )
+
+
+def _parse_audio_params(params: str) -> AudioAttrs:
+    """Parse audio annotation parameters."""
+    parts = params.split()
+    url = parts[0]
+
+    audio = AudioAttrs(src=url)
+
+    remaining = " ".join(parts[1:]) if len(parts) > 1 else ""
+
+    # Parse clip: start-end
+    clip_match = re.search(
+        r"clip:\s*(\d+(?:\.\d+)?[ms]+)-(\d+(?:\.\d+)?[ms]+)", remaining
+    )
+    if clip_match:
+        audio.clip_begin = clip_match.group(1)
+        audio.clip_end = clip_match.group(2)
+        remaining = remaining[: clip_match.start()] + remaining[clip_match.end() :]
+
+    # Parse speed: percent
+    speed_match = re.search(r"speed:\s*(\d+(?:\.\d+)?%)", remaining)
+    if speed_match:
+        audio.speed = speed_match.group(1)
+        remaining = remaining[: speed_match.start()] + remaining[speed_match.end() :]
+
+    # Parse repeat: count
+    repeat_match = re.search(r"repeat:\s*(\d+)", remaining)
+    if repeat_match:
+        audio.repeat_count = int(repeat_match.group(1))
+        remaining = remaining[: repeat_match.start()] + remaining[repeat_match.end() :]
+
+    # Parse level: dB
+    level_match = re.search(r"level:\s*([+-]?\d+(?:\.\d+)?dB)", remaining)
+    if level_match:
+        audio.sound_level = level_match.group(1)
+        remaining = remaining[: level_match.start()] + remaining[level_match.end() :]
+
+    # Remaining text is alt text
+    remaining = re.sub(r"[,\s]+", " ", remaining).strip()
+    if remaining:
+        audio.alt_text = remaining
+
+    return audio
+
+
+def _parse_voice_annotation(params: str) -> VoiceAttrs:
+    """Parse voice annotation parameters."""
+    voice = VoiceAttrs()
+
+    # Check for complex params (with gender/variant)
+    if "," in params:
+        parts = [p.strip() for p in params.split(",")]
+        first = parts[0]
+
+        # First part is name or language
+        if re.match(r"^[a-z]{2}(-[A-Z]{2})?$", first):
+            voice.language = first
+        else:
+            voice.name = first
+
+        # Parse remaining parts
+        for part in parts[1:]:
+            if part.startswith("gender:"):
+                voice.gender = part[7:].strip().lower()  # type: ignore
+            elif part.startswith("variant:"):
+                voice.variant = int(part[8:].strip())
+    else:
+        # Simple name or language
+        if re.match(r"^[a-z]{2}(-[A-Z]{2})?$", params):
+            voice.language = params
+        else:
+            voice.name = params
+
+    return voice
+
+
+def _is_prosody_annotation(params: str) -> bool:
+    """Check if params represent a prosody annotation."""
+    return bool(re.match(r"^(?:vrp:|[vrp]:|volume:|rate:|pitch:)", params))
+
+
+def _parse_prosody_annotation(params: str) -> ProsodyAttrs:
+    """Parse prosody annotation parameters."""
+    prosody = ProsodyAttrs()
+
+    volume_map = {
+        "0": "silent",
+        "1": "x-soft",
+        "2": "soft",
+        "3": "medium",
+        "4": "loud",
+        "5": "x-loud",
+    }
+    rate_map = {"1": "x-slow", "2": "slow", "3": "medium", "4": "fast", "5": "x-fast"}
+    pitch_map = {"1": "x-low", "2": "low", "3": "medium", "4": "high", "5": "x-high"}
+
+    # VRP shorthand: vrp: 555
+    vrp_match = re.match(r"^vrp:\s*(\d{1,3})$", params)
+    if vrp_match:
+        vrp = vrp_match.group(1)
+        if len(vrp) >= 1:
+            prosody.volume = volume_map.get(vrp[0])
+        if len(vrp) >= 2:
+            prosody.rate = rate_map.get(vrp[1])
+        if len(vrp) >= 3:
+            prosody.pitch = pitch_map.get(vrp[2])
+        return prosody
+
+    # Individual parameters
+    for part in params.split(","):
+        part = part.strip()
+        if ":" not in part:
             continue
 
-        # Check if we've moved to a new sentence or paragraph
-        sentence_changed = (
-            last_sentence_id is not None and seg.sentence != last_sentence_id
-        )
-        paragraph_changed = (
-            last_paragraph_id is not None and seg.paragraph != last_paragraph_id
-        )
+        key, value = part.split(":", 1)
+        key = key.strip().lower()
+        value = value.strip()
 
-        if sentence_changed or paragraph_changed:
-            # Finish previous sentence
-            if current_sentence.strip():
-                # Mark paragraph end if paragraph changed
-                if paragraph_changed:
-                    sentences.append(current_sentence + "\n\n")
-                else:
-                    sentences.append(current_sentence)
-            current_sentence = ""
+        # Normalize key names
+        if key in ("v", "volume"):
+            if value.startswith(("+", "-")) or value.endswith(("dB", "%")):
+                prosody.volume = value
+            else:
+                prosody.volume = volume_map.get(value, value)
+        elif key in ("r", "rate"):
+            if value.endswith("%"):
+                prosody.rate = value
+            else:
+                prosody.rate = rate_map.get(value, value)
+        elif key in ("p", "pitch"):
+            if value.startswith(("+", "-")) or value.endswith("%"):
+                prosody.pitch = value
+            else:
+                prosody.pitch = pitch_map.get(value, value)
 
-        current_sentence += seg_text
+    return prosody
 
-        last_sentence_id = seg.sentence
-        last_paragraph_id = seg.paragraph
 
-    # Add any remaining text
-    if current_sentence.strip():
-        sentences.append(current_sentence)
+def _parse_prosody_shorthand(markup: str) -> Segment | None:
+    """Parse prosody shorthand markup like ++loud++ or <<slow<<."""
+    # Volume: ~~silent~~, --x-soft--, -soft-, +loud+, ++x-loud++
+    volume_patterns = {
+        "~~": "silent",
+        "--": "x-soft",
+        "-": "soft",
+        "+": "loud",
+        "++": "x-loud",
+    }
 
-    return [s for s in sentences if s.strip()]
+    # Rate: <<x-slow<<, <slow<, >fast>, >>x-fast>>
+    rate_patterns = {
+        "<<": "x-slow",
+        "<": "slow",
+        ">": "fast",
+        ">>": "x-fast",
+    }
+
+    # Pitch: __x-low__, _low_ (single _ handled by emphasis), ^high^, ^^x-high^^
+    pitch_patterns = {
+        "__": "x-low",
+        "^": "high",
+        "^^": "x-high",
+    }
+
+    # Try to match each pattern type
+    for marker, value in volume_patterns.items():
+        pattern = re.compile(rf"^{re.escape(marker)}(.+?){re.escape(marker)}$")
+        match = pattern.match(markup)
+        if match:
+            return Segment(text=match.group(1), prosody=ProsodyAttrs(volume=value))
+
+    for marker, value in rate_patterns.items():
+        pattern = re.compile(rf"^{re.escape(marker)}(.+?){re.escape(marker)}$")
+        match = pattern.match(markup)
+        if match:
+            return Segment(text=match.group(1), prosody=ProsodyAttrs(rate=value))
+
+    for marker, value in pitch_patterns.items():
+        pattern = re.compile(rf"^{re.escape(marker)}(.+?){re.escape(marker)}$")
+        match = pattern.match(markup)
+        if match:
+            return Segment(text=match.group(1), prosody=ProsodyAttrs(pitch=value))
+
+    return None
+
+
+def _parse_combined_annotations(
+    seg: Segment,
+    params: str,
+    extensions: dict | None = None,
+) -> None:
+    """Parse combined comma-separated annotations."""
+    # Split by comma, but be careful with quoted values
+    parts = _smart_split(params, ",")
+
+    for part in parts:
+        part = part.strip()
+        if not part:
+            continue
+
+        # Language code
+        if re.match(r"^[a-z]{2}(-[A-Z]{2})?$", part):
+            if not seg.language:
+                seg.language = part
+            continue
+
+        # Prosody
+        if re.match(r"^[vrp]:\s*", part) or re.match(r"^(volume|rate|pitch):", part):
+            prosody = _parse_prosody_annotation(part)
+            if seg.prosody:
+                # Merge
+                if prosody.volume and not seg.prosody.volume:
+                    seg.prosody.volume = prosody.volume
+                if prosody.rate and not seg.prosody.rate:
+                    seg.prosody.rate = prosody.rate
+                if prosody.pitch and not seg.prosody.pitch:
+                    seg.prosody.pitch = prosody.pitch
+            else:
+                seg.prosody = prosody
+
+
+def _smart_split(s: str, delimiter: str) -> list[str]:
+    """Split string by delimiter, respecting quoted strings."""
+    parts = []
+    current = ""
+    in_quotes = False
+    quote_char = None
+
+    for char in s:
+        if char in ('"', "'") and not in_quotes:
+            in_quotes = True
+            quote_char = char
+            current += char
+        elif char == quote_char and in_quotes:
+            in_quotes = False
+            quote_char = None
+            current += char
+        elif char == delimiter and not in_quotes:
+            parts.append(current)
+            current = ""
+        else:
+            current += char
+
+    if current:
+        parts.append(current)
+
+    return parts
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BACKWARD COMPATIBILITY
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Re-export old names for compatibility
+SSMDSegment = Segment
+SSMDSentence = Sentence
+
+
+def parse_sentences(
+    ssmd_text: str,
+    *,
+    capabilities: "TTSCapabilities | str | None" = None,
+    include_default_voice: bool = True,
+    sentence_detection: bool = True,
+    language: str = "en",
+    model_size: str | None = None,
+    spacy_model: str | None = None,
+    use_spacy: bool | None = None,
+) -> list[Sentence]:
+    """Parse SSMD text into sentences (backward compatible API).
+
+    This is an alias for parse_ssmd() with the old parameter names.
+
+    Args:
+        ssmd_text: SSMD formatted text to parse
+        capabilities: TTS capabilities or preset name
+        include_default_voice: If False, exclude sentences without voice context
+        sentence_detection: Enable/disable sentence splitting
+        language: Language code for sentence detection
+        model_size: Size of spacy model (sm/md/lg)
+        spacy_model: Full spacy model name (deprecated, use model_size)
+        use_spacy: Force use of spacy for sentence detection
+
+    Returns:
+        List of Sentence objects
+    """
+    sentences = parse_ssmd(
+        ssmd_text,
+        capabilities=capabilities,
+        sentence_detection=sentence_detection,
+        language=language,
+        model_size=model_size or (spacy_model.split("_")[-1] if spacy_model else None),
+        use_spacy=use_spacy,
+    )
+
+    # Filter out sentences without voice if requested
+    if not include_default_voice:
+        sentences = [s for s in sentences if s.voice is not None]
+
+    return sentences
+
+
+def parse_segments(
+    ssmd_text: str,
+    *,
+    capabilities: "TTSCapabilities | str | None" = None,
+    voice_context: VoiceAttrs | None = None,
+) -> list[Segment]:
+    """Parse SSMD text into segments (backward compatible API)."""
+    caps = _resolve_capabilities(capabilities)
+    return _parse_segments(ssmd_text, capabilities=caps)
+
+
+def parse_voice_blocks(ssmd_text: str) -> list[tuple[VoiceAttrs | None, str]]:
+    """Parse SSMD text into voice blocks (backward compatible API)."""
+    return _split_voice_blocks(ssmd_text)

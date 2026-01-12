@@ -5,13 +5,45 @@ line breaks, paragraph spacing, and structural elements according to SSMD
 formatting conventions.
 """
 
-from ssmd.parser_types import BreakAttrs, SSMDSegment, SSMDSentence
+from ssmd.sentence import Sentence
+from ssmd.segment import Segment
+from ssmd.types import BreakAttrs, VoiceAttrs
+
+# Backward compatibility aliases
+SSMDSentence = Sentence
+SSMDSegment = Segment
 
 
-def format_ssmd(sentences: list[SSMDSentence]) -> str:
+def _format_segment(segment: Segment) -> str:
+    """Format a single segment to SSMD (backward compatibility wrapper).
+
+    Args:
+        segment: Segment object to format
+
+    Returns:
+        Formatted SSMD string for this segment
+    """
+    return segment.to_ssmd().strip()
+
+
+def _format_sentence(sentence: Sentence) -> str:
+    """Format a sentence's content (backward compatibility wrapper).
+
+    This is an alias for _format_sentence_content.
+
+    Args:
+        sentence: Sentence object to format
+
+    Returns:
+        Formatted sentence text
+    """
+    return _format_sentence_content(sentence)
+
+
+def format_ssmd(sentences: list[Sentence]) -> str:
     """Format parsed SSMD sentences with proper line breaks.
 
-    This function takes a list of parsed SSMDSentence objects and formats them
+    This function takes a list of parsed Sentence objects and formats them
     according to SSMD formatting conventions:
 
     - Each sentence on a new line (after . ? !)
@@ -22,7 +54,7 @@ def format_ssmd(sentences: list[SSMDSentence]) -> str:
     - Headings: blank lines before and after
 
     Args:
-        sentences: List of parsed SSMDSentence objects
+        sentences: List of parsed Sentence objects
 
     Returns:
         Properly formatted SSMD string
@@ -42,7 +74,7 @@ def format_ssmd(sentences: list[SSMDSentence]) -> str:
     previous_voice = None
 
     for i, sentence in enumerate(sentences):
-        # Check if voice changed
+        # Check if voice changed - output directive on its own line
         if sentence.voice != previous_voice and sentence.voice is not None:
             # Add voice directive
             voice_directive = _format_voice_directive(sentence.voice)
@@ -62,8 +94,9 @@ def format_ssmd(sentences: list[SSMDSentence]) -> str:
                 break_marker = _format_breaks(sentence.segments[0].breaks_before)
                 output_lines[-1] += " " + break_marker
 
-        # Format the sentence
-        sentence_text = _format_sentence(sentence)
+        # Format the sentence using to_ssmd() but without voice directive
+        # (we handle voice directives separately above)
+        sentence_text = _format_sentence_content(sentence)
 
         if sentence_text:
             output_lines.append(sentence_text)
@@ -82,11 +115,11 @@ def format_ssmd(sentences: list[SSMDSentence]) -> str:
     return result.rstrip() + "\n" if result else ""
 
 
-def _format_sentence(sentence: SSMDSentence) -> str:
-    """Format a single sentence with its segments and breaks.
+def _format_sentence_content(sentence: Sentence) -> str:
+    """Format a single sentence's content (segments only, no voice directive).
 
     Args:
-        sentence: SSMDSentence object to format
+        sentence: Sentence object to format
 
     Returns:
         Formatted sentence text with inline and trailing breaks
@@ -94,24 +127,24 @@ def _format_sentence(sentence: SSMDSentence) -> str:
     if not sentence.segments:
         return ""
 
-    # Build segments with inline breaks
+    # Build segments using their to_ssmd() method
     result_parts: list[str] = []
 
     for i, segment in enumerate(sentence.segments):
-        # Format the segment text
-        segment_text = _format_segment(segment)
+        # Format the segment using its to_ssmd() method
+        segment_text = segment.to_ssmd()
 
-        if not segment_text:
+        # Preserve the trailing space if segment has breaks_after
+        if segment.breaks_after:
+            segment_text = segment_text.rstrip() + " "
+        else:
+            segment_text = segment_text.strip()
+
+        if not segment_text.strip():
             continue
 
         # Add this segment
         result_parts.append(segment_text)
-
-        # Add breaks after this segment (if not the last segment)
-        if segment.breaks_after and i < len(sentence.segments) - 1:
-            # Mid-sentence break - add inline without space
-            break_marker = _format_breaks(segment.breaks_after)
-            result_parts.append(break_marker)
 
     # Join segments intelligently
     sentence_text = ""
@@ -119,13 +152,13 @@ def _format_sentence(sentence: SSMDSentence) -> str:
         if i == 0:
             sentence_text = part
         elif part.startswith("..."):
-            # This is a break marker - append without space
+            # This is a break marker - append without extra space
             sentence_text += part
-        elif i > 0 and result_parts[i - 1].startswith("..."):
-            # Previous part was a break marker - append without space
+        elif i > 0 and _ends_with_break_marker(result_parts[i - 1]):
+            # Previous part ends with break marker, already has space
             sentence_text += part
         elif i > 0 and result_parts[i - 1].endswith((" ", "\n")):
-            # Previous part ends with whitespace, append without extra space
+            # Previous part ends with whitespace
             sentence_text += part
         else:
             # Normal text segment - add space
@@ -136,135 +169,15 @@ def _format_sentence(sentence: SSMDSentence) -> str:
         break_marker = _format_breaks(sentence.breaks_after)
         sentence_text += " " + break_marker
 
-    # Also check if last segment has breaks_after (sentence boundary)
-    if sentence.segments and sentence.segments[-1].breaks_after:
-        break_marker = _format_breaks(sentence.segments[-1].breaks_after)
-        sentence_text += " " + break_marker
-
     return sentence_text.strip()
 
 
-def _format_segment(segment: SSMDSegment) -> str:  # noqa: C901
-    """Format a single segment, reconstructing markup from attributes.
+def _ends_with_break_marker(text: str) -> bool:
+    """Check if text ends with a break marker like ...s, ...500ms, etc."""
+    import re
 
-    Reconstructs SSMD markup like *emphasis*, [language](lang: en),
-    substitution, prosody, etc. from segment attributes.
-
-    Args:
-        segment: SSMDSegment object to format
-
-    Returns:
-        Formatted segment text with SSMD markup
-    """
-    text = segment.text.strip()
-
-    if not text:
-        return ""
-
-    # Wrap with emphasis if needed
-    if segment.emphasis:
-        if segment.emphasis == "strong":
-            text = f"**{text}**"
-        elif segment.emphasis == "reduced":
-            text = f"_{text}_"
-        else:  # True or "moderate"
-            text = f"*{text}*"
-
-    # Add language annotation if needed
-    if segment.language:
-        text = f"[{text}](lang: {segment.language})"
-
-    # Add substitution if needed
-    if segment.substitution:
-        text = f"[{text}](sub: {segment.substitution})"
-
-    # Add phoneme if needed
-    if segment.phoneme:
-        alphabet = segment.phoneme.alphabet or "ipa"
-        text = f"[{text}](ph: {segment.phoneme.ph}, alphabet: {alphabet})"
-
-    # Add say-as if needed
-    if segment.say_as:
-        if segment.say_as.format:
-            text = (
-                f"[{text}](say-as: {segment.say_as.interpret_as}, "
-                f"format: {segment.say_as.format})"
-            )
-        else:
-            text = f"[{text}](say-as: {segment.say_as.interpret_as})"
-
-    # Add prosody if needed
-    if segment.prosody:
-        props = []
-        if segment.prosody.rate:
-            props.append(f"rate: {segment.prosody.rate}")
-        if segment.prosody.pitch:
-            props.append(f"pitch: {segment.prosody.pitch}")
-        if segment.prosody.volume:
-            props.append(f"volume: {segment.prosody.volume}")
-        if props:
-            text = f"[{text}]({', '.join(props)})"
-
-    # Add extension if needed
-    if segment.extension:
-        text = f"[{text}](ext: {segment.extension})"
-
-    # Add voice if needed
-    if segment.voice:
-        # Build voice annotation: [text](voice: name)
-        # or [text](voice: lang, gender: X, variant: Y)
-        voice_parts = []
-        if segment.voice.name:
-            voice_parts.append(f"voice: {segment.voice.name}")
-        elif segment.voice.language:
-            voice_parts.append(f"voice: {segment.voice.language}")
-
-        if segment.voice.gender:
-            voice_parts.append(f"gender: {segment.voice.gender}")
-        if segment.voice.variant:
-            voice_parts.append(f"variant: {segment.voice.variant}")
-
-        if voice_parts:
-            text = f"[{text}]({', '.join(voice_parts)})"
-
-    # Add audio if needed
-    if segment.audio:
-        # Build audio annotation: [text](url attrs alt)
-        audio_parts = [segment.audio.src]
-
-        # Add attributes if present
-        if segment.audio.clip_begin and segment.audio.clip_end:
-            audio_parts.append(
-                f"clip: {segment.audio.clip_begin}-{segment.audio.clip_end}"
-            )
-        if segment.audio.speed:
-            audio_parts.append(f"speed: {segment.audio.speed}")
-        if segment.audio.repeat_count:
-            audio_parts.append(f"repeat: {segment.audio.repeat_count}")
-        if segment.audio.repeat_dur:
-            audio_parts.append(f"repeatDur: {segment.audio.repeat_dur}")
-        if segment.audio.sound_level:
-            audio_parts.append(f"level: {segment.audio.sound_level}")
-
-        # Add 'alt' marker if present
-        if segment.audio.alt_text == "alt":
-            audio_parts.append("alt")
-        elif segment.audio.alt_text:
-            audio_parts.append(segment.audio.alt_text)
-
-        audio_annotation = " ".join(audio_parts)
-        text = f"[{text}]({audio_annotation})"
-
-    # Handle marks
-    if segment.marks_before:
-        for mark in segment.marks_before:
-            text = f"@{mark}{text}"
-
-    if segment.marks_after:
-        for mark in segment.marks_after:
-            text = f"{text}@{mark}"
-
-    return text
+    # Break marker pattern: ... followed by strength letter or time
+    return bool(re.search(r"\.\.\.[swcpn]$|\.\.\.\d+(ms|s)$", text.rstrip()))
 
 
 def _format_breaks(breaks: list[BreakAttrs]) -> str:
@@ -304,7 +217,7 @@ def _format_breaks(breaks: list[BreakAttrs]) -> str:
     return " ".join(break_markers)
 
 
-def _format_voice_directive(voice) -> str:
+def _format_voice_directive(voice: VoiceAttrs) -> str:
     """Format a voice directive.
 
     Args:
@@ -321,15 +234,15 @@ def _format_voice_directive(voice) -> str:
     parts = []
 
     # Add name or language as first part
-    if hasattr(voice, "name") and voice.name:
+    if voice.name:
         parts.append(voice.name)
-    elif hasattr(voice, "language") and voice.language:
+    elif voice.language:
         parts.append(voice.language)
 
     # Add optional attributes
-    if hasattr(voice, "gender") and voice.gender:
+    if voice.gender:
         parts.append(f"gender: {voice.gender}")
-    if hasattr(voice, "variant") and voice.variant:
+    if voice.variant:
         parts.append(f"variant: {voice.variant}")
 
     if parts:
