@@ -510,7 +510,7 @@ class Segment:
 
         return result
 
-    def _build_content_ssmd(self) -> str:
+    def _build_content_ssmd(self) -> str:  # noqa: C901
         """Build SSMD content with markup."""
         text = self.text
 

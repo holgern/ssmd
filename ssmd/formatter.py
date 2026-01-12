@@ -130,7 +130,7 @@ def _format_sentence_content(sentence: Sentence) -> str:
     # Build segments using their to_ssmd() method
     result_parts: list[str] = []
 
-    for i, segment in enumerate(sentence.segments):
+    for _i, segment in enumerate(sentence.segments):
         # Format the segment using its to_ssmd() method
         segment_text = segment.to_ssmd()
 

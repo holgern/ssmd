@@ -332,7 +332,8 @@ class Document:
             if output_speak_tag:
                 ssml = f"<speak>{ssml}</speak>"
 
-            # Unescape placeholders AFTER generating SSML (restore original characters in output)
+            # Unescape placeholders AFTER generating SSML
+            # (restore original characters in output)
             if self._escape_syntax:
                 from ssmd.utils import unescape_ssmd_syntax
 

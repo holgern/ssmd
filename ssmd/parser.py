@@ -352,7 +352,7 @@ def _simple_sentence_split(text: str) -> list[str]:
     return [p.strip() for p in parts if p.strip()]
 
 
-def _parse_segments(
+def _parse_segments(  # noqa: C901
     text: str,
     capabilities: "TTSCapabilities | None" = None,
     heading_levels: dict | None = None,
@@ -365,7 +365,6 @@ def _parse_segments(
         return _parse_heading(heading_match, heading_levels or DEFAULT_HEADING_LEVELS)
 
     segments: list[Segment] = []
-    remaining = text
     position = 0
 
     # Build combined pattern for all markup
