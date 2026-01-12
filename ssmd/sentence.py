@@ -57,7 +57,8 @@ class Sentence:
         for segment in self.segments:
             content_parts.append(segment.to_ssml(capabilities, extensions))
 
-        content = "".join(content_parts)
+        # Join segments with spaces, but handle punctuation intelligently
+        content = self._join_segments(content_parts)
 
         # Wrap in <s> tag if requested
         if wrap_sentence:
@@ -74,6 +75,40 @@ class Sentence:
                 content += self._break_to_ssml(brk)
 
         return content
+
+    def _join_segments(self, parts: list[str]) -> str:
+        """Join SSML segment parts with appropriate spacing.
+
+        Adds spaces between segments but not before punctuation.
+
+        Args:
+            parts: List of SSML strings for each segment
+
+        Returns:
+            Joined SSML string
+        """
+        import re
+
+        if not parts:
+            return ""
+
+        result = parts[0]
+        for i in range(1, len(parts)):
+            part = parts[i]
+            # Don't add space before punctuation or if part starts with <break
+            if part and (
+                re.match(r'^[.!?,;:\'")\]}>]', part)
+                or part.startswith("<break")
+                or part.startswith("<mark")
+            ):
+                result += part
+            # Don't add space if previous part ends with opening bracket/quote
+            elif result and result[-1] in "([{<\"'":
+                result += part
+            else:
+                result += " " + part
+
+        return result
 
     def _wrap_voice(self, content: str) -> str:
         """Wrap content in voice tag."""

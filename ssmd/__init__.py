@@ -68,6 +68,12 @@ from ssmd.parser_types import (
     AudioAttrs,
     PhonemeAttrs,
 )
+from ssmd.segment import Segment
+from ssmd.sentence import Sentence
+from ssmd.types import (
+    HeadingConfig,
+    DEFAULT_HEADING_LEVELS,
+)
 from ssmd.formatter import format_ssmd
 from ssmd.utils import escape_ssmd_syntax, unescape_ssmd_syntax
 
@@ -164,13 +170,20 @@ __all__ = [
     # Utility functions
     "escape_ssmd_syntax",
     "unescape_ssmd_syntax",
-    # Parser types
-    "SSMDSegment",
-    "SSMDSentence",
+    # New core classes
+    "Segment",
+    "Sentence",
+    # Types
     "VoiceAttrs",
     "ProsodyAttrs",
     "BreakAttrs",
     "SayAsAttrs",
     "AudioAttrs",
+    "PhonemeAttrs",
+    "HeadingConfig",
+    "DEFAULT_HEADING_LEVELS",
+    # Backward compatibility aliases
+    "SSMDSegment",
+    "SSMDSentence",
     "__version__",
 ]
