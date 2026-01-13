@@ -28,9 +28,10 @@ if TYPE_CHECKING:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 # Voice directive: @voice: name or @voice(name)
+# Supports: name, language code, gender:, variant:, language:
 VOICE_DIRECTIVE_PATTERN = re.compile(
     r"^@voice(?::\s*|\()"
-    r"([a-zA-Z0-9_-]+(?:\s*,\s*(?:gender|variant):\s*[a-zA-Z0-9]+)*)"
+    r"([a-zA-Z0-9_-]+(?:\s*,\s*(?:gender|variant|language):\s*[a-zA-Z0-9_-]+)*)"
     r"\)?\s*$",
     re.MULTILINE,
 )
@@ -254,16 +255,35 @@ def _parse_voice_params(params: str) -> VoiceAttrs:
 
     has_gender = "gender:" in params
     has_variant = "variant:" in params
+    has_language = "language:" in params
 
-    # Extract voice name or language
+    # Extract voice name or language code (first value before any comma)
     voice_match = re.match(r"([a-zA-Z0-9_-]+)", params)
     if voice_match:
         value = voice_match.group(1)
-        # If gender/variant present, or looks like language code, treat as language
-        if has_gender or has_variant or re.match(r"^[a-z]{2}(-[A-Z]{2})?$", value):
+        # If explicit language: is provided, or gender/variant present
+        # with language-like
+        # first value, or looks like language code, treat first value as language
+        if (has_gender or has_variant) and not has_language:
+            # Pattern like "@voice: fr-FR, gender: female" - first value is language
+            if re.match(r"^[a-z]{2}(-[A-Z]{2})?$", value):
+                voice.language = value
+            else:
+                voice.name = value
+        elif has_language:
+            # Explicit language: provided, so first value is the name
+            voice.name = value
+        elif re.match(r"^[a-z]{2}(-[A-Z]{2})?$", value):
+            # Looks like a language code
             voice.language = value
         else:
+            # Just a name
             voice.name = value
+
+    # Parse explicit language: parameter
+    lang_match = re.search(r"language:\s*([a-zA-Z0-9_-]+)", params, re.IGNORECASE)
+    if lang_match:
+        voice.language = lang_match.group(1)
 
     # Parse gender
     gender_match = re.search(r"gender:\s*(male|female|neutral)", params, re.IGNORECASE)

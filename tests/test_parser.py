@@ -71,6 +71,28 @@ Hello from Michael"""
         assert voice.gender == "male"
         assert voice.variant == 1
 
+    def test_voice_with_explicit_language(self):
+        """Test voice directive with explicit language: parameter."""
+        text = "@voice: sarah, language: en-US\nHello"
+        blocks = parse_voice_blocks(text)
+
+        voice = blocks[0][0]
+        assert voice is not None
+        assert voice.name == "sarah"
+        assert voice.language == "en-US"
+        assert voice.gender is None
+
+    def test_voice_with_name_language_and_gender(self):
+        """Test voice directive with name, language, and gender."""
+        text = "@voice: narrator, language: en-GB, gender: male\nHello"
+        blocks = parse_voice_blocks(text)
+
+        voice = blocks[0][0]
+        assert voice is not None
+        assert voice.name == "narrator"
+        assert voice.language == "en-GB"
+        assert voice.gender == "male"
+
     def test_voice_parentheses_syntax(self):
         """Test voice directive with parentheses syntax."""
         text = "@voice(sarah)\nHello"

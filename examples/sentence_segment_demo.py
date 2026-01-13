@@ -15,7 +15,6 @@ you to build TTS content programmatically or process parsed SSMD for custom pipe
 """
 
 from ssmd import (
-    Document,
     TTSCapabilities,
     get_preset,
     parse_segments,
@@ -41,21 +40,21 @@ def example_1_segment_basics():
 
     # Simple text segment
     seg1 = Segment(text="Hello world")
-    print(f"\n1a. Plain segment:")
+    print("\n1a. Plain segment:")
     print(f"    Text: {seg1.text!r}")
     print(f"    SSML: {seg1.to_ssml()}")
     print(f"    SSMD: {seg1.to_ssmd()}")
 
     # Segment with emphasis
     seg2 = Segment(text="important", emphasis=True)
-    print(f"\n1b. Emphasized segment:")
+    print("\n1b. Emphasized segment:")
     print(f"    Text: {seg2.text!r}, emphasis={seg2.emphasis}")
     print(f"    SSML: {seg2.to_ssml()}")
     print(f"    SSMD: {seg2.to_ssmd()}")
 
     # Strong emphasis
     seg3 = Segment(text="CRITICAL", emphasis="strong")
-    print(f"\n1c. Strong emphasis:")
+    print("\n1c. Strong emphasis:")
     print(f"    Text: {seg3.text!r}, emphasis={seg3.emphasis!r}")
     print(f"    SSML: {seg3.to_ssml()}")
     print(f"    SSMD: {seg3.to_ssmd()}")
@@ -65,7 +64,7 @@ def example_1_segment_basics():
         text="Pause here",
         breaks_after=[BreakAttrs(time="500ms")],
     )
-    print(f"\n1d. Segment with break:")
+    print("\n1d. Segment with break:")
     print(f"    Text: {seg4.text!r}")
     print(f"    Breaks after: {[b.time for b in seg4.breaks_after]}")
     print(f"    SSML: {seg4.to_ssml()}")
@@ -82,7 +81,7 @@ def example_2_phoneme_attrs():
     phoneme_ipa = PhonemeAttrs(ph="təˈmeɪtoʊ")
     seg1 = Segment(text="tomato", phoneme=phoneme_ipa)
 
-    print(f"\n2a. IPA phoneme:")
+    print("\n2a. IPA phoneme:")
     print(f"    Text: {seg1.text!r}")
     print(f"    Phoneme: {seg1.phoneme.ph!r} (alphabet: {seg1.phoneme.alphabet})")
     print(f"    SSML: {seg1.to_ssml()}")
@@ -92,7 +91,7 @@ def example_2_phoneme_attrs():
     phoneme_xsampa = PhonemeAttrs(ph='t@"meItoU', alphabet="x-sampa")
     seg2 = Segment(text="tomato", phoneme=phoneme_xsampa)
 
-    print(f"\n2b. X-SAMPA phoneme (converted to IPA in SSML):")
+    print("\n2b. X-SAMPA phoneme (converted to IPA in SSML):")
     print(f"    Text: {seg2.text!r}")
     print(f"    Phoneme: {seg2.phoneme.ph!r} (alphabet: {seg2.phoneme.alphabet})")
     print(f"    SSML: {seg2.to_ssml()}")
@@ -102,11 +101,11 @@ def example_2_phoneme_attrs():
     ssmd_text = "Say [GIF](ph: dʒɪf) correctly."
     segments = parse_segments(ssmd_text)
 
-    print(f"\n2c. Parsed phoneme from SSMD:")
+    print("\n2c. Parsed phoneme from SSMD:")
     print(f"    Input: {ssmd_text!r}")
     for seg in segments:
         if seg.phoneme:
-            print(f"    Found phoneme segment:")
+            print("    Found phoneme segment:")
             print(f"      text: {seg.text!r}")
             print(f"      phoneme.ph: {seg.phoneme.ph!r}")
             print(f"      phoneme.alphabet: {seg.phoneme.alphabet!r}")
@@ -122,7 +121,7 @@ def example_3_prosody_attrs():
     prosody_loud = ProsodyAttrs(volume="x-loud")
     seg1 = Segment(text="Listen carefully", prosody=prosody_loud)
 
-    print(f"\n3a. Volume control:")
+    print("\n3a. Volume control:")
     print(f"    Text: {seg1.text!r}")
     print(f"    Prosody: volume={seg1.prosody.volume}")
     print(f"    SSML: {seg1.to_ssml()}")
@@ -132,7 +131,7 @@ def example_3_prosody_attrs():
     prosody_slow = ProsodyAttrs(rate="slow")
     seg2 = Segment(text="Take your time", prosody=prosody_slow)
 
-    print(f"\n3b. Rate control:")
+    print("\n3b. Rate control:")
     print(f"    Text: {seg2.text!r}")
     print(f"    Prosody: rate={seg2.prosody.rate}")
     print(f"    SSML: {seg2.to_ssml()}")
@@ -142,7 +141,7 @@ def example_3_prosody_attrs():
     prosody_combined = ProsodyAttrs(volume="loud", rate="fast", pitch="high")
     seg3 = Segment(text="Exciting news", prosody=prosody_combined)
 
-    print(f"\n3c. Combined prosody (volume + rate + pitch):")
+    print("\n3c. Combined prosody (volume + rate + pitch):")
     print(f"    Text: {seg3.text!r}")
     print(
         f"    Prosody: volume={seg3.prosody.volume}, rate={seg3.prosody.rate}, "
@@ -162,7 +161,7 @@ def example_4_say_as_attrs():
     say_as_phone = SayAsAttrs(interpret_as="telephone")
     seg1 = Segment(text="+1-800-555-0123", say_as=say_as_phone)
 
-    print(f"\n4a. Telephone interpretation:")
+    print("\n4a. Telephone interpretation:")
     print(f"    Text: {seg1.text!r}")
     print(f"    Say-as: interpret_as={seg1.say_as.interpret_as!r}")
     print(f"    SSML: {seg1.to_ssml()}")
@@ -171,7 +170,7 @@ def example_4_say_as_attrs():
     say_as_date = SayAsAttrs(interpret_as="date", format="mdy")
     seg2 = Segment(text="01/15/2024", say_as=say_as_date)
 
-    print(f"\n4b. Date with format:")
+    print("\n4b. Date with format:")
     print(f"    Text: {seg2.text!r}")
     print(
         f"    Say-as: interpret_as={seg2.say_as.interpret_as!r}, "
@@ -183,7 +182,7 @@ def example_4_say_as_attrs():
     say_as_num = SayAsAttrs(interpret_as="cardinal", detail="2")
     seg3 = Segment(text="12345", say_as=say_as_num)
 
-    print(f"\n4c. Cardinal with detail level:")
+    print("\n4c. Cardinal with detail level:")
     print(f"    Text: {seg3.text!r}")
     print(
         f"    Say-as: interpret_as={seg3.say_as.interpret_as!r}, "
@@ -212,7 +211,7 @@ def example_5_building_sentences():
         voice=VoiceAttrs(name="sarah"),
     )
 
-    print(f"\n5a. Simple sentence:")
+    print("\n5a. Simple sentence:")
     print(f"    Segments: {len(sentence.segments)}")
     print(f"    Voice: {sentence.voice.name if sentence.voice else 'default'}")
     print(f"    Plain text: {sentence.to_text()!r}")
@@ -228,7 +227,7 @@ def example_5_building_sentences():
         breaks_after=[BreakAttrs(strength="strong")],
     )
 
-    print(f"\n5b. Paragraph-ending sentence:")
+    print("\n5b. Paragraph-ending sentence:")
     print(f"    is_paragraph_end: {sentence2.is_paragraph_end}")
     print(f"    breaks_after: {[b.strength for b in sentence2.breaks_after]}")
     print(f"    SSML: {sentence2.to_ssml()}")
@@ -247,7 +246,7 @@ def example_6_voice_attrs():
         voice=voice1,
     )
 
-    print(f"\n6a. Voice by name:")
+    print("\n6a. Voice by name:")
     print(f"    Voice name: {voice1.name}")
     print(f"    SSML: {sentence1.to_ssml()}")
 
@@ -258,7 +257,7 @@ def example_6_voice_attrs():
         voice=voice2,
     )
 
-    print(f"\n6b. Voice by attributes:")
+    print("\n6b. Voice by attributes:")
     print(f"    Language: {voice2.language}, Gender: {voice2.gender}")
     print(f"    SSML: {sentence2.to_ssml()}")
 
@@ -268,7 +267,7 @@ def example_6_voice_attrs():
         voice=VoiceAttrs(name="michael"),
     )
 
-    print(f"\n6c. Inline voice on segment:")
+    print("\n6c. Inline voice on segment:")
     print(f"    Segment voice: {seg_with_voice.voice.name}")
     print(f"    SSML: {seg_with_voice.to_ssml()}")
 
@@ -287,29 +286,29 @@ def example_7_capabilities_filtering():
         language="en-US",
     )
 
-    print(f"\n7a. Original segment with multiple features:")
+    print("\n7a. Original segment with multiple features:")
     print(f"    emphasis: {segment.emphasis}")
     print(f"    prosody.volume: {segment.prosody.volume}")
     print(f"    language: {segment.language}")
 
     # Full capabilities (default)
-    print(f"\n7b. Full capabilities (all features):")
+    print("\n7b. Full capabilities (all features):")
     print(f"    SSML: {segment.to_ssml()}")
 
     # Google TTS (full support)
     google_caps = get_preset("google")
-    print(f"\n7c. Google TTS capabilities:")
+    print("\n7c. Google TTS capabilities:")
     print(f"    SSML: {segment.to_ssml(google_caps)}")
 
     # eSpeak (limited support - no emphasis)
     espeak_caps = get_preset("espeak")
-    print(f"\n7d. eSpeak capabilities (no emphasis):")
+    print("\n7d. eSpeak capabilities (no emphasis):")
     print(f"    emphasis supported: {espeak_caps.emphasis}")
     print(f"    SSML: {segment.to_ssml(espeak_caps)}")
 
     # Minimal (plain text only)
     minimal_caps = get_preset("minimal")
-    print(f"\n7e. Minimal capabilities (plain text):")
+    print("\n7e. Minimal capabilities (plain text):")
     print(f"    SSML: {segment.to_ssml(minimal_caps)}")
 
     # Custom capabilities
@@ -318,7 +317,7 @@ def example_7_capabilities_filtering():
         prosody=False,  # Disable prosody
         language=True,
     )
-    print(f"\n7f. Custom capabilities (no prosody):")
+    print("\n7f. Custom capabilities (no prosody):")
     print(f"    SSML: {segment.to_ssml(custom_caps)}")
 
 
@@ -332,7 +331,7 @@ def example_8_audio_attrs():
     audio1 = AudioAttrs(src="https://example.com/sound.mp3")
     seg1 = Segment(text="doorbell sound", audio=audio1)
 
-    print(f"\n8a. Basic audio:")
+    print("\n8a. Basic audio:")
     print(f"    Description: {seg1.text!r}")
     print(f"    Audio src: {seg1.audio.src}")
     print(f"    SSML: {seg1.to_ssml()}")
@@ -348,7 +347,7 @@ def example_8_audio_attrs():
     )
     seg2 = Segment(text="Music interlude", audio=audio2)
 
-    print(f"\n8b. Audio with advanced options:")
+    print("\n8b. Audio with advanced options:")
     print(f"    src: {seg2.audio.src}")
     print(f"    clip: {seg2.audio.clip_begin} - {seg2.audio.clip_end}")
     print(f"    speed: {seg2.audio.speed}")
@@ -370,7 +369,7 @@ def example_9_marks():
         marks_after=["section_end"],
     )
 
-    print(f"\n9a. Segment with marks:")
+    print("\n9a. Segment with marks:")
     print(f"    Text: {seg.text!r}")
     print(f"    marks_before: {seg.marks_before}")
     print(f"    marks_after: {seg.marks_after}")
@@ -383,7 +382,7 @@ def example_9_marks():
         marks_after=["highlight_end"],
     )
 
-    print(f"\n9b. Multiple marks:")
+    print("\n9b. Multiple marks:")
     print(f"    marks_before: {seg2.marks_before}")
     print(f"    marks_after: {seg2.marks_after}")
     print(f"    SSML: {seg2.to_ssml()}")
@@ -402,7 +401,7 @@ Hello *everyone*! Call [+1-555-0123](as: telephone) for info.
 Say [tomato](ph: təˈmeɪtoʊ) correctly.
 """
 
-    print(f"\n10a. Original SSMD:")
+    print("\n10a. Original SSMD:")
     print(f"    {original_ssmd.strip()}")
 
     # Parse to sentences
@@ -425,20 +424,20 @@ Say [tomato](ph: təˈmeɪtoʊ) correctly.
             print(f"      Seg {j}: {seg.text!r}{feature_str}")
 
     # Modify: Add extra emphasis to all segments
-    print(f"\n10c. Modifying: Adding prosody to all segments...")
+    print("\n10c. Modifying: Adding prosody to all segments...")
     for sent in sentences:
         for seg in sent.segments:
             if not seg.prosody:
                 seg.prosody = ProsodyAttrs(volume="loud")
 
     # Output as SSML
-    print(f"\n10d. Modified output (SSML):")
+    print("\n10d. Modified output (SSML):")
     for sent in sentences:
         ssml = sent.to_ssml()
         print(f"    {ssml[:80]}{'...' if len(ssml) > 80 else ''}")
 
     # Convert back to SSMD
-    print(f"\n10e. Convert back to SSMD:")
+    print("\n10e. Convert back to SSMD:")
     for sent in sentences:
         ssmd_out = sent.to_ssmd()
         print(f"    {ssmd_out[:70]}{'...' if len(ssmd_out) > 70 else ''}")
@@ -453,7 +452,7 @@ def example_11_extensions():
     # Amazon Polly whisper effect
     seg1 = Segment(text="This is a secret", extension="whisper")
 
-    print(f"\n11a. Amazon Polly whisper effect:")
+    print("\n11a. Amazon Polly whisper effect:")
     print(f"    Text: {seg1.text!r}")
     print(f"    Extension: {seg1.extension}")
     print(f"    SSML: {seg1.to_ssml()}")
@@ -468,7 +467,7 @@ def example_11_extensions():
 
     seg2 = Segment(text="Great news everyone", extension="cheerful")
 
-    print(f"\n11b. Custom extension (Google cheerful style):")
+    print("\n11b. Custom extension (Google cheerful style):")
     print(f"    Extension: {seg2.extension}")
     print(f"    SSML: {seg2.to_ssml(extensions=custom_extensions)}")
 

@@ -191,6 +191,7 @@ SSML:
 **Voice Attributes:**
 
 - `voice: NAME` - Voice name
+- `language: LANG` - Language code (e.g., `en-US`, `fr-FR`)
 - `gender: GENDER` - male, female, or neutral
 - `variant: NUMBER` - Variant number for tiebreaking
 
@@ -207,6 +208,9 @@ Welcome to the show! I'm Sarah.
 @voice: michael
 Thanks Sarah! Great to be here.
 
+@voice: narrator, language: en-GB
+This story takes place in London.
+
 @voice(fr-FR, gender: female)
 Bonjour tout le monde!
 ```
@@ -222,6 +226,10 @@ SSML:
 <p>Thanks Sarah! Great to be here.</p>
 </voice>
 
+<voice name="narrator" language="en-GB">
+<p>This story takes place in London.</p>
+</voice>
+
 <voice language="fr-FR" gender="female">
 <p>Bonjour tout le monde!</p>
 </voice>
@@ -231,8 +239,14 @@ SSML:
 
 - `@voice: name`
 - `@voice(name)`
-- `@voice: language, gender: value`
-- `@voice(language, gender: value, variant: number)`
+- `@voice: name, language: code`
+- `@voice: name, language: code, gender: value`
+- `@voice: language-code, gender: value`
+- `@voice(language-code, gender: value, variant: number)`
+
+When the first value looks like a language code (e.g., `fr-FR`, `en-US`) and no explicit
+`language:` parameter is provided, it is treated as the language. Otherwise, it is
+treated as the voice name.
 
 Voice directives apply to all text until the next directive or paragraph break.
 
