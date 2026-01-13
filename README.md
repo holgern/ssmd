@@ -238,12 +238,12 @@ for sentence in doc.sentences():
 
 Same input: `*Hello* world... [this is loud](v: 5)!`
 
-| Engine  | Output                                                                                                                          |
-| ------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| minimal | `<speak>Hello world... this is loud!</speak>`                                                                                   |
-| pyttsx3 | `<speak>Hello world... <prosody volume="x-loud">this is loud</prosody>!</speak>`                                                |
-| espeak  | `<speak>Hello world<break time="1000ms"/> <prosody volume="x-loud">this is loud</prosody>!</speak>`                             |
-| google  | `<speak><p><emphasis>Hello</emphasis> world<break time="1000ms"/> <prosody volume="x-loud">this is loud</prosody>!</p></speak>` |
+| Engine  | Output                                                                                                                   |
+| ------- | ------------------------------------------------------------------------------------------------------------------------ |
+| minimal | `<speak>Hello world... this is loud!</speak>`                                                                            |
+| pyttsx3 | `<speak>Hello world... <prosody volume="x-loud">this is loud</prosody>!</speak>`                                         |
+| espeak  | `<speak>Hello world<break time="1000ms"/> <prosody volume="x-loud">this is loud</prosody>!</speak>`                      |
+| google  | `<speak><emphasis>Hello</emphasis> world<break time="1000ms"/> <prosody volume="x-loud">this is loud</prosody>!</speak>` |
 
 See `examples/tts_with_capabilities.py` for a complete demonstration.
 
@@ -296,8 +296,9 @@ Second line of first paragraph.
 Second paragraph starts here."""
 
 ssmd.to_ssml(text)
-# → <speak><p>First paragraph here.
-#    Second line of first paragraph.</p><p>Second paragraph starts here.</p></speak>
+# → <speak>First paragraph here.
+#    Second line of first paragraph.
+#    Second paragraph starts here.</speak>
 ```
 
 ### Language
@@ -686,9 +687,11 @@ for sentence in sentences:
 
 ### Parser Functions
 
-#### `parse_sentences(text, **options)` → `list[SSMDSentence]`
+#### `parse_sentences(text, **options)` → `list[Sentence]`
 
 Parse SSMD text into structured sentences with segments.
+
+> **Note:** `SSMDSentence` is a backward-compatibility alias for `Sentence`.
 
 **Parameters:**
 
@@ -703,7 +706,7 @@ Parse SSMD text into structured sentences with segments.
 - `use_spacy` (bool): If False, use fast regex splitting instead of spaCy (default:
   True)
 
-**Returns:** List of `SSMDSentence` objects
+**Returns:** List of `Sentence` objects (alias: `SSMDSentence`)
 
 **Example:**
 
@@ -760,16 +763,19 @@ python -m spacy download en_core_web_lg
 python -m spacy download en_core_web_trf
 ```
 
-#### `parse_segments(text, **options)` → `list[SSMDSegment]`
+#### `parse_segments(text, **options)` → `list[Segment]`
 
 Parse SSMD text into segments without sentence grouping.
+
+> **Note:** `SSMDSegment` is a backward-compatibility alias for `Segment`.
 
 **Parameters:**
 
 - `text` (str): SSMD text to parse
 - `capabilities` (TTSCapabilities | str): Filter features based on TTS engine support
+- `voice_context` (VoiceAttrs | None): Voice context for the segments (optional)
 
-**Returns:** List of `SSMDSegment` objects
+**Returns:** List of `Segment` objects (alias: `SSMDSegment`)
 
 **Example:**
 
@@ -808,32 +814,39 @@ for voice, text in blocks:
 
 ### Data Structures
 
-#### `SSMDSentence`
+#### `Sentence` (alias: `SSMDSentence`)
 
 Represents a complete sentence with voice context.
 
 **Attributes:**
 
-- `segments` (list[SSMDSegment]): List of text segments
+- `segments` (list[Segment]): List of text segments
 - `voice` (VoiceAttrs | None): Voice configuration
 - `is_paragraph_end` (bool): Whether sentence ends a paragraph
+- `breaks_after` (list[BreakAttrs]): Pauses after the sentence
 
-#### `SSMDSegment`
+#### `Segment` (alias: `SSMDSegment`)
 
 Represents a text segment with metadata.
 
 **Attributes:**
 
 - `text` (str): The text content
-- `emphasis` (bool): Emphasis flag
+- `emphasis` (bool | str): Emphasis level (True, "moderate", "strong", "reduced",
+  "none")
 - `prosody` (ProsodyAttrs | None): Volume, rate, pitch
 - `language` (str | None): Language code (e.g., "fr-FR")
-- `breaks_after` (list[BreakAttrs]): Pauses after this segment
+- `voice` (VoiceAttrs | None): Inline voice settings
 - `say_as` (SayAsAttrs | None): Say-as interpretation
 - `substitution` (str | None): Substitution text
-- `phoneme` (str | None): Phonetic pronunciation (IPA)
+- `phoneme` (PhonemeAttrs | None): Phonetic pronunciation (with `ph` and `alphabet`
+  attributes)
 - `audio` (AudioAttrs | None): Audio file info
-- `marks` (list[str]): Marker names
+- `extension` (str | None): Platform-specific extension name
+- `breaks_before` (list[BreakAttrs]): Pauses before this segment
+- `breaks_after` (list[BreakAttrs]): Pauses after this segment
+- `marks_before` (list[str]): Marker names before this segment
+- `marks_after` (list[str]): Marker names after this segment
 
 #### `VoiceAttrs`
 

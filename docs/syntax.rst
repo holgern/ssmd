@@ -109,9 +109,9 @@ Blank lines separate paragraphs:
    """
 
    ssmd.to_ssml(text)
-   # → <speak><p>This is the first paragraph.
-   #    Still in first paragraph.</p>
-   #    <p>This is the second paragraph.</p></speak>
+   # → <speak>This is the first paragraph.
+   #    Still in first paragraph.
+   #    This is the second paragraph.</speak>
 
 Headings
 --------
@@ -682,7 +682,7 @@ characters in both text content and annotation parameters are properly escaped:
 
    # Malicious input is safely escaped
    ssmd.to_ssml('[text](sub: value"><script>alert(1)</script>)')
-   # → <speak><p><sub alias="value&quot;&gt;&lt;script&gt;alert(1)&lt;/script&gt;">text</sub></p></speak>
+   # → <speak><sub alias="value&quot;&gt;&lt;script&gt;alert(1)&lt;/script&gt;">text</sub></speak>
 
 The library ensures:
 

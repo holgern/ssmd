@@ -70,7 +70,7 @@ Say [tomato](ph: təˈmeɪtoʊ) correctly.
         elif seg.substitution:
             print(f"  SUBSTITUTION: {seg.text!r} -> speak as {seg.substitution!r}")
         elif seg.phoneme:
-            print(f"  PHONEME: {seg.text!r} -> pronounce as {seg.phoneme!r}")
+            print(f"  PHONEME: {seg.text!r} -> pronounce as {seg.phoneme.ph!r}")
 
 
 def example_3_voice_blocks():
@@ -150,7 +150,7 @@ Thanks *Sarah*! That's very helpful.
             elif seg.phoneme:
                 # Use phoneme for pronunciation
                 text_to_speak = seg.text  # TTS engine uses phoneme data
-                metadata.append(f"phoneme:{seg.phoneme}")
+                metadata.append(f"phoneme:{seg.phoneme.ph}")
                 full_text += text_to_speak
             else:
                 # Plain text
@@ -230,6 +230,171 @@ Sarah speaks here.
         print(f"  {i}. [{voice_name}] {text_content!r}{para_marker}")
 
 
+def example_7_capabilities_filtering():
+    """Example 7: Capabilities filtering - Engine-specific parsing."""
+    print("\n" + "=" * 60)
+    print("Example 7: Capabilities Filtering")
+    print("=" * 60)
+
+    from ssmd import get_preset
+
+    text = """
+Hello *everyone*! Call [+1-555-0123](as: telephone).
+Say [tomato](ph: təˈmeɪtoʊ) in [Français](fr).
+"""
+
+    print(f"\nInput text: {text.strip()}")
+
+    # Parse with Google capabilities (full support)
+    google_sentences = parse_sentences(text, capabilities="google")
+    print(f"\n1. Google TTS (full support): {len(google_sentences)} sentences")
+
+    # Parse with eSpeak capabilities (limited support)
+    espeak_sentences = parse_sentences(text, capabilities="espeak")
+    print(f"2. eSpeak (limited support): {len(espeak_sentences)} sentences")
+
+    # Parse with custom capabilities
+    from ssmd import TTSCapabilities
+
+    custom_caps = TTSCapabilities(
+        emphasis=True,
+        say_as=False,  # Disable say-as
+        phoneme=False,  # Disable phoneme
+        language=True,
+    )
+    custom_sentences = parse_sentences(text, capabilities=custom_caps)
+    print(f"3. Custom capabilities: {len(custom_sentences)} sentences")
+
+    # Show SSML output differences
+    print("\nSSML output comparison:")
+    for sent in google_sentences[:2]:
+        ssml = sent.to_ssml()
+        print(f"  Google: {ssml[:60]}...")
+
+    for sent in espeak_sentences[:2]:
+        ssml = sent.to_ssml(get_preset("espeak"))
+        print(f"  eSpeak: {ssml[:60]}...")
+
+
+def example_8_multilingual():
+    """Example 8: Multi-language sentence detection."""
+    print("\n" + "=" * 60)
+    print("Example 8: Multi-Language Support")
+    print("=" * 60)
+
+    # English text
+    english_text = "Hello! How are you? I'm fine, thanks."
+    en_sentences = parse_sentences(english_text, language="en")
+    print(f"\nEnglish ({len(en_sentences)} sentences):")
+    for sent in en_sentences:
+        print(f"  - {sent.to_text()!r}")
+
+    # German text - may require spaCy model: python -m spacy download de_core_web_sm
+    german_text = "Guten Tag! Wie geht es Ihnen? Mir geht es gut, danke."
+    try:
+        de_sentences = parse_sentences(german_text, language="de")
+        print(f"\nGerman ({len(de_sentences)} sentences):")
+        for sent in de_sentences:
+            print(f"  - {sent.to_text()!r}")
+    except OSError:
+        print("\nGerman: Skipped - spaCy model not installed")
+        print("  Install with: python -m spacy download de_core_web_sm")
+
+    # French text - may require spaCy model: python -m spacy download fr_core_news_sm
+    french_text = "Bonjour! Comment allez-vous? Je vais bien, merci."
+    try:
+        fr_sentences = parse_sentences(french_text, language="fr")
+        print(f"\nFrench ({len(fr_sentences)} sentences):")
+        for sent in fr_sentences:
+            print(f"  - {sent.to_text()!r}")
+    except OSError:
+        print("\nFrench: Skipped - spaCy model not installed")
+        print("  Install with: python -m spacy download fr_core_news_sm")
+
+    print("\nNote: Multi-language support requires spaCy language models.")
+    print("Without them, basic regex-based sentence splitting is used.")
+
+
+def example_9_sentence_attributes():
+    """Example 9: Inspecting Sentence object attributes."""
+    print("\n" + "=" * 60)
+    print("Example 9: Sentence Object Attributes")
+    print("=" * 60)
+
+    text = """
+@voice: sarah, language: en-US
+Welcome to the show! This is *amazing*.
+
+@voice: michael, gender: male
+Thanks for having me.
+
+Final thoughts here.
+"""
+
+    sentences = parse_sentences(text, sentence_detection=True)
+
+    print(f"\nParsed {len(sentences)} sentences:\n")
+
+    for i, sent in enumerate(sentences, 1):
+        print(f"Sentence {i}:")
+
+        # Voice attributes
+        if sent.voice:
+            print(f"  voice.name: {sent.voice.name}")
+            print(f"  voice.language: {sent.voice.language}")
+            print(f"  voice.gender: {sent.voice.gender}")
+        else:
+            print("  voice: (default)")
+
+        # Paragraph info
+        print(f"  is_paragraph_end: {sent.is_paragraph_end}")
+
+        # Breaks after sentence
+        if sent.breaks_after:
+            breaks = [f"{b.time or b.strength}" for b in sent.breaks_after]
+            print(f"  breaks_after: {breaks}")
+
+        # Segment count
+        print(f"  segments: {len(sent.segments)}")
+
+        # Text content
+        print(f"  text: {sent.to_text()!r}")
+        print()
+
+
+def example_10_output_formats():
+    """Example 10: Different output formats from sentences."""
+    print("\n" + "=" * 60)
+    print("Example 10: Output Formats")
+    print("=" * 60)
+
+    text = """
+@voice: narrator
+*Hello* everyone! Call [+1-800-555-0123](as: telephone) for info.
+"""
+
+    sentences = parse_sentences(text)
+
+    print(f"\nInput: {text.strip()}")
+    print(f"\nParsed {len(sentences)} sentences:\n")
+
+    for i, sent in enumerate(sentences, 1):
+        print(f"Sentence {i}:")
+
+        # Plain text (no markup)
+        print(f"  to_text():  {sent.to_text()!r}")
+
+        # SSML output
+        print(f"  to_ssml():  {sent.to_ssml()}")
+
+        # SSMD output (can regenerate SSMD from parsed data)
+        print(f"  to_ssmd():  {sent.to_ssmd()}")
+
+        # SSML with sentence tags
+        print(f"  to_ssml(wrap_sentence=True): {sent.to_ssml(wrap_sentence=True)}")
+        print()
+
+
 def mock_tts_integration():
     """Mock TTS integration - Shows how to use parser with a TTS engine."""
     print("\n" + "=" * 60)
@@ -279,7 +444,7 @@ Call [+1-555-0123](as: telephone) for support.
             elif seg.phoneme:
                 # Use phoneme for pronunciation
                 text = f"<phoneme>{seg.text}</phoneme>"
-                print(f"  -> Phoneme segment: {text} ({seg.phoneme})")
+                print(f"  -> Phoneme segment: {text} ({seg.phoneme.ph})")
             else:
                 text = seg.text
                 print(f"  -> Plain text: {text!r}")
@@ -319,6 +484,10 @@ if __name__ == "__main__":
     example_4_complete_workflow()
     example_5_prosody_and_language()
     example_6_advanced_sentence_parsing()
+    example_7_capabilities_filtering()
+    example_8_multilingual()
+    example_9_sentence_attributes()
+    example_10_output_formats()
     mock_tts_integration()
 
     print("\n" + "=" * 60)
@@ -330,5 +499,8 @@ if __name__ == "__main__":
     print("3. parse_sentences() - Complete workflow with sentences")
     print("4. Each segment has metadata (emphasis, prosody, breaks, etc.)")
     print("5. Build sentences by processing segments individually")
+    print("6. Use capabilities to filter for specific TTS engines")
+    print("7. Support multiple languages with the language parameter")
+    print("8. Output as plain text, SSML, or SSMD")
     print("\nUse the parser when you need programmatic control over")
     print("SSMD features instead of generating SSML directly.")

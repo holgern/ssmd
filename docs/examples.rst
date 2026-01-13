@@ -757,7 +757,7 @@ Text Transformation Example
        elif seg.substitution:
            print(f"Substitute: '{seg.text}' → '{seg.substitution}'")
        elif seg.phoneme:
-           print(f"Phoneme: '{seg.text}' → /{seg.phoneme}/")
+           print(f"Phoneme: '{seg.text}' → /{seg.phoneme.ph}/")
 
 For a complete parser demonstration, see ``examples/parser_demo.py``.
 

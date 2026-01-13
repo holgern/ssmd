@@ -127,22 +127,22 @@ Convert SSML back to SSMD format.
 Parser Data Structures
 ----------------------
 
-SSMDSentence
-~~~~~~~~~~~~
+Sentence (alias: SSMDSentence)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Represents a sentence with voice context and segments.
 
-.. autoclass:: ssmd.SSMDSentence
+.. autoclass:: ssmd.Sentence
    :members:
    :undoc-members:
    :show-inheritance:
 
-SSMDSegment
-~~~~~~~~~~~
+Segment (alias: SSMDSegment)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Represents a text segment with metadata.
 
-.. autoclass:: ssmd.SSMDSegment
+.. autoclass:: ssmd.Segment
    :members:
    :undoc-members:
    :show-inheritance:
@@ -187,6 +187,16 @@ Say-as interpretation attributes.
    :undoc-members:
    :show-inheritance:
 
+PhonemeAttrs
+~~~~~~~~~~~~
+
+Phonetic pronunciation attributes.
+
+.. autoclass:: ssmd.PhonemeAttrs
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 AudioAttrs
 ~~~~~~~~~~
 
@@ -215,16 +225,6 @@ Pre-configured capability sets for common TTS engines.
 Internal Modules
 ----------------
 
-Converter
-~~~~~~~~~
-
-Internal SSMD to SSML conversion engine.
-
-.. automodule:: ssmd.converter
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 SSML Parser
 ~~~~~~~~~~~
 
@@ -245,92 +245,42 @@ Document container implementation.
    :undoc-members:
    :show-inheritance:
 
-Processors
-~~~~~~~~~~
+Parser Module
+~~~~~~~~~~~~~
 
-Processors transform SSMD syntax into SSML tags.
+SSMD parsing functions for extracting structured data.
 
-.. automodule:: ssmd.processors.base
+.. automodule:: ssmd.parser
    :members:
    :undoc-members:
    :show-inheritance:
 
-.. automodule:: ssmd.processors.emphasis
+Segment Module
+~~~~~~~~~~~~~~
+
+Segment class for representing text portions with attributes.
+
+.. automodule:: ssmd.segment
    :members:
    :undoc-members:
    :show-inheritance:
 
-.. automodule:: ssmd.processors.break_processor
+Sentence Module
+~~~~~~~~~~~~~~~
+
+Sentence class for representing collections of segments.
+
+.. automodule:: ssmd.sentence
    :members:
    :undoc-members:
    :show-inheritance:
 
-.. automodule:: ssmd.processors.prosody
-   :members:
-   :undoc-members:
-   :show-inheritance:
+Types Module
+~~~~~~~~~~~~
 
-.. automodule:: ssmd.processors.annotation
-   :members:
-   :undoc-members:
-   :show-inheritance:
+Data types used throughout the SSMD library.
 
-.. automodule:: ssmd.processors.paragraph
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-.. automodule:: ssmd.processors.heading
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-.. automodule:: ssmd.processors.mark
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-Annotations
-~~~~~~~~~~~
-
-Annotation handlers for bracket syntax like ``[text](language)`` and ``[text](ph: phoneme)``.
-
-.. automodule:: ssmd.annotations.base
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-.. automodule:: ssmd.annotations.language
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-.. automodule:: ssmd.annotations.phoneme
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-.. automodule:: ssmd.annotations.prosody
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-.. automodule:: ssmd.annotations.substitution
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-.. automodule:: ssmd.annotations.say_as
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-.. automodule:: ssmd.annotations.audio
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-.. automodule:: ssmd.annotations.extension
+.. automodule:: ssmd.types
    :members:
    :undoc-members:
    :show-inheritance:

@@ -77,7 +77,7 @@ Parse SSMD text into structured sentences with segments.
 * ``spacy_model`` (str): Custom spaCy model name (overrides ``model_size``)
 * ``use_spacy`` (bool): If ``False``, use fast regex splitting instead of spaCy (default: ``True``)
 
-**Returns:** List of :class:`SSMDSentence` objects
+**Returns:** List of :class:`Sentence` objects (alias: :class:`SSMDSentence`)
 
 **Example:**
 
@@ -216,7 +216,7 @@ Parse SSMD text into segments without sentence grouping.
 * ``capabilities`` (TTSCapabilities | str): Filter features based on TTS engine support
 * ``voice_context`` (VoiceAttrs | None): Current voice context
 
-**Returns:** List of :class:`SSMDSegment` objects
+**Returns:** List of :class:`Segment` objects (alias: :class:`SSMDSegment`)
 
 **Example:**
 
@@ -259,48 +259,47 @@ Split text by voice directives.
 Data Structures
 ---------------
 
-SSMDSentence
-~~~~~~~~~~~~
+Sentence (alias: SSMDSentence)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Represents a complete sentence with voice context and segments.
 
-.. autoclass:: ssmd.SSMDSentence
+.. autoclass:: ssmd.Sentence
    :members:
    :undoc-members:
 
 **Attributes:**
 
-* ``segments`` (list[SSMDSegment]): List of text segments making up the sentence
+* ``segments`` (list[Segment]): List of text segments making up the sentence
 * ``voice`` (VoiceAttrs | None): Voice configuration for this sentence
 * ``is_paragraph_end`` (bool): Whether this sentence ends a paragraph
 * ``breaks_after`` (list[BreakAttrs]): Breaks after the sentence
-* ``position`` (int): Position in original text
 
-SSMDSegment
-~~~~~~~~~~~
+Segment (alias: SSMDSegment)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Represents a text segment with associated metadata and features.
 
-.. autoclass:: ssmd.SSMDSegment
+.. autoclass:: ssmd.Segment
    :members:
    :undoc-members:
 
 **Attributes:**
 
 * ``text`` (str): The text content of this segment
-* ``emphasis`` (bool): Whether this segment has emphasis
+* ``emphasis`` (bool | str): Emphasis level (True, ``"moderate"``, ``"strong"``, ``"reduced"``, ``"none"``)
 * ``prosody`` (ProsodyAttrs | None): Prosody attributes (volume, rate, pitch)
 * ``language`` (str | None): Language code (e.g., ``"fr-FR"``)
-* ``breaks_after`` (list[BreakAttrs]): Pauses after this segment
-* ``breaks_before`` (list[BreakAttrs]): Pauses before this segment
+* ``voice`` (VoiceAttrs | None): Inline voice settings for this segment
 * ``say_as`` (SayAsAttrs | None): Say-as interpretation
 * ``substitution`` (str | None): Substitution text
-* ``phoneme`` (str | None): Phonetic pronunciation (IPA)
+* ``phoneme`` (PhonemeAttrs | None): Phonetic pronunciation (with ``ph`` and ``alphabet`` attributes)
 * ``audio`` (AudioAttrs | None): Audio file information
-* ``extension`` (tuple[str, str] | None): Extension name and text
+* ``extension`` (str | None): Platform-specific extension name
+* ``breaks_before`` (list[BreakAttrs]): Pauses before this segment
+* ``breaks_after`` (list[BreakAttrs]): Pauses after this segment
 * ``marks_before`` (list[str]): Marker names before this segment
 * ``marks_after`` (list[str]): Marker names after this segment
-* ``position`` (int): Position in original text
 
 VoiceAttrs
 ~~~~~~~~~~
@@ -360,6 +359,21 @@ Say-as interpretation attributes.
 
 * ``interpret_as`` (str): Interpretation type (e.g., ``"telephone"``, ``"date"``)
 * ``format`` (str | None): Format string (e.g., ``"mdy"`` for dates)
+* ``detail`` (str | None): Verbosity level (platform-specific)
+
+PhonemeAttrs
+~~~~~~~~~~~~
+
+Phonetic pronunciation attributes.
+
+.. autoclass:: ssmd.PhonemeAttrs
+   :members:
+   :undoc-members:
+
+**Attributes:**
+
+* ``ph`` (str): Phonetic pronunciation string
+* ``alphabet`` (str): Phonetic alphabet (``"ipa"`` or ``"x-sampa"``, default: ``"ipa"``)
 
 AudioAttrs
 ~~~~~~~~~~
@@ -372,8 +386,14 @@ Audio file attributes.
 
 **Attributes:**
 
-* ``src`` (str): Audio file URL
+* ``src`` (str): Audio file URL or path
 * ``alt_text`` (str | None): Alternative text if audio fails to load
+* ``clip_begin`` (str | None): Start time for playback (e.g., ``"5s"``, ``"500ms"``)
+* ``clip_end`` (str | None): End time for playback
+* ``speed`` (str | None): Playback speed as percentage (e.g., ``"150%"``)
+* ``repeat_count`` (int | None): Number of times to repeat audio
+* ``repeat_dur`` (str | None): Total duration for repetitions
+* ``sound_level`` (str | None): Volume adjustment in dB (e.g., ``"+6dB"``, ``"-3dB"``)
 
 Usage Examples
 --------------
@@ -420,7 +440,7 @@ Handle say-as, substitution, and phoneme features:
        elif seg.substitution:
            print(f"Substitute: {seg.text!r} → {seg.substitution!r}")
        elif seg.phoneme:
-           print(f"Phoneme: {seg.text!r} → {seg.phoneme!r}")
+           print(f"Phoneme: {seg.text!r} → {seg.phoneme.ph!r}")
 
 Multi-Voice Dialogue
 ~~~~~~~~~~~~~~~~~~~~
@@ -479,7 +499,7 @@ Build sentences from segments for TTS processing:
                text = seg.substitution
            elif seg.phoneme:
                text = seg.text
-               metadata.append(f"phoneme:{seg.phoneme}")
+               metadata.append(f"phoneme:{seg.phoneme.ph}")
            else:
                text = seg.text
 
