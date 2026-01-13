@@ -92,17 +92,10 @@ warn_unreachable = true
 strict_equality = true
 ignore_missing_imports = true
 
-[[tool.mypy.overrides]]
-module = [
-    "phrasplit",
-    "phrasplit.*",
-]
-ignore_errors = true
-
 [tool.coverage.run]
-source = ["kokorog2p"]
+source = ["ssmd"]
 branch = true
-omit = ["kokorog2p/_version.py"]
+omit = ["ssmd/_version.py"]
 
 [tool.coverage.report]
 exclude_lines = [
