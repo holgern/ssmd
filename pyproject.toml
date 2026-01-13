@@ -57,11 +57,17 @@ write_to = "ssmd/_version.py"
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_functions = ["test_*"]
-addopts = "-v --tb=short"
-markers = [
-    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
-    "espeak: marks tests that require espeak-ng",
-]
+
+[tool.tox]
+legacy_tox_ini = """
+
+[testenv]
+deps =
+    pytest
+    pytest-cov[all]
+commands =
+    pytest
+"""
 
 [tool.ruff]
 line-length = 100

@@ -313,25 +313,14 @@ def _split_sentences(
         lang_code = language.split("-")[0] if "-" in language else language
 
         # Language-specific model patterns
-        news_langs = {
-            "fr",
-            "ca",
-            "da",
-            "el",
-            "hr",
-            "it",
-            "lt",
-            "mk",
-            "nb",
-            "pl",
-            "pt",
-            "ro",
-            "ru",
+        web_langs = {
+            "en",
+            "zh",
         }
-        if lang_code in news_langs:
-            model = f"{lang_code}_core_news_{size}"
-        else:
+        if lang_code in web_langs:
             model = f"{lang_code}_core_web_{size}"
+        else:
+            model = f"{lang_code}_core_news_{size}"
 
         segments = split_text(
             text,
