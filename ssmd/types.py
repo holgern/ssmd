@@ -116,7 +116,7 @@ HeadingConfig = dict[int, list[HeadingEffect]]
 
 # Default heading configurations
 DEFAULT_HEADING_LEVELS: HeadingConfig = {
-    1: [("emphasis", "strong"), ("pause", "300ms")],
-    2: [("emphasis", "moderate"), ("pause", "75ms")],
-    3: [("pause", "50ms")],
+    1: [("pause_before", "300ms"), ("emphasis", "strong"), ("pause", "300ms")],
+    2: [("pause_before", "75ms"), ("emphasis", "moderate"), ("pause", "75ms")],
+    3: [("pause_before", "50ms"), ("pause", "50ms")],
 }

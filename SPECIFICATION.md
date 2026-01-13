@@ -407,9 +407,9 @@ SSMD:
 SSML (with default configuration):
 
 ```xml
-<emphasis level="strong">Main Heading</emphasis><break time="300ms"/>
-<emphasis>Subheading</emphasis><break time="75ms"/>
-Sub-subheading<break time="50ms"/>
+<break time="300ms"/><emphasis level="strong">Main Heading</emphasis><break time="300ms"/>
+<break time="75ms"/><emphasis>Subheading</emphasis><break time="75ms"/>
+<break time="50ms"/>Sub-subheading<break time="50ms"/>
 ```
 
 **Configurable Heading Levels:**
@@ -419,12 +419,19 @@ Heading effects can be customized via configuration:
 ```python
 config = {
     'heading_levels': {
-        1: [('emphasis', 'strong'), ('pause', '300ms')],
-        2: [('emphasis', 'moderate'), ('pause', '75ms')],
-        3: [('prosody', {'rate': 'slow'}), ('pause', '50ms')],
+        1: [('pause_before', '300ms'), ('emphasis', 'strong'), ('pause', '300ms')],
+        2: [('pause_before', '75ms'), ('emphasis', 'moderate'), ('pause', '75ms')],
+        3: [('pause_before', '50ms'), ('prosody', {'rate': 'slow'}), ('pause', '50ms')],
     }
 }
 ```
+
+Available effect types:
+
+- `pause_before`: Adds a pause before the heading text is spoken
+- `emphasis`: Sets the emphasis level for the heading text
+- `pause`: Adds a pause after the heading text is spoken
+- `prosody`: Adjusts volume, rate, or pitch for the heading text
 
 ---
 

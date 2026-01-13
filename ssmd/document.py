@@ -300,6 +300,7 @@ class Document:
             auto_sentence_tags = self._config.get("auto_sentence_tags", False)
             pretty_print = self._config.get("pretty_print", False)
             extensions = self._config.get("extensions")
+            heading_levels = self._config.get("heading_levels")
 
             # Get sentence detection config
             model_size = self._config.get("sentence_model_size")
@@ -313,6 +314,8 @@ class Document:
                 model_size=model_size,
                 spacy_model=spacy_model,
                 use_spacy=use_spacy,
+                heading_levels=heading_levels,
+                extensions=extensions,
             )
 
             # Build SSML from sentences

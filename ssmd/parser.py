@@ -530,6 +530,8 @@ def _parse_heading(
             seg.emphasis = value
         elif effect_type == "pause":
             seg.breaks_after.append(BreakAttrs(time=value))
+        elif effect_type == "pause_before":
+            seg.breaks_before.append(BreakAttrs(time=value))
         elif effect_type == "prosody" and isinstance(value, dict):
             seg.prosody = ProsodyAttrs(
                 volume=value.get("volume"),
@@ -994,6 +996,8 @@ def parse_sentences(
     model_size: str | None = None,
     spacy_model: str | None = None,
     use_spacy: bool | None = None,
+    heading_levels: dict | None = None,
+    extensions: dict | None = None,
 ) -> list[Sentence]:
     """Parse SSMD text into sentences (backward compatible API).
 
@@ -1008,6 +1012,8 @@ def parse_sentences(
         model_size: Size of spacy model (sm/md/lg)
         spacy_model: Full spacy model name (deprecated, use model_size)
         use_spacy: Force use of spacy for sentence detection
+        heading_levels: Custom heading configurations
+        extensions: Custom extension handlers
 
     Returns:
         List of Sentence objects
@@ -1019,6 +1025,8 @@ def parse_sentences(
         language=language,
         model_size=model_size or (spacy_model.split("_")[-1] if spacy_model else None),
         use_spacy=use_spacy,
+        heading_levels=heading_levels,
+        extensions=extensions,
     )
 
     # Filter out sentences without voice if requested

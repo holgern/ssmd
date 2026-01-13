@@ -546,9 +546,9 @@ ssmd.to_text('word @marker word')
 ```python
 doc = Document(config={
     'heading_levels': {
-        1: [('emphasis', 'strong'), ('pause', '300ms')],
-        2: [('emphasis', 'moderate'), ('pause', '75ms')],
-        3: [('prosody', {'rate': 'slow'}), ('pause', '50ms')],
+        1: [('pause_before', '300ms'), ('emphasis', 'strong'), ('pause', '300ms')],
+        2: [('pause_before', '75ms'), ('emphasis', 'moderate'), ('pause', '75ms')],
+        3: [('pause_before', '50ms'), ('prosody', {'rate': 'slow'}), ('pause', '50ms')],
     }
 })
 
