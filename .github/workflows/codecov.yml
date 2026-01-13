@@ -16,14 +16,9 @@ jobs:
         pip install spacy
         python -m spacy download en_core_web_sm
         pip install -e .
-        pytest --cov --junitxml=junit.xml 
-    - name: Upload coverage to Codecov
+        pytest --cov --cov-branch --cov-report=xml
+    - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@v5
       with:
-        token: ${{ secrets.CODECOV_TOKEN }} # required
-    - name: Upload test results to Codecov
-      if: ${{ !cancelled() }}
-      uses: codecov/test-results-action@v1
-      with:
         token: ${{ secrets.CODECOV_TOKEN }}
- 
+        slug: holgern/ssmd 
