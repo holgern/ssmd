@@ -1101,9 +1101,9 @@ mypy ssmd/
 
 ## Specification
 
-This implementation follows the
-[SSMD Specification](https://github.com/machisuji/ssmd/blob/master/SPECIFICATION.md)
-with additional features inspired by the JavaScript implementation.
+This implementation follows the [SSMD Specification](SPECIFICATION.md) with additional
+features inspired by the
+[original Ruby SSMD specification](https://github.com/machisuji/ssmd/blob/master/SPECIFICATION.md).
 
 ### Implemented Features
 

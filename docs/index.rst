@@ -4,7 +4,7 @@ SSMD - Speech Synthesis Markdown
 **SSMD** (Speech Synthesis Markdown) is a lightweight Python library that provides a
 human-friendly markdown-like syntax for creating SSML (Speech Synthesis Markup Language)
 documents. It's designed to make TTS (Text-to-Speech) content more readable and
-maintainable.
+maintainable. See ``SPECIFICATION.md`` in the repo for the canonical syntax rules.
 
 .. image:: https://img.shields.io/pypi/v/ssmd
    :target: https://pypi.org/project/ssmd/

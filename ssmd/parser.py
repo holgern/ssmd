@@ -424,15 +424,15 @@ def _parse_segments(  # noqa: C901
                 segments.append(seg)
 
         markup = match.group(0)
-        pending_breaks, pending_marks, seg = _handle_markup(
+        pending_breaks, pending_marks, markup_seg = _handle_markup(
             markup,
             segments,
             pending_breaks,
             pending_marks,
             extensions,
         )
-        if seg:
-            segments.append(seg)
+        if markup_seg:
+            segments.append(markup_seg)
 
         position = match.end()
 

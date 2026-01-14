@@ -130,10 +130,13 @@ Use hash marks for headings (configurable):
    More content.
    """
 
-   doc = Document(text, heading_levels={
-       1: [('emphasis', 'strong'), ('pause', '500ms')],
-       2: [('emphasis', 'moderate')]
+   doc = Document(text, config={
+      'heading_levels': {
+         1: [('emphasis', 'strong'), ('pause', '500ms')],
+         2: [('emphasis', 'moderate')]
+      }
    })
+
 
    ssml = doc.to_ssml()
 
