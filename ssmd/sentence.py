@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from ssmd.segment import Segment
+from ssmd.ssml_conversions import SSMD_BREAK_STRENGTH_MAP
 from ssmd.types import BreakAttrs, VoiceAttrs
 
 if TYPE_CHECKING:
@@ -200,15 +201,7 @@ class Sentence:
         if brk.time:
             return f"...{brk.time}"
         elif brk.strength:
-            strength_map = {
-                "none": "...n",
-                "x-weak": "...w",
-                "weak": "...w",
-                "medium": "...c",
-                "strong": "...s",
-                "x-strong": "...p",
-            }
-            return strength_map.get(brk.strength, "...s")
+            return SSMD_BREAK_STRENGTH_MAP.get(brk.strength, "...s")
         return "...s"
 
     def to_text(self) -> str:

@@ -6,6 +6,15 @@ from typing import Any
 
 from ssmd.formatter import format_ssmd
 from ssmd.parser import parse_sentences
+from ssmd.ssml_conversions import (
+    SSML_BREAK_STRENGTH_MAP,
+    SSML_PITCH_SHORTHAND,
+    SSML_PITCH_TO_NUMERIC,
+    SSML_RATE_SHORTHAND,
+    SSML_RATE_TO_NUMERIC,
+    SSML_VOLUME_SHORTHAND,
+    SSML_VOLUME_TO_NUMERIC,
+)
 
 
 class SSMLParser:
@@ -35,42 +44,6 @@ class SSMLParser:
         "zh-CN": "zh",
         "ja-JP": "ja",
         "ko-KR": "ko",
-    }
-
-    # Prosody value mappings (reverse of SSMD to SSML)
-    VOLUME_TO_SSMD = {
-        "silent": ("~", "~"),
-        "x-soft": ("--", "--"),
-        "soft": ("-", "-"),
-        "medium": ("", ""),  # Default, no markup
-        "loud": ("+", "+"),
-        "x-loud": ("++", "++"),
-    }
-
-    RATE_TO_SSMD = {
-        "x-slow": ("<<", "<<"),
-        "slow": ("<", "<"),
-        "medium": ("", ""),  # Default
-        "fast": (">", ">"),
-        "x-fast": (">>", ">>"),
-    }
-
-    PITCH_TO_SSMD = {
-        "x-low": ("vv", "vv"),
-        "low": ("v", "v"),
-        "medium": ("", ""),  # Default
-        "high": ("^", "^"),
-        "x-high": ("^^", "^^"),
-    }
-
-    # Break strength mappings
-    BREAK_STRENGTH_TO_SSMD = {
-        "none": "",
-        "x-weak": ".",
-        "weak": ".",
-        "medium": "...",
-        "strong": "...s",
-        "x-strong": "...p",
     }
 
     def __init__(self, config: dict[str, Any] | None = None):
@@ -238,7 +211,7 @@ class SSMLParser:
             return " ...1s "
 
         elif strength:
-            marker = self.BREAK_STRENGTH_TO_SSMD.get(strength, "...s")
+            marker = SSML_BREAK_STRENGTH_MAP.get(strength, "...s")
             return f" {marker} "
 
         # Default to sentence break
@@ -272,17 +245,17 @@ class SSMLParser:
         # Try shorthand notation first (single non-default attribute)
         if attr_count == 1:
             if volume and not rate and not pitch:
-                wrap = self.VOLUME_TO_SSMD.get(volume)
+                wrap = SSML_VOLUME_SHORTHAND.get(volume)
                 if wrap and wrap[0]:  # Has shorthand
                     return f"{wrap[0]}{content}{wrap[1]}"
 
             if rate and not volume and not pitch:
-                wrap = self.RATE_TO_SSMD.get(rate)
+                wrap = SSML_RATE_SHORTHAND.get(rate)
                 if wrap and wrap[0]:
                     return f"{wrap[0]}{content}{wrap[1]}"
 
             if pitch and not volume and not rate:
-                wrap = self.PITCH_TO_SSMD.get(pitch)
+                wrap = SSML_PITCH_SHORTHAND.get(pitch)
                 if wrap and wrap[0]:
                     return f"{wrap[0]}{content}{wrap[1]}"
 
@@ -295,30 +268,20 @@ class SSMLParser:
 
         if volume:
             # Map to numeric scale (1-5)
-            volume_map = {
-                "silent": 0,
-                "x-soft": 1,
-                "soft": 2,
-                "medium": 3,
-                "loud": 4,
-                "x-loud": 5,
-            }
-            if volume in volume_map:
-                annotations.append(f"v: {volume_map[volume]}")
+            if volume in SSML_VOLUME_TO_NUMERIC:
+                annotations.append(f"v: {SSML_VOLUME_TO_NUMERIC[volume]}")
             elif volume.startswith(("+", "-")) or volume.endswith("dB"):
                 annotations.append(f"v: {volume}")
 
         if rate:
-            rate_map = {"x-slow": 1, "slow": 2, "medium": 3, "fast": 4, "x-fast": 5}
-            if rate in rate_map:
-                annotations.append(f"r: {rate_map[rate]}")
+            if rate in SSML_RATE_TO_NUMERIC:
+                annotations.append(f"r: {SSML_RATE_TO_NUMERIC[rate]}")
             elif rate.endswith("%"):
                 annotations.append(f"r: {rate}")
 
         if pitch:
-            pitch_map = {"x-low": 1, "low": 2, "medium": 3, "high": 4, "x-high": 5}
-            if pitch in pitch_map:
-                annotations.append(f"p: {pitch_map[pitch]}")
+            if pitch in SSML_PITCH_TO_NUMERIC:
+                annotations.append(f"p: {SSML_PITCH_TO_NUMERIC[pitch]}")
             elif pitch.startswith(("+", "-")) or pitch.endswith("Hz"):
                 annotations.append(f"p: {pitch}")
 

@@ -9,6 +9,12 @@ from typing import TYPE_CHECKING
 
 from ssmd.segment import Segment
 from ssmd.sentence import Sentence
+from ssmd.ssml_conversions import (
+    PROSODY_PITCH_MAP,
+    PROSODY_RATE_MAP,
+    PROSODY_VOLUME_MAP,
+    SSMD_BREAK_MARKER_TO_STRENGTH,
+)
 from ssmd.types import (
     DEFAULT_HEADING_LEVELS,
     AudioAttrs,
@@ -405,7 +411,6 @@ def _parse_segments(  # noqa: C901
     pending_marks: list[str] = []
 
     for match in combined.finditer(text):
-        # Add plain text before this match
         if match.start() > position:
             plain = _normalize_text(text[position : match.start()])
             if plain:
@@ -419,66 +424,15 @@ def _parse_segments(  # noqa: C901
                 segments.append(seg)
 
         markup = match.group(0)
-
-        # Determine markup type and create segment
-        if markup.startswith("..."):
-            # Break
-            brk = _parse_break(markup[3:])
-            if segments:
-                segments[-1].breaks_after.append(brk)
-            else:
-                pending_breaks.append(brk)
-
-        elif markup.startswith("@"):
-            # Mark
-            mark_name = markup[1:]
-            if segments:
-                segments[-1].marks_after.append(mark_name)
-            else:
-                pending_marks.append(mark_name)
-
-        elif markup.startswith("**"):
-            # Strong emphasis
-            inner = STRONG_EMPHASIS_PATTERN.match(markup)
-            if inner:
-                seg = Segment(text=inner.group(1), emphasis="strong")
-                _apply_pending(seg, pending_breaks, pending_marks)
-                pending_breaks, pending_marks = [], []
-                segments.append(seg)
-
-        elif markup.startswith("*"):
-            # Moderate emphasis
-            inner = MODERATE_EMPHASIS_PATTERN.match(markup)
-            if inner:
-                seg = Segment(text=inner.group(1), emphasis=True)
-                _apply_pending(seg, pending_breaks, pending_marks)
-                pending_breaks, pending_marks = [], []
-                segments.append(seg)
-
-        elif markup.startswith("_") and not markup.startswith("__"):
-            # Reduced emphasis (single underscore)
-            inner = REDUCED_EMPHASIS_PATTERN.match(markup)
-            if inner:
-                seg = Segment(text=inner.group(1), emphasis="reduced")
-                _apply_pending(seg, pending_breaks, pending_marks)
-                pending_breaks, pending_marks = [], []
-                segments.append(seg)
-
-        elif markup.startswith("["):
-            # Annotation
-            annotation_seg = _parse_annotation(markup, extensions)
-            if annotation_seg:
-                _apply_pending(annotation_seg, pending_breaks, pending_marks)
-                pending_breaks, pending_marks = [], []
-                segments.append(annotation_seg)
-
-        else:
-            # Prosody shorthand
-            prosody_seg = _parse_prosody_shorthand(markup)
-            if prosody_seg:
-                _apply_pending(prosody_seg, pending_breaks, pending_marks)
-                pending_breaks, pending_marks = [], []
-                segments.append(prosody_seg)
+        pending_breaks, pending_marks, seg = _handle_markup(
+            markup,
+            segments,
+            pending_breaks,
+            pending_marks,
+            extensions,
+        )
+        if seg:
+            segments.append(seg)
 
         position = match.end()
 
@@ -497,6 +451,64 @@ def _parse_segments(  # noqa: C901
         segments.append(seg)
 
     return segments
+
+
+def _handle_markup(
+    markup: str,
+    segments: list[Segment],
+    pending_breaks: list[BreakAttrs],
+    pending_marks: list[str],
+    extensions: dict | None,
+) -> tuple[list[BreakAttrs], list[str], Segment | None]:
+    """Handle a single markup token and return any segment."""
+    if markup.startswith("..."):
+        brk = _parse_break(markup[3:])
+        if segments:
+            segments[-1].breaks_after.append(brk)
+        else:
+            pending_breaks.append(brk)
+        return pending_breaks, pending_marks, None
+
+    if markup.startswith("@"):
+        mark_name = markup[1:]
+        if segments:
+            segments[-1].marks_after.append(mark_name)
+        else:
+            pending_marks.append(mark_name)
+        return pending_breaks, pending_marks, None
+
+    seg = _segment_from_markup(markup, extensions)
+    if seg:
+        _apply_pending(seg, pending_breaks, pending_marks)
+        return [], [], seg
+
+    return pending_breaks, pending_marks, None
+
+
+def _segment_from_markup(markup: str, extensions: dict | None) -> Segment | None:
+    """Build a segment from emphasis, annotation, or prosody markup."""
+    if markup.startswith("**"):
+        inner = STRONG_EMPHASIS_PATTERN.match(markup)
+        if inner:
+            return Segment(text=inner.group(1), emphasis="strong")
+        return None
+
+    if markup.startswith("*"):
+        inner = MODERATE_EMPHASIS_PATTERN.match(markup)
+        if inner:
+            return Segment(text=inner.group(1), emphasis=True)
+        return None
+
+    if markup.startswith("_") and not markup.startswith("__"):
+        inner = REDUCED_EMPHASIS_PATTERN.match(markup)
+        if inner:
+            return Segment(text=inner.group(1), emphasis="reduced")
+        return None
+
+    if markup.startswith("["):
+        return _parse_annotation(markup, extensions)
+
+    return _parse_prosody_shorthand(markup)
 
 
 def _apply_pending(
@@ -544,16 +556,8 @@ def _parse_heading(
 
 def _parse_break(modifier: str) -> BreakAttrs:
     """Parse break modifier into BreakAttrs."""
-    strength_map = {
-        "n": "none",
-        "w": "x-weak",
-        "c": "medium",
-        "s": "strong",
-        "p": "x-strong",
-    }
-
-    if modifier in strength_map:
-        return BreakAttrs(strength=strength_map[modifier])
+    if modifier in SSMD_BREAK_MARKER_TO_STRENGTH:
+        return BreakAttrs(strength=SSMD_BREAK_MARKER_TO_STRENGTH[modifier])
     elif modifier.endswith("s") or modifier.endswith("ms"):
         return BreakAttrs(time=modifier)
     else:
@@ -762,16 +766,9 @@ def _parse_prosody_annotation(params: str) -> ProsodyAttrs:
     """Parse prosody annotation parameters."""
     prosody = ProsodyAttrs()
 
-    volume_map = {
-        "0": "silent",
-        "1": "x-soft",
-        "2": "soft",
-        "3": "medium",
-        "4": "loud",
-        "5": "x-loud",
-    }
-    rate_map = {"1": "x-slow", "2": "slow", "3": "medium", "4": "fast", "5": "x-fast"}
-    pitch_map = {"1": "x-low", "2": "low", "3": "medium", "4": "high", "5": "x-high"}
+    volume_map = PROSODY_VOLUME_MAP
+    rate_map = PROSODY_RATE_MAP
+    pitch_map = PROSODY_PITCH_MAP
 
     # VRP shorthand: vrp: 555
     vrp_match = re.match(r"^vrp:\s*(\d{1,3})$", params)

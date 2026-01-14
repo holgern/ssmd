@@ -131,6 +131,24 @@ class TestDocumentListInterface:
         assert len(doc) == original_len
         assert "Modified" in doc.ssmd
 
+    def test_setitem_last_sentence(self):
+        """Test replacing last sentence."""
+        doc = Document("First. Second. Third.")
+        last_index = len(doc) - 1
+        if last_index >= 0:
+            doc[last_index] = "Final sentence."
+            assert doc.ssmd.endswith("Final sentence.")
+
+    def test_setitem_preserves_separators(self):
+        """Test replacement keeps newline separators."""
+        doc = Document("First.\nSecond.\nThird.", config={"auto_sentence_tags": True})
+        doc[1] = "Middle sentence."
+        lines = doc.ssmd.strip().splitlines()
+        assert len(lines) >= 3
+        assert lines[0] == "First."
+        assert "Middle sentence." in lines
+        assert lines[-1] == "Third."
+
     def test_delitem(self):
         """Test deleting sentence."""
         doc = Document("First.\nSecond.\nThird.")
@@ -138,6 +156,13 @@ class TestDocumentListInterface:
         if original_len > 1:
             del doc[1]
             assert len(doc) == original_len - 1
+
+    def test_delitem_first_sentence(self):
+        """Test deleting first sentence."""
+        doc = Document("First.\nSecond.\nThird.")
+        if len(doc) > 1:
+            del doc[0]
+            assert doc.ssmd.startswith("Second")
 
     def test_iter(self):
         """Test iteration through sentences."""
@@ -466,6 +491,14 @@ class TestDocumentEdgeCases:
         assert doc.ssmd == ""
         assert doc.to_text() == ""
         assert len(list(doc.sentences())) >= 0
+
+    def test_delitem_only_sentence(self):
+        """Test deleting the only sentence in a document."""
+        doc = Document("Only sentence.")
+        if len(doc) >= 1:
+            del doc[0]
+            assert doc.ssmd == ""
+            assert len(doc._fragments) == 0
 
     def test_very_long_document(self):
         """Test handling of large documents."""

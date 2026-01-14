@@ -7,6 +7,7 @@ formatting conventions.
 
 from ssmd.segment import Segment
 from ssmd.sentence import Sentence
+from ssmd.ssml_conversions import SSMD_BREAK_STRENGTH_MAP
 from ssmd.types import BreakAttrs, VoiceAttrs
 
 # Backward compatibility aliases
@@ -200,16 +201,8 @@ def _format_breaks(breaks: list[BreakAttrs]) -> str:
             break_markers.append(f"...{brk.time}")
         elif brk.strength:
             # Strength-based break
-            strength_map = {
-                "none": "n",
-                "x-weak": "w",
-                "weak": "w",
-                "medium": "c",
-                "strong": "s",
-                "x-strong": "p",
-            }
-            marker = strength_map.get(brk.strength, "s")
-            break_markers.append(f"...{marker}")
+            marker = SSMD_BREAK_STRENGTH_MAP.get(brk.strength, "...s")
+            break_markers.append(marker)
         else:
             # Default to strong break
             break_markers.append("...s")

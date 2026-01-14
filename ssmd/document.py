@@ -563,31 +563,11 @@ class Document:
             ssml = self.to_ssml()
             self._cached_sentences = extract_sentences(ssml)
 
-        # Convert sentence to SSMD
-        from ssmd.ssml_parser import SSMLParser
-
-        parser = SSMLParser(self._config)
-
-        # Build new fragments list
-        new_fragments: list[str] = []
-        new_separators: list[str] = []
-
-        for i, sentence_ssml in enumerate(self._cached_sentences):
-            if i == index:
-                # Replace with new value
-                new_fragments.append(value)
-            else:
-                # Convert existing SSML to SSMD
-                sentence_ssmd = parser.to_ssmd(sentence_ssml)
-                new_fragments.append(sentence_ssmd)
-
-            # Add separator (newline between sentences)
-            if i < len(self._cached_sentences) - 1:
-                new_separators.append("\n")
-
-        self._fragments = new_fragments
-        self._separators = new_separators
-        self._invalidate_cache()
+        self._rebuild_from_sentence_ssml(
+            self._cached_sentences,
+            replacement_index=index,
+            replacement_ssmd=value,
+        )
 
     def __delitem__(self, index: int) -> None:
         """Delete sentence at index.
@@ -606,29 +586,12 @@ class Document:
             ssml = self.to_ssml()
             self._cached_sentences = extract_sentences(ssml)
 
-        from ssmd.ssml_parser import SSMLParser
-
-        parser = SSMLParser(self._config)
-
-        # Build new fragments list (excluding deleted index)
-        new_fragments: list[str] = []
-        new_separators: list[str] = []
-
-        for i, sentence_ssml in enumerate(self._cached_sentences):
-            if i == index:
-                continue  # Skip this sentence
-
-            sentence_ssmd = parser.to_ssmd(sentence_ssml)
-            new_fragments.append(sentence_ssmd)
-
-            # Add separator (newline between sentences)
-            if len(new_fragments) > 1:
-                if len(new_separators) < len(new_fragments) - 1:
-                    new_separators.append("\n")
-
-        self._fragments = new_fragments
-        self._separators = new_separators
-        self._invalidate_cache()
+        remaining_sentences = [
+            sentence_ssml
+            for i, sentence_ssml in enumerate(self._cached_sentences)
+            if i != index
+        ]
+        self._rebuild_from_sentence_ssml(remaining_sentences)
 
     def __iter__(self) -> "Iterator[str | Document]":
         """Iterate through sentences.
@@ -867,6 +830,42 @@ class Document:
     # ═══════════════════════════════════════════════════════════
     # INTERNAL HELPERS
     # ═══════════════════════════════════════════════════════════
+
+    def _rebuild_from_sentence_ssml(
+        self,
+        sentences: list[str],
+        *,
+        replacement_index: int | None = None,
+        replacement_ssmd: str | None = None,
+    ) -> None:
+        """Rebuild fragments from SSML sentence list.
+
+        Args:
+            sentences: List of SSML sentence strings
+            replacement_index: Optional index to replace with SSMD content
+            replacement_ssmd: SSMD content to use at replacement_index
+        """
+        from ssmd.ssml_parser import SSMLParser
+
+        parser = SSMLParser(self._config)
+        new_fragments: list[str] = []
+        new_separators: list[str] = []
+
+        for i, sentence_ssml in enumerate(sentences):
+            if replacement_index is not None and i == replacement_index:
+                if replacement_ssmd is not None:
+                    new_fragments.append(replacement_ssmd)
+                else:
+                    new_fragments.append(parser.to_ssmd(sentence_ssml))
+            else:
+                new_fragments.append(parser.to_ssmd(sentence_ssml))
+
+            if i < len(sentences) - 1:
+                new_separators.append("\n")
+
+        self._fragments = new_fragments
+        self._separators = new_separators
+        self._invalidate_cache()
 
     def _get_capabilities(self) -> "TTSCapabilities | None":
         """Get resolved TTSCapabilities object.
