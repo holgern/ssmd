@@ -62,21 +62,22 @@ SSMD:
 ```
 *moderate emphasis*
 **strong emphasis**
-_reduced emphasis_
-[no emphasis](emphasis: none)
+~~reduced emphasis~~
+[no emphasis]{emphasis="none"}
+[moderate]{emphasis="moderate"}
+[strong]{emphasis="strong"}
+[reduced]{emphasis="reduced"}
 ```
 
 SSML:
 
 ```xml
 <emphasis>moderate emphasis</emphasis>
+<emphasis level="moderate">moderate emphasis</emphasis>
 <emphasis level="strong">strong emphasis</emphasis>
 <emphasis level="reduced">reduced emphasis</emphasis>
 <emphasis level="none">no emphasis</emphasis>
 ```
-
-**Note:** Single underscores for reduced emphasis must not be adjacent to other
-underscores to avoid conflicts with pitch markers (`__`).
 
 ---
 
@@ -133,10 +134,10 @@ default where this is omitted.
 SSMD:
 
 ```
-Ich sah [Guardians of the Galaxy](en) im Kino.
-Ich sah [Guardians of the Galaxy](en-GB) im Kino.
-I saw ["Die Häschenschule"](de) in the cinema.
-[Bonjour](fr) tout le monde!
+Ich sah [Guardians of the Galaxy]{lang="en"} im Kino.
+Ich sah [Guardians of the Galaxy]{lang="en-GB"} im Kino.
+I saw ["Die Häschenschule"]{lang="de"} in the cinema.
+[Bonjour]{lang="fr"} tout le monde!
 ```
 
 SSML:
@@ -173,10 +174,10 @@ For short phrases within a sentence:
 SSMD:
 
 ```
-[Hello](voice: Joanna)
-[Hello](voice: en-US-Wavenet-A)
-[Bonjour](voice: fr-FR, gender: female)
-[Text](voice: en-GB, gender: male, variant: 1)
+[Hello]{voice="Joanna"}
+[Hello]{voice="en-US-Wavenet-A"}
+[Bonjour]{voice-lang="fr-FR" gender="female"}
+[Text]{voice-lang="en-GB" gender="male" variant="1"}
 ```
 
 SSML:
@@ -208,10 +209,10 @@ Welcome to the show! I'm Sarah.
 @voice: michael
 Thanks Sarah! Great to be here.
 
-@voice: narrator, language: en-GB
+@voice: narrator, voice-lang: en-GB
 This story takes place in London.
 
-@voice(fr-FR, gender: female)
+@voice-lang: fr-FR, gender: female
 Bonjour tout le monde!
 ```
 
@@ -238,15 +239,9 @@ SSML:
 **Directive Syntax Options:**
 
 - `@voice: name`
-- `@voice(name)`
-- `@voice: name, language: code`
-- `@voice: name, language: code, gender: value`
-- `@voice: language-code, gender: value`
-- `@voice(language-code, gender: value, variant: number)`
-
-When the first value looks like a language code (e.g., `fr-FR`, `en-US`) and no explicit
-`language:` parameter is provided, it is treated as the language. Otherwise, it is
-treated as the voice name.
+- `@voice: name, voice-lang: code`
+- `@voice: name, voice-lang: code, gender: value`
+- `@voice-lang: langcwuage-code, gender: value`
 
 Voice directives apply to all text until the next directive or paragraph break.
 
@@ -273,7 +268,7 @@ Click <mark name="here"/> to continue.
 ```
 
 **Note:** The `@voice` directive is reserved and will not be interpreted as a marker.
-Use `@voice:` or `@voice()` for voice directives.
+Use `@voice:` for voice directives.
 
 ---
 
@@ -444,9 +439,9 @@ notation.
 SSMD:
 
 ```
-[tomato](ph: təˈmeɪtoʊ)
-[tomato](ipa: təˈmeɪtoʊ)
-The German word ["dich"](sampa: dIC) does not sound like dick.
+[tomato]{ph="təˈmeɪtoʊ"}
+[tomato]{ipa="təˈmeɪtoʊ"}
+The German word ["dich"]{sampa="dIC"} does not sound like dick.
 ```
 
 SSML:
@@ -487,28 +482,29 @@ SSMD:
 ```
 Volume:
 
-~silent~
---extra soft--
--soft-
+[silent]{volume="silent"}
+[silent]{volume="x-soft"}
+[silent]{volume="soft"}
+[medium]{volume="medium"}
 medium
-+loud+
-++extra loud++
+[loud]{volume="loud"}
+[x-loud]{volume="x-loud"}
 
 Rate:
 
-<<extra slow<<
-<slow<
-medium
->fast>
->>extra fast>>
+[x-slow]{rate="x-slow"}
+[slow]{rate="slow"}
+[medium]{rate="medium"}
+[fast]{rate="fast"}
+[x-fast]{rate="xfast"}
 
 Pitch:
 
-__extra low__
-_low_
-medium
-^high^
-^^extra high^^
+[x-low]{ptich="x-low"}
+[low]{ptich="low"}
+[medium]{ptich="medium"}
+[high]{ptich="high"}
+[x-high]{ptich="x-high"}
 ```
 
 SSML:
@@ -519,6 +515,7 @@ Volume:
 <prosody volume="silent">silent</prosody>
 <prosody volume="x-soft">extra soft</prosody>
 <prosody volume="soft">soft</prosody>
+<prosody volume="medium">medium</prosody>
 medium
 <prosody volume="loud">loud</prosody>
 <prosody volume="x-loud">extra loud</prosody>
@@ -545,9 +542,9 @@ medium
 SSMD:
 
 ```
-[extra loud, fast, and high](vrp: 555)
-[extra loud, fast, and high](v: 5, r: 5, p: 5)
-[loud and slow](v: 4, r: 2)
+[extra loud, fast, and high]{vrp="555"}
+[extra loud, fast, and high]{v ="5" r="5" p="5"}
+[loud and slow]{v="4" r="2"}
 ```
 
 SSML:
@@ -565,12 +562,12 @@ Changes in volume and pitch can also be given explicitly in relative values:
 SSMD:
 
 ```
-[louder](v: +10dB)
-[quieter](v: -3dB)
-[faster](r: +20%)
-[slower](r: -10%)
-[higher](p: +15%)
-[lower](p: -4%)
+[louder]{v="+10dB"}
+[quieter]{v="-3dB"}
+[faster]{r="+20%"}
+[slower](r="-10%"}
+[higher](p="+15%"}
+[lower](p="-4%"}
 ```
 
 SSML:
@@ -608,12 +605,12 @@ You can give the speech synthesis engine hints as to what it's supposed to read 
 SSMD:
 
 ```
-Today on [31.12.2024](as: date, format: "dd.mm.yyyy") my
-telephone number is [+1-555-0123](as: telephone).
-You can't say [damn](as: expletive) on television.
-[NASA](as: character) stands for National Aeronautics and Space Administration.
-The [1st](as: ordinal) place winner gets a prize.
-Call me at [123](as: digits) for more info.
+Today on [31.12.2024]{as="date" format="dd.mm.yyyy"} my
+telephone number is [+1-555-0123]{as="telephone"}.
+You can't say [damn]{as="expletive"} on television.
+[NASA]{as="character"} stands for National Aeronautics and Space Administration.
+The [1st]{as="ordinal"} place winner gets a prize.
+Call me at [123]{as="digits"} for more info.
 ```
 
 SSML:
@@ -632,8 +629,8 @@ Call me at <say-as interpret-as="digits">123</say-as> for more info.
 SSMD:
 
 ```
-[123](as: cardinal, detail: 2)
-[12/31/2024](as: date, format: "mdy", detail: 1)
+[123]{as="cardinal" detail="2"}
+[12/31/2024]{as="date" format="mdy" detail="1"}
 ```
 
 SSML:
@@ -652,9 +649,9 @@ Allows to substitute the pronunciation of a word, such as an acronym, with an al
 SSMD:
 
 ```
-I'd like to drink some [H2O](sub: water) now.
-[AWS](sub: Amazon Web Services) provides cloud computing.
-[NATO](sub: North Atlantic Treaty Organization) was founded in 1949.
+I'd like to drink some [H2O]{sub="water"} now.
+[AWS]{sub="Amazon Web Services"} provides cloud computing.
+[NATO]{sub="North Atlantic Treaty Organization"} was founded in 1949.
 ```
 
 SSML:
@@ -676,9 +673,9 @@ Audio files can be embedded with optional fallback text and advanced attributes.
 SSMD:
 
 ```
-[doorbell](https://example.com/sounds/bell.mp3)
-[](beep.mp3)
-[cat purring](cat.ogg Sound file not loaded)
+[doorbell]{src="https://example.com/sounds/bell.mp3"}
+[]{src="beep.mp3"}
+[cat purring]{str="cat.ogg" desc="Sound file not loaded"}
 ```
 
 SSML:
@@ -696,31 +693,31 @@ SSMD supports advanced audio control features:
 **Clip Audio (Start/End Times):**
 
 ```
-[music](song.mp3 clip: 5s-30s)
+[music]{src="song.mp3" clip="5s-30s"}
 ```
 
 **Speed Control:**
 
 ```
-[announcement](speech.mp3 speed: 150%)
+[announcement]{src="speech.mp3" speed="150%"}
 ```
 
 **Repeat Count:**
 
 ```
-[jingle](ad.mp3 repeat: 3)
+[jingle]{src=ad.mp3" repeat="3"}
 ```
 
 **Volume Adjustment:**
 
 ```
-[alarm](alert.mp3 level: +6dB)
+[alarm]{src="alert.mp3" level="+6dB"}
 ```
 
 **Combined Attributes:**
 
 ```
-[bg music](music.mp3 clip: 0s-10s, speed: 120%, level: -3dB Fallback text)
+[bg music]{src="music.mp3" clip="0s-10s" speed="120%" level="-3dB" desc="Fallback text"}
 ```
 
 SSML:
@@ -755,8 +752,8 @@ SSMD supports Amazon Polly-specific features:
 SSMD:
 
 ```
-[whispered text](ext: whisper)
-[announcement with dynamic range compression](ext: drc)
+[whispered text]{ext="whisper"}
+[announcement with dynamic range compression]{ext="drc"}
 ```
 
 SSML:
@@ -783,8 +780,8 @@ config = {
 SSMD:
 
 ```
-[Welcome!](ext: cheerful)
-[I understand.](ext: empathetic)
+[Welcome!]{ext="cheerful"}
+[I understand.]{ext="empathetic"}
 ```
 
 SSML:
@@ -826,9 +823,9 @@ Multiple annotations can be comma-separated to combine effects:
 SSMD:
 
 ```
-[Bonjour](fr, v: 5, r: 2)
-[important](v: 5, as: character)
-[Hello](voice: Joanna, v: 4, r: 3)
+[Bonjour]{lang="fr" v="5" r="2"}
+[important]{v="5" as="character"}
+[Hello]{voice="Joanna", v="4" r="3"}
 ```
 
 SSML:
@@ -849,8 +846,9 @@ Formats can be nested. Duplicate annotations of the same type use the first occu
 SSMD:
 
 ```
-Der Film [Guardians of the *Galaxy*](en-GB, de, fr-FR) ist ganz [okay](en-US).
-[*very* **important**](v: 5)
+Der Film [Guardians of the *Galaxy*]{lang="en-GB"} ist ganz
+[okay]{lang="en-US"}.
+[*very* **important**]{v="5"}
 ```
 
 SSML:
@@ -860,9 +858,7 @@ Der Film <lang xml:lang="en-GB">Guardians of the <emphasis>Galaxy</emphasis></la
 <prosody volume="x-loud"><emphasis>very</emphasis> <emphasis level="strong">important</emphasis></prosody>
 ```
 
-In the first example, `en-GB` is used (first language code), and `de` and `fr-FR` are
-ignored. In the second example, both emphasis styles are preserved within the volume
-prosody.
+In the second example, both emphasis styles are preserved within the volume prosody.
 
 ---
 
@@ -887,7 +883,7 @@ that only supported features are included in the generated SSML.
 ```python
 from ssmd import Document
 
-doc = Document("*Hello* [world](fr)!", capabilities='espeak')
+doc = Document("*Hello* [world]{lang='fr'}!", capabilities='espeak')
 ssml = doc.to_ssml()
 # eSpeak doesn't support emphasis or language
 # Output: <speak>Hello world!</speak>
@@ -1057,11 +1053,8 @@ All user input is automatically sanitized to prevent XML injection:
 1. **No Lists** - SSMD doesn't support bullet/numbered lists (not relevant for speech)
 2. **No Code Blocks** - Uses different syntax for TTS-specific features
 3. **Special Break Syntax** - `...500ms` instead of `---` horizontal rules
-4. **Annotation Syntax** - `[text](annotation)` extends link syntax for TTS features
-5. **Voice Directives** - `@voice:` is unique to SSMD
-6. **Prosody Shortcuts** - `++loud++`, `>>fast>>` don't exist in Markdown
-7. **No Images** - Uses `[desc](url)` for audio files instead
-8. **Markers** - `@marker` syntax for event synchronization
+4. **Voice Directives** - `@voice:` is unique to SSMD
+5. **Markers** - `@marker` syntax for event synchronization
 
 ---
 
