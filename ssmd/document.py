@@ -86,7 +86,7 @@ class Document:
             escape_patterns: List of specific pattern types to escape when
                 escape_syntax=True. If None, escapes all patterns.
                 Valid values: 'emphasis', 'annotations', 'breaks', 'marks',
-                'headings', 'voice_directives'
+                'headings', 'directives'
 
         Example:
             >>> doc = ssmd.Document("Hello *world*!")

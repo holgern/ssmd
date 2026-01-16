@@ -19,6 +19,7 @@ from ssmd.types import (
     DEFAULT_HEADING_LEVELS,
     AudioAttrs,
     BreakAttrs,
+    DirectiveAttrs,
     PhonemeAttrs,
     ProsodyAttrs,
     SayAsAttrs,
@@ -33,14 +34,9 @@ if TYPE_CHECKING:
 # REGEX PATTERNS
 # ═══════════════════════════════════════════════════════════════════════════════
 
-# Voice directive: @voice: name or @voice(name)
-# Supports: name, language code, gender:, variant:, language:
-VOICE_DIRECTIVE_PATTERN = re.compile(
-    r"^@voice(?::\s*|\()"
-    r"([a-zA-Z0-9_-]+(?:\s*,\s*(?:gender|variant|language):\s*[a-zA-Z0-9_-]+)*)"
-    r"\)?\s*$",
-    re.MULTILINE,
-)
+# Directive blocks: <div key="value"> ... </div>
+DIV_DIRECTIVE_START = re.compile(r"^\s*<div\s+([^>]+)>\s*$", re.IGNORECASE)
+DIV_DIRECTIVE_END = re.compile(r"^\s*</div>\s*$", re.IGNORECASE)
 
 # Emphasis patterns
 STRONG_EMPHASIS_PATTERN = re.compile(r"\*\*([^\*]+)\*\*")
@@ -53,8 +49,8 @@ ANNOTATION_PATTERN = re.compile(r"\[([^\]]*)\]\{([^}]*)\}")
 # Break pattern: ...500ms, ...2s, ...n, ...w, ...c, ...s, ...p
 BREAK_PATTERN = re.compile(r"\.\.\.(\d+(?:s|ms)|[nwcsp])")
 
-# Mark pattern: @name (but not @voice)
-MARK_PATTERN = re.compile(r"@(?!voice[:(])(\w+)")
+# Mark pattern: @name
+MARK_PATTERN = re.compile(r"@(\w+)")
 
 # Heading pattern: # ## ###
 HEADING_PATTERN = re.compile(r"^\s*(#{1,6})\s*(.+)$", re.MULTILINE)
@@ -96,7 +92,7 @@ def parse_ssmd(
     """Parse SSMD text into a list of Sentences.
 
     This is the main parsing function. It handles:
-    - Voice directives (@voice: name)
+    - Directive blocks (<div ...> ... </div>)
     - Paragraph and sentence splitting
     - All SSMD markup (emphasis, annotations, breaks, etc.)
 
@@ -119,12 +115,12 @@ def parse_ssmd(
     # Resolve capabilities
     caps = _resolve_capabilities(capabilities)
 
-    # Split text into voice blocks
-    voice_blocks = _split_voice_blocks(text)
+    # Split text into directive blocks
+    directive_blocks = _split_directive_blocks(text)
 
     sentences = []
 
-    for voice, block_text in voice_blocks:
+    for directive, block_text in directive_blocks:
         # Split block into paragraphs
         paragraphs = PARAGRAPH_PATTERN.split(block_text)
 
@@ -164,7 +160,9 @@ def parse_ssmd(
                 if segments:
                     sentence = Sentence(
                         segments=segments,
-                        voice=voice,
+                        voice=directive.voice,
+                        language=directive.language,
+                        prosody=directive.prosody,
                         is_paragraph_end=is_last_sent_in_para and not is_last_paragraph,
                     )
                     sentences.append(sentence)
@@ -185,98 +183,76 @@ def _resolve_capabilities(
     return capabilities
 
 
-def _split_voice_blocks(text: str) -> list[tuple[VoiceAttrs | None, str]]:
-    """Split text into voice blocks.
-
-    Args:
-        text: SSMD text
-
-    Returns:
-        List of (voice, text) tuples
-    """
-    blocks: list[tuple[VoiceAttrs | None, str]] = []
-    lines = text.split("\n")
-
-    current_voice: VoiceAttrs | None = None
+def _split_directive_blocks(text: str) -> list[tuple[DirectiveAttrs, str]]:
+    """Split text into directive blocks defined by <div ...> tags."""
+    blocks: list[tuple[DirectiveAttrs, str]] = []
+    stack: list[DirectiveAttrs] = [DirectiveAttrs()]
     current_lines: list[str] = []
 
-    for line in lines:
-        # Check if this line is a voice directive
-        match = VOICE_DIRECTIVE_PATTERN.match(line)
-        if match:
-            # Save previous block if any
-            if current_lines:
-                block_text = "\n".join(current_lines)
-                if block_text.strip():
-                    blocks.append((current_voice, block_text))
-                current_lines = []
-
-            # Parse new voice
-            params = match.group(1)
-            current_voice = _parse_voice_params(params)
-        else:
-            current_lines.append(line)
-
-    # Save final block
-    if current_lines:
+    def flush_block() -> None:
+        if not current_lines:
+            return
         block_text = "\n".join(current_lines)
         if block_text.strip():
-            blocks.append((current_voice, block_text))
+            blocks.append((stack[-1], block_text))
+        current_lines.clear()
 
-    # If no blocks, return entire text with no voice
+    for line in text.split("\n"):
+        start_match = DIV_DIRECTIVE_START.match(line)
+        if start_match:
+            flush_block()
+            attrs = _parse_div_attrs(start_match.group(1))
+            stack.append(_merge_directives(stack[-1], attrs))
+            continue
+
+        if DIV_DIRECTIVE_END.match(line):
+            if len(stack) > 1:
+                flush_block()
+                stack.pop()
+                continue
+            current_lines.append(line)
+            continue
+
+        current_lines.append(line)
+
+    flush_block()
+
     if not blocks and text.strip():
-        blocks.append((None, text.strip()))
+        blocks.append((DirectiveAttrs(), text.strip()))
 
     return blocks
 
 
-def _parse_voice_params(params: str) -> VoiceAttrs:
-    """Parse voice parameters from directive string."""
-    voice = VoiceAttrs()
+def _parse_div_attrs(params: str) -> DirectiveAttrs:
+    """Parse <div ...> attribute params into directive attrs."""
+    params_map = _parse_annotation_params(params)
+    directive = DirectiveAttrs()
 
-    has_gender = "gender:" in params
-    has_variant = "variant:" in params
-    has_language = "language:" in params
+    language = params_map.get("lang") or params_map.get("language")
+    if language:
+        directive.language = language
 
-    # Extract voice name or language code (first value before any comma)
-    voice_match = re.match(r"([a-zA-Z0-9_-]+)", params)
-    if voice_match:
-        value = voice_match.group(1)
-        # If explicit language: is provided, or gender/variant present
-        # with language-like
-        # first value, or looks like language code, treat first value as language
-        if (has_gender or has_variant) and not has_language:
-            # Pattern like "@voice: fr-FR, gender: female" - first value is language
-            if re.match(r"^[a-z]{2}(-[A-Z]{2})?$", value):
-                voice.language = value
-            else:
-                voice.name = value
-        elif has_language:
-            # Explicit language: provided, so first value is the name
-            voice.name = value
-        elif re.match(r"^[a-z]{2}(-[A-Z]{2})?$", value):
-            # Looks like a language code
-            voice.language = value
-        else:
-            # Just a name
-            voice.name = value
+    voice = _parse_voice_annotation_params(params_map)
+    if voice:
+        directive.voice = voice
 
-    # Parse explicit language: parameter
-    lang_match = re.search(r"language:\s*([a-zA-Z0-9_-]+)", params, re.IGNORECASE)
-    if lang_match:
-        voice.language = lang_match.group(1)
+    if "voice" in params_map and directive.voice:
+        directive.voice.name = params_map["voice"]
 
-    # Parse gender
-    gender_match = re.search(r"gender:\s*(male|female|neutral)", params, re.IGNORECASE)
-    if gender_match:
-        voice.gender = gender_match.group(1).lower()  # type: ignore
+    prosody = _parse_prosody_params(params_map)
+    if prosody:
+        directive.prosody = prosody
 
-    # Parse variant
-    variant_match = re.search(r"variant:\s*(\d+)", params)
-    if variant_match:
-        voice.variant = int(variant_match.group(1))
+    return directive
 
-    return voice
+
+def _merge_directives(base: DirectiveAttrs, update: DirectiveAttrs) -> DirectiveAttrs:
+    """Merge directive attributes for nested <div> blocks."""
+    return DirectiveAttrs(
+        voice=update.voice or base.voice,
+        language=update.language or base.language,
+        prosody=update.prosody or base.prosody,
+    )
 
 
 def _split_sentences(
@@ -586,12 +562,17 @@ def _parse_annotation_params(params: str) -> dict[str, str]:
     if not params:
         return {}
 
-    pattern = re.compile(r"([a-zA-Z][\w-]*)\s*=\s*(?:\"([^\"]*)\"|'([^']*)')")
+    pattern = re.compile(r"([a-zA-Z][\w-]*)\s*=\s*(?:\"([^\"]*)\"|'([^']*)'|(\S+))")
     values: dict[str, str] = {}
 
     for match in pattern.finditer(params):
         key = match.group(1).lower()
-        value = match.group(2) if match.group(2) is not None else match.group(3) or ""
+        if match.group(2) is not None:
+            value = match.group(2)
+        elif match.group(3) is not None:
+            value = match.group(3)
+        else:
+            value = match.group(4) or ""
         values[key] = value
 
     return values
@@ -642,14 +623,7 @@ def _parse_voice_annotation_params(params_map: dict[str, str]) -> VoiceAttrs | N
     voice_lang = params_map.get("voice-lang") or params_map.get("voice_lang")
 
     if voice_name:
-        if (
-            _is_language_code(voice_name)
-            and voice_lang is None
-            and ("gender" in params_map or "variant" in params_map)
-        ):
-            voice.language = voice_name
-        else:
-            voice.name = voice_name
+        voice.name = voice_name
 
     if voice_lang:
         voice.language = voice_lang
@@ -831,10 +805,15 @@ def parse_segments(
     voice_context: VoiceAttrs | None = None,
 ) -> list[Segment]:
     """Parse SSMD text into segments (backward compatible API)."""
+    if voice_context is not None:
+        _ = voice_context
     caps = _resolve_capabilities(capabilities)
     return _parse_segments(ssmd_text, capabilities=caps)
 
 
-def parse_voice_blocks(ssmd_text: str) -> list[tuple[VoiceAttrs | None, str]]:
-    """Parse SSMD text into voice blocks (backward compatible API)."""
-    return _split_voice_blocks(ssmd_text)
+def parse_voice_blocks(ssmd_text: str) -> list[tuple[DirectiveAttrs, str]]:
+    """Parse SSMD text into directive blocks (backward compatible API).
+
+    Returns list of (DirectiveAttrs, text) tuples.
+    """
+    return _split_directive_blocks(ssmd_text)

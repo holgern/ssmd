@@ -118,7 +118,7 @@ def escape_ssmd_syntax(
         text: Input text that may contain SSMD-like patterns
         patterns: List of pattern types to escape. If None, escapes all.
             Valid values: 'emphasis', 'annotations', 'breaks', 'marks',
-            'headings', 'voice_directives'
+            'headings', 'directives'
 
     Returns:
         Text with SSMD patterns replaced with placeholders
@@ -143,7 +143,7 @@ def escape_ssmd_syntax(
             "breaks",
             "marks",
             "headings",
-            "voice_directives",
+            "directives",
         ]
 
     result = text
@@ -151,11 +151,17 @@ def escape_ssmd_syntax(
     # Process patterns in specific order (most specific first)
     # Replace special characters with placeholders
 
-    if "voice_directives" in patterns:
-        # Voice directives at line start: @voice: or @voice(
+    if "directives" in patterns:
+        # Directives at line start: <div ...>
         result = re.sub(
-            r"^(@)voice([:(])",
-            lambda m: _PLACEHOLDER_MAP["@"] + "voice" + m.group(2),
+            r"^(\s*)<div\s+",
+            lambda m: m.group(1) + _PLACEHOLDER_MAP["<"] + "div ",
+            result,
+            flags=re.MULTILINE,
+        )
+        result = re.sub(
+            r"^(\s*)</div>",
+            lambda m: m.group(1) + _PLACEHOLDER_MAP["<"] + "/div>",
             result,
             flags=re.MULTILINE,
         )
@@ -213,10 +219,10 @@ def escape_ssmd_syntax(
         )
 
     if "marks" in patterns:
-        # Marks: @word (but not @voice which is handled above)
+        # Marks: @word
         # Use word boundary to avoid matching @domain in emails
         result = re.sub(
-            r"(?<!\w)@(?!voice)(\w+)",
+            r"(?<!\w)@(\w+)",
             lambda m: _PLACEHOLDER_MAP["@"] + m.group(1),
             result,
         )

@@ -81,8 +81,8 @@ class SSMLParser:
         # Clean up whitespace
         result = self._clean_whitespace(result)
 
-        # Restore voice directive newlines (protected during whitespace cleaning)
-        result = result.replace("{VOICE_NEWLINE}", "\n").strip()
+        # Restore directive newlines (protected during whitespace cleaning)
+        result = result.replace("{DIRECTIVE_NEWLINE}", "\n").strip()
 
         # Parse into sentences and format with proper line breaks
         sentences = parse_sentences(result.strip())
@@ -210,7 +210,7 @@ class SSMLParser:
         return " ...s "
 
     def _process_prosody(self, element: ET.Element) -> str:
-        """Convert <prosody> to SSMD prosody syntax.
+        """Convert <prosody> to directive or inline annotation.
 
         Args:
             element: prosody element
@@ -245,10 +245,21 @@ class SSMLParser:
         if pitch:
             annotations.append(f'pitch="{pitch}"')
 
+        if not annotations:
+            return content
+
+        is_multiline = "\n" in content.strip() or len(content.strip()) > 80
+        if is_multiline:
+            attrs = " ".join(annotations)
+            return (
+                f"<div {attrs}>{{DIRECTIVE_NEWLINE}}"
+                f"{content.strip()}{{DIRECTIVE_NEWLINE}}</div>"
+            )
+
         return f"[{content}]{{{' '.join(annotations)}}}"
 
     def _process_language(self, element: ET.Element) -> str:
-        """Convert <lang> to [text]{lang="..."}.
+        """Convert <lang> to directive or inline annotation.
 
         Args:
             element: lang element
@@ -261,20 +272,23 @@ class SSMLParser:
             "lang"
         )
 
-        if lang:
-            # Check if it's in our standard locales mapping
-            simplified = self.STANDARD_LOCALES.get(lang)
-            if simplified:
-                return f'[{content}]{{lang="{simplified}"}}'
-            # Otherwise use full locale
-            return f'[{content}]{{lang="{lang}"}}'
+        if not lang:
+            return content
 
-        return content
+        simplified = self.STANDARD_LOCALES.get(lang, lang)
+        is_multiline = "\n" in content.strip() or len(content.strip()) > 80
+        if is_multiline:
+            return (
+                f'<div lang="{simplified}">{{DIRECTIVE_NEWLINE}}'
+                f"{content.strip()}{{DIRECTIVE_NEWLINE}}</div>"
+            )
+
+        return f'[{content}]{{lang="{simplified}"}}'
 
     def _process_voice(self, element: ET.Element) -> str:
         """Convert <voice> to directive or annotation syntax.
 
-        Uses directive syntax (@voice: name) for multi-line content,
+        Uses directive syntax (<div ...>) for multi-line content,
         and annotation syntax ([text]{voice="name"}) for single-line content.
 
         Args:
@@ -299,24 +313,21 @@ class SSMLParser:
         use_directive = is_multiline
 
         if use_directive:
-            # Use block directive syntax for cleaner multi-line voice blocks
-            # Build parameter string
+            # Use block directive syntax for multi-line voice blocks
+            parts = []
             if name:
-                params = name
-            else:
-                # Build language, gender, variant params
-                parts = []
-                if language:
-                    parts.append(language)
-                if gender:
-                    parts.append(f"gender: {gender}")
-                if variant:
-                    parts.append(f"variant: {variant}")
-                params = ", ".join(parts) if parts else ""
+                parts.append(f'voice="{name}"')
+            if language:
+                parts.append(f'voice-lang="{language}"')
+            if gender:
+                parts.append(f'gender="{gender}"')
+            if variant:
+                parts.append(f'variant="{variant}"')
 
-            if params:
-                # Use a placeholder to protect the newline from whitespace cleaning
-                return f"@voice: {params}{{VOICE_NEWLINE}}{content.strip()}"
+            if parts:
+                attrs = " ".join(parts)
+                content = content.strip()
+                return f"<div {attrs}>{{DIRECTIVE_NEWLINE}}{content}{{DIRECTIVE_NEWLINE}}</div>"
 
         # Use inline annotation syntax
         if name:
@@ -522,6 +533,7 @@ class SSMLParser:
             Cleaned text
         """
         # Preserve paragraph breaks (double newlines)
+        text = text.replace("{DIRECTIVE_NEWLINE}", "\n")
         parts = re.split(r"\n\n+", text)
 
         cleaned_parts = []

@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 
 from ssmd.segment import Segment
 from ssmd.ssml_conversions import SSMD_BREAK_STRENGTH_MAP
-from ssmd.types import BreakAttrs, VoiceAttrs
+from ssmd.types import BreakAttrs, ProsodyAttrs, VoiceAttrs
 
 if TYPE_CHECKING:
     from ssmd.capabilities import TTSCapabilities
@@ -17,23 +17,27 @@ if TYPE_CHECKING:
 
 @dataclass
 class Sentence:
-    """A sentence containing segments with voice context.
+    """A sentence containing segments with directive context.
 
     Represents a logical sentence unit that should be spoken together.
     Sentences are split on:
-    - Voice changes (@voice: directive)
+    - Directive changes (<div ...> blocks)
     - Sentence boundaries (.!?) when sentence_detection=True
-    - Paragraph breaks (\\n\\n)
+    - Paragraph breaks (\n\n)
 
     Attributes:
         segments: List of segments in the sentence
-        voice: Voice context for entire sentence (from @voice: directive)
+        voice: Voice context for entire sentence (from <div voice=...> directives)
+        language: Language directive for the sentence
+        prosody: Prosody directive for the sentence
         is_paragraph_end: True if sentence ends with paragraph break
         breaks_after: Pauses after the sentence
     """
 
     segments: list[Segment] = field(default_factory=list)
     voice: VoiceAttrs | None = None
+    language: str | None = None
+    prosody: ProsodyAttrs | None = None
     is_paragraph_end: bool = False
     breaks_after: list[BreakAttrs] = field(default_factory=list)
 
@@ -65,10 +69,8 @@ class Sentence:
         if wrap_sentence:
             content = f"<s>{content}</s>"
 
-        # Wrap in voice tag if voice is set
-        # Voice is always enabled as it's fundamental to TTS
-        if self.voice:
-            content = self._wrap_voice(content)
+        # Apply directive wrappers (voice/language/prosody)
+        content = self._wrap_directives(content, capabilities)
 
         # Add breaks after sentence
         if not capabilities or capabilities.break_tags:
@@ -111,30 +113,54 @@ class Sentence:
 
         return result
 
-    def _wrap_voice(self, content: str) -> str:
-        """Wrap content in voice tag."""
+    def _wrap_directives(
+        self,
+        content: str,
+        capabilities: "TTSCapabilities | None",
+    ) -> str:
+        """Apply voice, language, and prosody directives."""
         from ssmd.segment import _escape_xml_attr
 
-        if not self.voice:
-            return content
+        if self.voice:
+            attrs = []
+            if self.voice.name:
+                name = _escape_xml_attr(self.voice.name)
+                attrs.append(f'name="{name}"')
+            else:
+                if self.voice.language:
+                    lang = _escape_xml_attr(self.voice.language)
+                    attrs.append(f'language="{lang}"')
+                if self.voice.gender:
+                    gender = _escape_xml_attr(self.voice.gender)
+                    attrs.append(f'gender="{gender}"')
+                if self.voice.variant:
+                    variant = _escape_xml_attr(str(self.voice.variant))
+                    attrs.append(f'variant="{variant}"')
 
-        attrs = []
-        if self.voice.name:
-            name = _escape_xml_attr(self.voice.name)
-            attrs.append(f'name="{name}"')
-        else:
-            if self.voice.language:
-                lang = _escape_xml_attr(self.voice.language)
-                attrs.append(f'language="{lang}"')
-            if self.voice.gender:
-                gender = _escape_xml_attr(self.voice.gender)
-                attrs.append(f'gender="{gender}"')
-            if self.voice.variant:
-                variant = _escape_xml_attr(str(self.voice.variant))
-                attrs.append(f'variant="{variant}"')
+            if attrs:
+                content = f"<voice {' '.join(attrs)}>{content}</voice>"
 
-        if attrs:
-            return f"<voice {' '.join(attrs)}>{content}</voice>"
+        if self.language and (not capabilities or capabilities.language):
+            lang = _escape_xml_attr(self.language)
+            content = f'<lang xml:lang="{lang}">{content}</lang>'
+
+        if self.prosody and (not capabilities or capabilities.prosody):
+            prosody_attrs = []
+            if self.prosody.volume and (
+                not capabilities or capabilities.prosody_volume
+            ):
+                vol = _escape_xml_attr(self.prosody.volume)
+                prosody_attrs.append(f'volume="{vol}"')
+            if self.prosody.rate and (not capabilities or capabilities.prosody_rate):
+                rate = _escape_xml_attr(self.prosody.rate)
+                prosody_attrs.append(f'rate="{rate}"')
+            if self.prosody.pitch and (not capabilities or capabilities.prosody_pitch):
+                pitch = _escape_xml_attr(self.prosody.pitch)
+                prosody_attrs.append(f'pitch="{pitch}"')
+
+            if prosody_attrs:
+                content = f"<prosody {' '.join(prosody_attrs)}>{content}</prosody>"
+
         return content
 
     def _break_to_ssml(self, brk: BreakAttrs) -> str:
@@ -157,12 +183,6 @@ class Sentence:
         """
         result = ""
 
-        # Add voice directive if set
-        if self.voice:
-            voice_directive = self._voice_to_directive()
-            if voice_directive:
-                result += voice_directive + "\n"
-
         # Build segment content
         content_parts = []
         for segment in self.segments:
@@ -176,25 +196,6 @@ class Sentence:
             result += " " + self._break_to_ssmd(brk)
 
         return result
-
-    def _voice_to_directive(self) -> str:
-        """Convert voice to @voice: directive."""
-        if not self.voice:
-            return ""
-
-        if self.voice.name:
-            return f"@voice: {self.voice.name}"
-        else:
-            parts = []
-            if self.voice.language:
-                parts.append(self.voice.language)
-            if self.voice.gender:
-                parts.append(f"gender: {self.voice.gender}")
-            if self.voice.variant:
-                parts.append(f"variant: {self.voice.variant}")
-            if parts:
-                return f"@voice: {', '.join(parts)}"
-        return ""
 
     def _break_to_ssmd(self, brk: BreakAttrs) -> str:
         """Convert break to SSMD format."""

@@ -14,6 +14,7 @@ from ssmd.sentence import Sentence
 from ssmd.types import (
     AudioAttrs,
     BreakAttrs,
+    DirectiveAttrs,
     PhonemeAttrs,
     ProsodyAttrs,
     SayAsAttrs,
@@ -32,6 +33,7 @@ __all__ = [
     "SayAsAttrs",
     "AudioAttrs",
     "PhonemeAttrs",
+    "DirectiveAttrs",
     # Classes
     "Segment",
     "Sentence",

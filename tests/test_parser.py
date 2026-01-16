@@ -10,96 +10,94 @@ from ssmd import (
 
 
 class TestParseVoiceBlocks:
-    """Test voice block parsing."""
+    """Test directive block parsing."""
 
-    def test_no_voice_directive(self):
-        """Test text without voice directives."""
+    def test_no_directive(self):
+        """Test text without directives."""
         text = "Hello world"
         blocks = parse_voice_blocks(text)
 
         assert len(blocks) == 1
-        assert blocks[0][0] is None  # No voice
+        assert blocks[0][0].voice is None
+        assert blocks[0][0].language is None
+        assert blocks[0][0].prosody is None
         assert blocks[0][1] == "Hello world"
 
-    def test_single_voice(self):
-        """Test single voice directive."""
-        text = "@voice: sarah\nHello world"
+    def test_single_voice_div(self):
+        """Test single voice directive block."""
+        text = '<div voice="sarah">\nHello world\n</div>'
         blocks = parse_voice_blocks(text)
 
         assert len(blocks) == 1
-        assert blocks[0][0] is not None
-        assert blocks[0][0].name == "sarah"
+        assert blocks[0][0].voice is not None
+        assert blocks[0][0].voice.name == "sarah"
         assert blocks[0][1] == "Hello world"
 
-    def test_multiple_voices(self):
-        """Test multiple voice directives."""
-        text = """@voice: sarah
+    def test_multiple_divs(self):
+        """Test multiple directive blocks."""
+        text = """<div voice="sarah">
 Hello from Sarah
+</div>
 
-@voice: michael
-Hello from Michael"""
+<div voice="michael">
+Hello from Michael
+</div>"""
         blocks = parse_voice_blocks(text)
 
         assert len(blocks) == 2
-        assert blocks[0][0] is not None
-        assert blocks[0][0].name == "sarah"
+        assert blocks[0][0].voice is not None
+        assert blocks[0][0].voice.name == "sarah"
         assert "Sarah" in blocks[0][1]
-        assert blocks[1][0] is not None
-        assert blocks[1][0].name == "michael"
+        assert blocks[1][0].voice is not None
+        assert blocks[1][0].voice.name == "michael"
         assert "Michael" in blocks[1][1]
 
     def test_voice_with_language_gender(self):
-        """Test voice directive with language and gender."""
-        text = "@voice: fr-FR, gender: female\nBonjour"
+        """Test voice directive block with language and gender."""
+        text = '<div voice-lang="fr-FR" gender="female">\nBonjour\n</div>'
         blocks = parse_voice_blocks(text)
 
         assert len(blocks) == 1
-        voice = blocks[0][0]
+        voice = blocks[0][0].voice
         assert voice is not None
         assert voice.language == "fr-FR"
         assert voice.gender == "female"
         assert voice.name is None
 
     def test_voice_with_all_attributes(self):
-        """Test voice directive with all attributes."""
-        text = "@voice: en-GB, gender: male, variant: 1\nHello"
+        """Test voice directive block with all attributes."""
+        text = '<div voice-lang="en-GB" gender="male" variant="1">\nHello\n</div>'
         blocks = parse_voice_blocks(text)
 
-        voice = blocks[0][0]
+        voice = blocks[0][0].voice
         assert voice is not None
         assert voice.language == "en-GB"
         assert voice.gender == "male"
         assert voice.variant == 1
 
-    def test_voice_with_explicit_language(self):
-        """Test voice directive with explicit language: parameter."""
-        text = "@voice: sarah, language: en-US\nHello"
+    def test_language_div(self):
+        """Test language directive block."""
+        text = '<div lang="en">\nHello\n</div>'
         blocks = parse_voice_blocks(text)
 
-        voice = blocks[0][0]
-        assert voice is not None
-        assert voice.name == "sarah"
-        assert voice.language == "en-US"
-        assert voice.gender is None
+        directive = blocks[0][0]
+        assert directive.language == "en"
+        assert directive.voice is None
+        assert directive.prosody is None
 
-    def test_voice_with_name_language_and_gender(self):
-        """Test voice directive with name, language, and gender."""
-        text = "@voice: narrator, language: en-GB, gender: male\nHello"
+    def test_nested_divs(self):
+        """Nested directives should merge attributes."""
+        text = """<div lang="en">
+<div voice="sarah">
+Hello world
+</div>
+</div>"""
         blocks = parse_voice_blocks(text)
 
-        voice = blocks[0][0]
-        assert voice is not None
-        assert voice.name == "narrator"
-        assert voice.language == "en-GB"
-        assert voice.gender == "male"
-
-    def test_voice_parentheses_syntax(self):
-        """Test voice directive with parentheses syntax."""
-        text = "@voice(sarah)\nHello"
-        blocks = parse_voice_blocks(text)
-
-        assert blocks[0][0] is not None
-        assert blocks[0][0].name == "sarah"
+        directive = blocks[0][0]
+        assert directive.language == "en"
+        assert directive.voice is not None
+        assert directive.voice.name == "sarah"
 
 
 class TestParseSegments:
@@ -201,12 +199,14 @@ class TestParseSentences:
         assert len(sentences) == 2
 
     def test_voice_blocks_create_sentences(self):
-        """Test that voice changes create sentence boundaries."""
-        text = """@voice: sarah
+        """Test that directive changes create sentence boundaries."""
+        text = """<div voice="sarah">
 Hello from Sarah
+</div>
 
-@voice: michael
-Hello from Michael"""
+<div voice="michael">
+Hello from Michael
+</div>"""
         sentences = parse_sentences(text)
 
         # Should have at least 2 sentences (one per voice block)
@@ -233,11 +233,12 @@ Hello from Michael"""
         assert len(sentences) == 1
 
     def test_include_default_voice(self):
-        """Test including text before first voice directive."""
+        """Test including text before first directive."""
         text = """Intro text
 
-@voice: sarah
-Sarah speaks"""
+<div voice="sarah">
+Sarah speaks
+</div>"""
         sentences = parse_sentences(text, include_default_voice=True)
 
         # Should include intro text
@@ -245,11 +246,12 @@ Sarah speaks"""
         assert sentences[0].voice is None
 
     def test_exclude_default_voice(self):
-        """Test excluding text before first voice directive."""
+        """Test excluding text before first directive."""
         text = """Intro text
 
-@voice: sarah
-Sarah speaks"""
+<div voice="sarah">
+Sarah speaks
+</div>"""
         sentences = parse_sentences(text, include_default_voice=False)
 
         # Should skip intro text
@@ -262,18 +264,21 @@ class TestIntegration:
     def test_multi_voice_dialogue(self):
         """Test parsing multi-voice dialogue."""
         script = """
-@voice: sarah
+<div voice="sarah">
 Welcome to the show!
+</div>
 
-@voice: michael
+<div voice="michael">
 Thanks Sarah!
+</div>
 
-@voice: sarah
+<div voice="sarah">
 Great idea!
+</div>
 """
         sentences = parse_sentences(script)
 
-        # Should parse all voice blocks
+        # Should parse all directive blocks
         assert len(sentences) == 3
         assert sentences[0].voice is not None
         assert sentences[0].voice.name == "sarah"
@@ -284,9 +289,10 @@ Great idea!
 
     def test_complex_features(self):
         """Test parsing multiple features in one text."""
-        text = """@voice: sarah
+        text = """<div voice="sarah">
 Hello *world*! ...500ms Call [+1-555-0123]{as="telephone"} now.
-[H2O]{sub="water"} is important."""
+[H2O]{sub="water"} is important.
+</div>"""
 
         sentences = parse_sentences(text)
 
@@ -306,12 +312,14 @@ Hello *world*! ...500ms Call [+1-555-0123]{as="telephone"} now.
         # Note: breaks might be merged, so they're not checked
 
     def test_multilingual_script(self):
-        """Test multi-language script with voice blocks and gender."""
-        script = """@voice: fr-FR, gender: female
+        """Test multi-language script with voice directives and gender."""
+        script = """<div voice-lang="fr-FR" gender="female">
 Bonjour! Comment allez-vous?
+</div>
 
-@voice: en-GB, gender: male
-Hello there! How are you?"""
+<div voice-lang="en-GB" gender="male">
+Hello there! How are you?
+</div>"""
 
         try:
             sentences = parse_sentences(script)
@@ -346,8 +354,8 @@ class TestEdgeCases:
         assert len(sentences) == 0
 
     def test_voice_without_content(self):
-        """Test voice directive without following content."""
-        text = "@voice: sarah\n"
+        """Test directive without following content."""
+        text = '<div voice="sarah">\n</div>'
         sentences = parse_sentences(text)
 
         # Should not create empty sentences

@@ -299,25 +299,27 @@ class TestSSMLToSSMD:
             "eighty characters.</voice></p></speak>"
         )
         result = ssmd.from_ssml(ssml)
-        assert result.startswith("@voice: sarah\n")
+        assert result.startswith('<div voice="sarah">')
         assert "This is a long sentence" in result
 
     def test_voice_directive_roundtrip(self):
-        """Test roundtrip with voice directive syntax."""
-        original = """@voice: sarah
+        """Test roundtrip with directive syntax."""
+        original = """<div voice="sarah">
 Hello from Sarah with a very long message that definitely spans way more
 than eighty characters to trigger directive format
+</div>
 
-@voice: michael
+<div voice="michael">
 And hello from Michael with another long message to ensure it uses
-directive format too"""
+directive format too
+</div>"""
         ssml_out = ssmd.to_ssml(original)
         assert '<voice name="sarah">' in ssml_out
         assert '<voice name="michael">' in ssml_out
         # Convert back - should use directive syntax for long content
         ssmd_back = ssmd.from_ssml(ssml_out)
-        assert "@voice: sarah" in ssmd_back
-        assert "@voice: michael" in ssmd_back
+        assert '<div voice="sarah">' in ssmd_back
+        assert '<div voice="michael">' in ssmd_back
 
     def test_voice_directive_with_attrs_to_ssmd(self):
         """Test converting voice with attributes to directive syntax."""
@@ -329,22 +331,24 @@ directive format too"""
         )
         result = ssmd.from_ssml(ssml)
         # Should use directive syntax because content is long
-        assert "@voice: fr-FR, gender: female" in result
+        assert '<div voice-lang="fr-FR" gender="female">' in result
         assert "Bonjour!" in result
 
     def test_voice_directive_attrs_roundtrip(self):
-        """Test roundtrip with voice directive using attributes."""
-        original = """@voice: fr-FR, gender: female
+        """Test roundtrip with directive using attributes."""
+        original = """<div voice-lang="fr-FR" gender="female">
 Bonjour! C'est un très grand plaisir de vous parler aujourd'hui dans
 cette magnifique langue française!
+</div>
 
-@voice: en-GB, gender: male, variant: 1
+<div voice-lang="en-GB" gender="male" variant="1">
 Hello there! It's absolutely lovely to meet you on this fine day in
-the beautiful United Kingdom."""
+the beautiful United Kingdom.
+</div>"""
         ssml_out = ssmd.to_ssml(original)
         assert '<voice language="fr-FR" gender="female">' in ssml_out
         assert '<voice language="en-GB" gender="male" variant="1">' in ssml_out
         # Convert back - should preserve directive format with attributes
         ssmd_back = ssmd.from_ssml(ssml_out)
-        assert "@voice: fr-FR, gender: female" in ssmd_back
-        assert "@voice: en-GB, gender: male" in ssmd_back
+        assert '<div voice-lang="fr-FR" gender="female">' in ssmd_back
+        assert '<div voice-lang="en-GB" gender="male" variant="1">' in ssmd_back

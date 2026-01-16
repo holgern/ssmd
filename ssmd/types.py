@@ -43,6 +43,21 @@ class ProsodyAttrs:
 
 
 @dataclass
+class DirectiveAttrs:
+    """Directive attributes that apply to a <div> block.
+
+    Attributes:
+        voice: Voice attributes to apply (optional)
+        language: Language code for <lang> wrapping
+        prosody: Prosody attributes to apply
+    """
+
+    voice: VoiceAttrs | None = None
+    language: str | None = None
+    prosody: ProsodyAttrs | None = None
+
+
+@dataclass
 class BreakAttrs:
     """Break/pause attributes.
 

@@ -195,30 +195,34 @@ def test_strip_voice():
 
 
 def test_voice_directive_simple():
-    """Test voice directive with simple name."""
-    text = """@voice: sarah
-Hello from Sarah"""
+    """Test directive with simple voice name."""
+    text = """<div voice="sarah">
+Hello from Sarah
+</div>"""
     result = ssmd.to_ssml(text)
     assert '<voice name="sarah">Hello from Sarah</voice>' in result
 
 
 def test_voice_directive_with_break():
-    """Test voice directive with break."""
-    text = """@voice: sarah
+    """Test directive with break."""
+    text = """<div voice="sarah">
 Hello from Sarah
-...500ms"""
+...500ms
+</div>"""
     result = ssmd.to_ssml(text)
     assert '<voice name="sarah">Hello from Sarah' in result
     assert '<break time="500ms"/>' in result
 
 
 def test_voice_directive_multiple():
-    """Test multiple voice directives in sequence."""
-    text = """@voice: sarah
+    """Test multiple directives in sequence."""
+    text = """<div voice="sarah">
 Hello from Sarah
+</div>
 
-@voice: michael
-Hello from Michael"""
+<div voice="michael">
+Hello from Michael
+</div>"""
     result = ssmd.to_ssml(text)
     assert '<voice name="sarah">Hello from Sarah</voice>' in result
     assert '<voice name="michael">Hello from Michael</voice>' in result
@@ -226,29 +230,24 @@ Hello from Michael"""
     assert result.count("<voice") == 2
 
 
-def test_voice_directive_parentheses():
-    """Test voice directive with parentheses syntax."""
-    text = """@voice(sarah)
-Hello from Sarah"""
-    result = ssmd.to_ssml(text)
-    assert '<voice name="sarah">Hello from Sarah</voice>' in result
-
-
 def test_voice_directive_strip():
-    """Test stripping voice directive markup."""
-    text = """@voice: sarah
-Hello from Sarah"""
+    """Test stripping directive markup."""
+    text = """<div voice="sarah">
+Hello from Sarah
+</div>"""
     result = ssmd.to_text(text)
     assert result.strip() == "Hello from Sarah"
 
 
 def test_voice_inline_and_directive():
-    """Test mixing inline and directive voice syntax."""
-    text = """@voice: sarah
+    """Test mixing inline and directive syntax."""
+    text = """<div voice="sarah">
 Hello from Sarah, and [this is Michael]{voice="michael"} interrupting!
+</div>
 
-@voice: michael
-Now I'm speaking normally."""
+<div voice="michael">
+Now I'm speaking normally.
+</div>"""
     result = ssmd.to_ssml(text)
     assert '<voice name="sarah">' in result
     assert '<voice name="michael">this is Michael</voice>' in result
@@ -256,35 +255,30 @@ Now I'm speaking normally."""
 
 
 def test_voice_directive_language_gender():
-    """Test voice directive with language and gender attributes."""
-    text = """@voice: fr-FR, gender: female
-Bonjour! Comment allez-vous?"""
+    """Test directive with language and gender attributes."""
+    text = """<div voice-lang="fr-FR" gender="female">
+Bonjour! Comment allez-vous?
+</div>"""
     result = ssmd.to_ssml(text)
     assert '<voice language="fr-FR" gender="female">' in result
     assert "Bonjour!" in result
 
 
 def test_voice_directive_all_attributes():
-    """Test voice directive with all attributes."""
-    text = """@voice: en-GB, gender: male, variant: 1
-Hello from England!"""
+    """Test directive with all attributes."""
+    text = """<div voice-lang="en-GB" gender="male" variant="1">
+Hello from England!
+</div>"""
     result = ssmd.to_ssml(text)
     assert '<voice language="en-GB" gender="male" variant="1">' in result
     assert "Hello from England!" in result
 
 
-def test_voice_directive_parentheses_with_attrs():
-    """Test voice directive with parentheses and attributes."""
-    text = """@voice(fr-FR, gender: female)
-Bonjour tout le monde!"""
-    result = ssmd.to_ssml(text)
-    assert '<voice language="fr-FR" gender="female">' in result
-
-
 def test_voice_directive_strip_with_attrs():
-    """Test stripping voice directive with attributes."""
-    text = """@voice: fr-FR, gender: female
-Bonjour! Comment allez-vous?"""
+    """Test stripping directive with attributes."""
+    text = """<div voice-lang="fr-FR" gender="female">
+Bonjour! Comment allez-vous?
+</div>"""
     result = ssmd.to_text(text)
     assert result.strip() == "Bonjour! Comment allez-vous?"
 

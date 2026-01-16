@@ -161,8 +161,9 @@ class TestParseSentencesMultiLanguage:
     def test_french_default_model(self):
         """Parse French text with default small model."""
         text = """
-        @voice: fr-FR
+        <div voice-lang="fr-FR">
         Bonjour tout le monde.
+        </div>
         """
         try:
             sentences = parse_sentences(text, language="fr")
@@ -175,8 +176,9 @@ class TestParseSentencesMultiLanguage:
     def test_french_medium_model(self):
         """Parse French text with medium model."""
         text = """
-        @voice: fr-FR
+        <div voice-lang="fr-FR">
         Bonjour tout le monde.
+        </div>
         """
 
         try:
@@ -188,11 +190,13 @@ class TestParseSentencesMultiLanguage:
     def test_voice_language_overrides_parameter(self):
         """Voice language should override language parameter."""
         text = """
-        @voice: fr-FR
+        <div voice-lang="fr-FR">
         Bonjour. Comment allez-vous?
+        </div>
 
-        @voice: en-US
+        <div voice-lang="en-US">
         Hello. How are you?
+        </div>
         """
 
         sentences = parse_sentences(text, language="en")
@@ -532,13 +536,15 @@ class TestParseSentencesIntegration:
         assert any("world" in seg.text for seg in sentences[0].segments)
 
     def test_regex_mode_with_voice_blocks(self):
-        """Regex mode should work with voice blocks."""
+        """Regex mode should work with directive blocks."""
         text = """
-        @voice: sarah
+        <div voice="sarah">
         Hello world. How are you?
+        </div>
 
-        @voice: michael
+        <div voice="michael">
         I'm fine. Thanks!
+        </div>
         """
         sentences = parse_sentences(text, use_spacy=False)
 
@@ -546,13 +552,15 @@ class TestParseSentencesIntegration:
         assert len(sentences) >= 4
 
     def test_model_size_with_voice_blocks(self):
-        """Model size should apply to all voice blocks."""
+        """Model size should apply to all directive blocks."""
         text = """
-        @voice: en-US
+        <div voice-lang="en-US">
         Hello world.
+        </div>
 
-        @voice: fr-FR
+        <div voice-lang="fr-FR">
         Bonjour monde.
+        </div>
         """
 
         sentences = parse_sentences(text, model_size="sm")

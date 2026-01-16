@@ -64,9 +64,9 @@ class TestEscapeSyntaxUtility:
         assert result != text
         assert ssmd.unescape_ssmd_syntax(result) == text
 
-    def test_escape_voice_directive(self):
-        """Voice directives should be escaped."""
-        text = "@voice: sarah\nHello world"
+    def test_escape_directive(self):
+        """Directive blocks should be escaped."""
+        text = '<div voice="sarah">\nHello world\n</div>'
         result = ssmd.escape_ssmd_syntax(text)
         assert result != text
         assert ssmd.unescape_ssmd_syntax(result) == text
@@ -267,7 +267,7 @@ Wait ...s before retrying the connection.
         doc = ssmd.Document(text, escape_syntax=True)
         ssml = doc.to_ssml()
 
-        # Should not interpret as voice directives
+        # Should not interpret as directives
         assert "<voice" not in ssml
         # Text should be present
         assert "alice" in ssml or "Hello" in ssml

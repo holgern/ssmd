@@ -8,7 +8,7 @@ formatting conventions.
 from ssmd.segment import Segment
 from ssmd.sentence import Sentence
 from ssmd.ssml_conversions import SSMD_BREAK_STRENGTH_MAP
-from ssmd.types import BreakAttrs, VoiceAttrs
+from ssmd.types import BreakAttrs, ProsodyAttrs, VoiceAttrs
 
 # Backward compatibility aliases
 SSMDSentence = Sentence
@@ -51,7 +51,7 @@ def format_ssmd(sentences: list[Sentence]) -> str:
     - Break markers at sentence boundaries: end of previous line
     - Break markers mid-sentence: stay inline between segments
     - Paragraph breaks: double newline
-    - Voice directives: separate line with blank line after
+    - Directive blocks: separate line with blank line after
     - Headings: blank lines before and after
 
     Args:
@@ -72,20 +72,25 @@ def format_ssmd(sentences: list[Sentence]) -> str:
         return ""
 
     output_lines: list[str] = []
-    previous_voice = None
+    previous_directive: tuple[VoiceAttrs | None, str | None, ProsodyAttrs | None] = (
+        None,
+        None,
+        None,
+    )
 
     for i, sentence in enumerate(sentences):
-        # Check if voice changed - output directive on its own line
-        if sentence.voice != previous_voice and sentence.voice is not None:
-            # Add voice directive
-            voice_directive = _format_voice_directive(sentence.voice)
-            if voice_directive:
-                # Add blank line before voice directive if not first
-                if output_lines and output_lines[-1] != "":
-                    output_lines.append("")
-                output_lines.append(voice_directive)
-                output_lines.append("")  # Blank line after voice directive
-            previous_voice = sentence.voice
+        directive_key = (sentence.voice, sentence.language, sentence.prosody)
+        if directive_key != previous_directive:
+            if previous_directive != (None, None, None):
+                output_lines.append("</div>")
+
+            if any(directive_key):
+                directive = _format_div_directive(sentence)
+                if directive:
+                    if output_lines and output_lines[-1] != "":
+                        output_lines.append("")
+                    output_lines.append(directive)
+            previous_directive = directive_key
 
         # Check if sentence has breaks_before (from previous sentence boundary)
         # These should be appended to the previous line
@@ -95,8 +100,7 @@ def format_ssmd(sentences: list[Sentence]) -> str:
                 break_marker = _format_breaks(sentence.segments[0].breaks_before)
                 output_lines[-1] += " " + break_marker
 
-        # Format the sentence using to_ssmd() but without voice directive
-        # (we handle voice directives separately above)
+        # Format the sentence using to_ssmd()
         sentence_text = _format_sentence_content(sentence)
 
         if sentence_text:
@@ -105,6 +109,11 @@ def format_ssmd(sentences: list[Sentence]) -> str:
             # Add paragraph break if needed
             if sentence.is_paragraph_end:
                 output_lines.append("")  # Extra blank line for paragraph
+
+    if previous_directive != (None, None, None):
+        if output_lines and output_lines[-1] != "":
+            output_lines.append("")
+        output_lines.append("</div>")
 
     # Join lines and ensure trailing newline
     result = "\n".join(output_lines)
@@ -117,7 +126,7 @@ def format_ssmd(sentences: list[Sentence]) -> str:
 
 
 def _format_sentence_content(sentence: Sentence) -> str:
-    """Format a single sentence's content (segments only, no voice directive).
+    """Format a single sentence's content (segments only).
 
     Args:
         sentence: Sentence object to format
@@ -210,35 +219,34 @@ def _format_breaks(breaks: list[BreakAttrs]) -> str:
     return " ".join(break_markers)
 
 
-def _format_voice_directive(voice: VoiceAttrs) -> str:
-    """Format a voice directive.
+def _format_div_directive(sentence: Sentence) -> str:
+    """Format a <div> directive for voice/lang/prosody."""
+    from ssmd.segment import _escape_xml_attr
 
-    Args:
-        voice: VoiceAttrs object
+    parts: list[str] = []
 
-    Returns:
-        Voice directive string
-        (e.g., "@voice: sarah" or "@voice: fr-FR, gender: female")
-    """
-    if not voice:
+    if sentence.voice:
+        if sentence.voice.name:
+            parts.append(f'voice="{_escape_xml_attr(sentence.voice.name)}"')
+        if sentence.voice.language:
+            parts.append(f'voice-lang="{_escape_xml_attr(sentence.voice.language)}"')
+        if sentence.voice.gender:
+            parts.append(f'gender="{_escape_xml_attr(sentence.voice.gender)}"')
+        if sentence.voice.variant is not None:
+            parts.append(f'variant="{sentence.voice.variant}"')
+
+    if sentence.language:
+        parts.append(f'lang="{_escape_xml_attr(sentence.language)}"')
+
+    if sentence.prosody:
+        if sentence.prosody.volume:
+            parts.append(f'volume="{_escape_xml_attr(sentence.prosody.volume)}"')
+        if sentence.prosody.rate:
+            parts.append(f'rate="{_escape_xml_attr(sentence.prosody.rate)}"')
+        if sentence.prosody.pitch:
+            parts.append(f'pitch="{_escape_xml_attr(sentence.prosody.pitch)}"')
+
+    if not parts:
         return ""
 
-    # Build parts for the directive
-    parts = []
-
-    # Add name or language as first part
-    if voice.name:
-        parts.append(voice.name)
-    elif voice.language:
-        parts.append(voice.language)
-
-    # Add optional attributes
-    if voice.gender:
-        parts.append(f"gender: {voice.gender}")
-    if voice.variant:
-        parts.append(f"variant: {voice.variant}")
-
-    if parts:
-        return f"@voice: {', '.join(parts)}"
-
-    return ""
+    return f"<div {' '.join(parts)}>"
