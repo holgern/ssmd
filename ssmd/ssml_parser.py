@@ -330,7 +330,10 @@ class SSMLParser:
             if parts:
                 attrs = " ".join(parts)
                 content = content.strip()
-                return f"<div {attrs}>{{DIRECTIVE_NEWLINE}}{content}{{DIRECTIVE_NEWLINE}}</div>"
+                return (
+                    f"<div {attrs}>{{DIRECTIVE_NEWLINE}}"
+                    f"{content}{{DIRECTIVE_NEWLINE}}</div>"
+                )
 
         # Use inline annotation syntax
         if name:

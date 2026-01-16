@@ -242,7 +242,10 @@ def test_capability_preserves_text():
         language=False,
     )
 
-    text = 'Hello *world* from [France]{lang="fr"} with [excitement]{volume="x-loud"} ...500ms please!'
+    text = (
+        'Hello *world* from [France]{lang="fr"} '
+        'with [excitement]{volume="x-loud"} ...500ms please!'
+    )
     doc = Document(text, capabilities=caps)
     result = doc.to_ssml()
 

@@ -218,7 +218,7 @@ class TestProsody:
         assert 'pitch="high"' in result_ssml
 
     def test_prosody_multiple_attributes(self):
-        """Multiple prosody attributes: SSML → [text]{volume="loud" rate="fast" pitch="high"} → SSML."""
+        """SSML → [text]{volume="loud" rate="fast" pitch="high"} → SSML."""
         with Speech() as speech:
             config = ProsodyConfig(
                 volume=VolumeLevel.LOUD, rate=ProsodyRate.FAST, pitch=ProsodyPitch.HIGH
@@ -433,7 +433,8 @@ class TestComplexScenarios:
 
         # Validate SSMD contains both markers
         # Prosody wraps emphasis in annotation: [**WARNING**]{volume="loud"}
-        # Note: **WARNING** is literal text inside brackets, emphasis is preserved in SSML structure
+        # Note: **WARNING** is literal text inside brackets, emphasis is
+        # preserved in SSML structure
         assert "**WARNING**" in ssmd_text
         assert "volume" in ssmd_text
         assert "WARNING" in ssmd_text
