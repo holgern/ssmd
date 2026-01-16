@@ -32,7 +32,7 @@ The easiest way is to use a built-in preset:
    from ssmd import Document
 
    # Configure for your TTS engine
-   doc = Document("*Hello* [world](fr)!", capabilities='espeak')
+   doc = Document('*Hello* [world]{lang="fr"}!', capabilities='espeak')
 
    # Unsupported features are automatically removed
    ssml = doc.to_ssml()
@@ -204,7 +204,7 @@ Some engines support only certain prosody attributes:
    doc = Document(capabilities=caps)
 
    # Pitch will be stripped, but volume and rate preserved
-   ssml = doc.to_ssml('[text](v: 5, r: 4, p: 5)')
+   ssml = doc.to_ssml('[text]{volume="5" rate="4" pitch="5"}')
    # → <prosody volume="x-loud" rate="fast">text</prosody>
 
 Extension Support
@@ -223,7 +223,7 @@ Control platform-specific extensions:
 
    doc = Document(capabilities=caps)
 
-   ssml = doc.to_ssml('[secret](ext: whisper)')
+   ssml = doc.to_ssml('[secret]{ext="whisper"}')
    # → <amazon:effect name="whispered">secret</amazon:effect>
 
 Capability Comparison
@@ -236,7 +236,7 @@ Input
 
 .. code-block:: python
 
-   text = "*Hello* world... [this is loud](v: 5)!"
+   text = '*Hello* world... [this is loud]{volume="5"}!'
 
 Output by Engine
 ~~~~~~~~~~~~~~~~
@@ -269,8 +269,8 @@ Capability filtering works seamlessly with document streaming:
    doc = Document("""
    # Welcome
    *Hello* world!
-   [Bonjour](fr) everyone!
-   This is +loud+.
+   [Bonjour]{lang="fr"} everyone!
+   This is [loud]{volume="loud"}.
    """, capabilities='espeak', auto_sentence_tags=True)
 
    # All sentences are pre-filtered for eSpeak
@@ -289,7 +289,7 @@ Test what gets filtered:
    from ssmd import to_ssml
 
    engines = ['minimal', 'pyttsx3', 'espeak', 'google', 'polly']
-   text = "*Emphasis* ...500ms [language](fr) +loud+"
+   text = '*Emphasis* ...500ms [language]{lang="fr"} [loud]{volume="loud"}'
 
    for engine in engines:
        ssml = to_ssml(text, capabilities=engine)
@@ -349,7 +349,7 @@ Example:
    text = """
    Hello world!
    *This is important.*
-   [This is very important.](v: 5, r: 2)
+   [This is very important.]{volume="5" rate="2"}
    """
 
 Integration Example
@@ -375,5 +375,5 @@ Complete example with capability detection:
 
    # Usage
    tts = TTSHandler('espeak')
-   tts.speak("*Hello* [world](fr)!")
+   tts.speak('*Hello* [world]{lang="fr"}!')
    # Automatically filtered for eSpeak compatibility

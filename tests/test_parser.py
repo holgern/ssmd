@@ -135,7 +135,7 @@ class TestParseSegments:
 
     def test_say_as(self):
         """Test parsing say-as annotation."""
-        segments = parse_segments("Call [+1-555-0123](as: telephone) now")
+        segments = parse_segments('Call [+1-555-0123]{as="telephone"} now')
 
         # Should find segment with say-as
         say_as_seg = next((s for s in segments if s.say_as), None)
@@ -146,7 +146,7 @@ class TestParseSegments:
 
     def test_substitution(self):
         """Test parsing substitution."""
-        segments = parse_segments("[H2O](sub: water) is important")
+        segments = parse_segments('[H2O]{sub="water"} is important')
 
         # Should find segment with substitution
         sub_seg = next((s for s in segments if s.substitution), None)
@@ -156,7 +156,7 @@ class TestParseSegments:
 
     def test_phoneme(self):
         """Test parsing phoneme."""
-        segments = parse_segments("Say [tomato](ph: t@meItoU) properly")
+        segments = parse_segments('Say [tomato]{ph="t@meItoU"} properly')
 
         # Should find segment with phoneme
         phoneme_seg = next((s for s in segments if s.phoneme), None)
@@ -166,7 +166,7 @@ class TestParseSegments:
 
     def test_prosody_annotation(self):
         """Test parsing prosody annotation."""
-        segments = parse_segments("[loud text](v: 5)")
+        segments = parse_segments('[loud text]{volume="5"}')
 
         # Should find segment with prosody
         prosody_seg = next((s for s in segments if s.prosody), None)
@@ -176,7 +176,7 @@ class TestParseSegments:
 
     def test_language_annotation(self):
         """Test parsing language annotation."""
-        segments = parse_segments("[Bonjour](fr) everyone")
+        segments = parse_segments('[Bonjour]{lang="fr"} everyone')
 
         # Should find segment with language
         lang_seg = next((s for s in segments if s.language), None)
@@ -285,8 +285,8 @@ Great idea!
     def test_complex_features(self):
         """Test parsing multiple features in one text."""
         text = """@voice: sarah
-Hello *world*! ...500ms Call [+1-555-0123](as: telephone) now.
-[H2O](sub: water) is important."""
+Hello *world*! ...500ms Call [+1-555-0123]{as="telephone"} now.
+[H2O]{sub="water"} is important."""
 
         sentences = parse_sentences(text)
 

@@ -19,7 +19,7 @@ def test_capability_emphasis_disabled():
 def test_capability_prosody_disabled():
     """Test that prosody is stripped when not supported."""
     caps = TTSCapabilities(prosody=False)
-    doc = Document("++loud text++", capabilities=caps)
+    doc = Document('[loud text]{volume="loud"}', capabilities=caps)
 
     result = doc.to_ssml()
     # Should strip prosody markup
@@ -41,7 +41,7 @@ def test_capability_break_disabled():
 def test_capability_language_disabled():
     """Test that language tags are stripped when not supported."""
     caps = TTSCapabilities(language=False)
-    doc = Document("[Bonjour](fr) world", capabilities=caps)
+    doc = Document('[Bonjour]{lang="fr"} world', capabilities=caps)
 
     result = doc.to_ssml()
     # Should strip language tags
@@ -52,7 +52,7 @@ def test_capability_language_disabled():
 def test_capability_audio_disabled():
     """Test that audio tags are stripped when not supported."""
     caps = TTSCapabilities(audio=False)
-    doc = Document("[sound](https://example.com/beep.mp3)", capabilities=caps)
+    doc = Document('[sound]{src="https://example.com/beep.mp3"}', capabilities=caps)
 
     result = doc.to_ssml()
     # Should strip audio tags
@@ -63,7 +63,7 @@ def test_capability_audio_disabled():
 def test_capability_substitution_disabled():
     """Test that substitution tags are stripped when not supported."""
     caps = TTSCapabilities(substitution=False)
-    doc = Document("[H2O](sub: water)", capabilities=caps)
+    doc = Document('[H2O]{sub="water"}', capabilities=caps)
 
     result = doc.to_ssml()
     # Should strip sub tags
@@ -88,7 +88,9 @@ def test_preset_espeak():
 
 def test_preset_pyttsx3():
     """Test pyttsx3 preset (minimal SSML)."""
-    doc = Document("Hello *world* ...500ms [bonjour](fr)!", capabilities="pyttsx3")
+    doc = Document(
+        'Hello *world* ...500ms [bonjour]{lang="fr"}!', capabilities="pyttsx3"
+    )
 
     # pyttsx3 has very minimal SSML support
     result = doc.to_ssml()
@@ -105,7 +107,9 @@ def test_preset_pyttsx3():
 
 def test_preset_google():
     """Test Google TTS preset (full support)."""
-    doc = Document("Hello *world* ...500ms [bonjour](fr)!", capabilities="google")
+    doc = Document(
+        'Hello *world* ...500ms [bonjour]{lang="fr"}!', capabilities="google"
+    )
 
     # Google supports most features
     result = doc.to_ssml()
@@ -148,9 +152,9 @@ def test_custom_capabilities():
     text = """
     Hello *world*!
     Pause here ...500ms please.
-    Say [bonjour](fr) to everyone.
-    This is ++very loud++.
-    The number is [123](as: cardinal).
+    Say [bonjour]{lang="fr"} to everyone.
+    This is [very loud]{volume="x-loud"}.
+    The number is [123]{as="cardinal"}.
     """
 
     doc = Document(text, capabilities=caps)
@@ -177,12 +181,12 @@ def test_prosody_partial_support():
     )
 
     # Volume should work
-    doc = Document("++loud++", capabilities=caps)
+    doc = Document('[loud]{volume="x-loud"}', capabilities=caps)
     result = doc.to_ssml()
     assert "<prosody" in result or "loud" in result
 
     # Rate should be stripped (not supported)
-    doc = Document(">>fast>>", capabilities=caps)
+    doc = Document('[fast]{rate="fast"}', capabilities=caps)
     result = doc.to_ssml()
     # Should strip rate markup
     assert "fast" in result
@@ -193,12 +197,12 @@ def test_extension_filtering():
     caps = TTSCapabilities(extensions={"whisper": True, "drc": False})
 
     # Whisper is supported
-    doc = Document("[quiet](ext: whisper)", capabilities=caps)
+    doc = Document('[quiet]{ext="whisper"}', capabilities=caps)
     result = doc.to_ssml()
     assert "whisper" in result or "quiet" in result
 
     # DRC is not supported (should strip to text)
-    doc = Document("[compressed](ext: drc)", capabilities=caps)
+    doc = Document('[compressed]{ext="drc"}', capabilities=caps)
     result = doc.to_ssml()
     assert "compressed" in result
     # Should not have DRC-specific tags
@@ -210,8 +214,8 @@ def test_minimal_preset():
     # Heading
     Hello *world*!
     Pause ...500ms here.
-    [Bonjour](fr) everyone.
-    ++Loud text++
+    [Bonjour]{lang="fr"} everyone.
+    [Loud text]{volume="x-loud"}
     """
 
     doc = Document(text, capabilities="minimal")
@@ -238,7 +242,7 @@ def test_capability_preserves_text():
         language=False,
     )
 
-    text = "Hello *world* from [France](fr) with ++excitement++ ...500ms please!"
+    text = 'Hello *world* from [France]{lang="fr"} with [excitement]{volume="x-loud"} ...500ms please!'
     doc = Document(text, capabilities=caps)
     result = doc.to_ssml()
 

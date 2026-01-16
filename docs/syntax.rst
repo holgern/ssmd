@@ -45,7 +45,7 @@ Use explicit annotation syntax for no emphasis (rarely used):
 
 .. code-block:: python
 
-   ssmd.to_ssml("[monotone reading](emphasis: none)")
+   ssmd.to_ssml('[monotone reading]{emphasis="none"}')
    # → <speak><emphasis level="none">monotone reading</emphasis></speak>
 
 .. note::
@@ -143,7 +143,7 @@ Use hash marks for headings (configurable):
 Annotations
 -----------
 
-Annotations use the format ``[text](annotation)`` where annotations can be:
+Annotations use the format ``[text]{key="value"}`` where annotations can be:
 
 Language Codes
 ~~~~~~~~~~~~~~
@@ -153,11 +153,11 @@ Specify language with ISO codes:
 .. code-block:: python
 
    # Auto-complete to full locale
-   ssmd.to_ssml('[Bonjour](fr)')
+   ssmd.to_ssml('[Bonjour]{lang="fr"}')
    # → <speak><lang xml:lang="fr-FR">Bonjour</lang></speak>
 
    # Explicit locale
-   ssmd.to_ssml('[Hello](en-GB)')
+   ssmd.to_ssml('[Hello]{lang="en-GB"}')
    # → <speak><lang xml:lang="en-GB">Hello</lang></speak>
 
 Common language codes:
@@ -185,26 +185,27 @@ Perfect for short voice changes within a sentence:
 .. code-block:: python
 
    # Simple voice name
-   ssmd.to_ssml('[Hello](voice: Joanna)')
+   ssmd.to_ssml('[Hello]{voice="Joanna"}')
    # → <speak><voice name="Joanna">Hello</voice></speak>
 
    # Cloud TTS voice (e.g., Google Wavenet, AWS Polly)
-   ssmd.to_ssml('[Hello](voice: en-US-Wavenet-A)')
+   ssmd.to_ssml('[Hello]{voice="en-US-Wavenet-A"}')
    # → <speak><voice name="en-US-Wavenet-A">Hello</voice></speak>
 
    # Language and gender attributes
-   ssmd.to_ssml('[Bonjour](voice: fr-FR, gender: female)')
+   ssmd.to_ssml('[Bonjour]{voice-lang="fr-FR" gender="female"}')
    # → <speak><voice language="fr-FR" gender="female">Bonjour</voice></speak>
 
    # All attributes (language, gender, variant)
-   ssmd.to_ssml('[Text](voice: en-GB, gender: male, variant: 1)')
+   ssmd.to_ssml('[Text]{voice-lang="en-GB" gender="male" variant="1"}')
    # → <speak><voice language="en-GB" gender="male" variant="1">Text</voice></speak>
 
 Voice attributes:
 
-* ``voice: NAME`` - Voice name (e.g., Joanna, en-US-Wavenet-A)
-* ``gender: GENDER`` - male, female, or neutral
-* ``variant: NUMBER`` - Variant number for tiebreaking
+* ``voice="NAME"`` - Voice name (e.g., Joanna, en-US-Wavenet-A)
+* ``voice-lang="LANG"`` - Language code (e.g., en-GB)
+* ``gender="GENDER"`` - male, female, or neutral
+* ``variant="NUMBER"`` - Variant number for tiebreaking
 
 Voice Directives (Block Syntax)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -263,7 +264,7 @@ Mixing inline and directive syntax:
    # Block directive for main speaker, inline for interruptions
    text = """
    @voice: sarah
-   Hello everyone, [but wait!](voice: michael) Michael interrupts...
+   Hello everyone, [but wait!]{voice="michael"} Michael interrupts...
 
    @voice: michael
    Sorry, I had to jump in there!
@@ -278,10 +279,10 @@ IPA (International Phonetic Alphabet)
 
 .. code-block:: python
 
-   ssmd.to_ssml('[tomato](ph: təˈmeɪtoʊ)')
+   ssmd.to_ssml('[tomato]{ph="təˈmeɪtoʊ"}')
    # → <speak><phoneme alphabet="ipa" ph="təˈmeɪtoʊ">tomato</phoneme></speak>
 
-   ssmd.to_ssml('[hello](ipa: həˈloʊ)')
+   ssmd.to_ssml('[hello]{ipa="həˈloʊ"}')
    # → <speak><phoneme alphabet="ipa" ph="həˈloʊ">hello</phoneme></speak>
 
 X-SAMPA (Extended Speech Assessment Methods Phonetic Alphabet)
@@ -289,7 +290,7 @@ X-SAMPA (Extended Speech Assessment Methods Phonetic Alphabet)
 
 .. code-block:: python
 
-   ssmd.to_ssml('[dictionary](sampa: dIkS@n@ri)')
+   ssmd.to_ssml('[dictionary]{sampa="dIkS@n@ri"}')
    # → <speak><phoneme alphabet="x-sampa" ph="dIkS@n@ri">dictionary</phoneme></speak>
 
 Substitution (Aliases)
@@ -299,13 +300,13 @@ Replace text with alternative pronunciation:
 
 .. code-block:: python
 
-   ssmd.to_ssml('[H2O](sub: water)')
+   ssmd.to_ssml('[H2O]{sub="water"}')
    # → <speak><sub alias="water">H2O</sub></speak>
 
-   ssmd.to_ssml('[AWS](sub: Amazon Web Services)')
+   ssmd.to_ssml('[AWS]{sub="Amazon Web Services"}')
    # → <speak><sub alias="Amazon Web Services">AWS</sub></speak>
 
-   ssmd.to_ssml('[NATO](sub: North Atlantic Treaty Organization)')
+   ssmd.to_ssml('[NATO]{sub="North Atlantic Treaty Organization"}')
 
 Say-As Interpretations
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -315,32 +316,32 @@ Control how text is interpreted:
 .. code-block:: python
 
    # Telephone number
-   ssmd.to_ssml('[+1-555-0123](as: telephone)')
+   ssmd.to_ssml('[+1-555-0123]{as="telephone"}')
 
    # Date with format
-   ssmd.to_ssml('[31.12.2024](as: date, format: "dd.mm.yyyy")')
+   ssmd.to_ssml('[31.12.2024]{as="date" format="dd.mm.yyyy"}')
 
    # Say-as with detail attribute (verbosity control)
-   ssmd.to_ssml('[123](as: cardinal, detail: 2)')
+   ssmd.to_ssml('[123]{as="cardinal" detail="2"}')
    # → <speak><say-as interpret-as="cardinal" detail="2">123</say-as></speak>
 
-   ssmd.to_ssml('[12/31/2024](as: date, format: "mdy", detail: 1)')
+   ssmd.to_ssml('[12/31/2024]{as="date" format="mdy" detail="1"}')
    # → <speak><say-as interpret-as="date" format="mdy" detail="1">12/31/2024</say-as></speak>
 
    # Spell out characters
-   ssmd.to_ssml('[NASA](as: character)')
+   ssmd.to_ssml('[NASA]{as="character"}')
 
    # Number types
-   ssmd.to_ssml('[123](as: cardinal)')     # one hundred twenty-three
-   ssmd.to_ssml('[1st](as: ordinal)')      # first
-   ssmd.to_ssml('[123](as: digits)')       # one two three
-   ssmd.to_ssml('[3.14](as: fraction)')    # three point one four
+   ssmd.to_ssml('[123]{as="cardinal"}')     # one hundred twenty-three
+   ssmd.to_ssml('[1st]{as="ordinal"}')      # first
+   ssmd.to_ssml('[123]{as="digits"}')       # one two three
+   ssmd.to_ssml('[3.14]{as="fraction"}')    # three point one four
 
    # Time
-   ssmd.to_ssml('[14:30](as: time)')
+   ssmd.to_ssml('[14:30]{as="time"}')
 
    # Expletive (censored/beeped)
-   ssmd.to_ssml('[damn](as: expletive)')
+   ssmd.to_ssml('[damn]{as="expletive"}')
 
 Supported interpret-as values:
 
@@ -362,81 +363,44 @@ Higher values generally provide more detailed pronunciation.
 Prosody (Voice Control)
 ------------------------
 
-Shorthand Notation
-~~~~~~~~~~~~~~~~~~
-
-Volume
-^^^^^^
+Use prosody annotations with explicit key/value pairs:
 
 .. code-block:: python
 
-   ssmd.to_ssml("~silent~")        # silent
-   ssmd.to_ssml("--whisper--")     # x-soft
-   ssmd.to_ssml("-soft-")          # soft
-   ssmd.to_ssml("+loud+")          # loud
-   ssmd.to_ssml("++very loud++")   # x-loud
-
-Rate (Speed)
-^^^^^^^^^^^^
-
-.. code-block:: python
-
-   ssmd.to_ssml("<<very slow<<")   # x-slow
-   ssmd.to_ssml("<slow<")          # slow
-   ssmd.to_ssml(">fast>")          # fast
-   ssmd.to_ssml(">>very fast>>")   # x-fast
-
-Pitch
-^^^^^
-
-.. code-block:: python
-
-   ssmd.to_ssml("__very low__")    # x-low
-   ssmd.to_ssml("_low_")           # low
-   ssmd.to_ssml("^high^")          # high
-   ssmd.to_ssml("^^very high^^")   # x-high
-
-Explicit Notation
-~~~~~~~~~~~~~~~~~
+   ssmd.to_ssml('[loud]{volume="loud"}')
+   ssmd.to_ssml('[slow]{rate="slow"}')
+   ssmd.to_ssml('[high]{pitch="high"}')
+   ssmd.to_ssml('[loud and fast]{volume="loud" rate="fast"}')
 
 Scale-Based Values (1-5)
-^^^^^^^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: python
 
-   # Volume, Rate, Pitch (combined)
-   ssmd.to_ssml('[loud and fast](vrp: 555)')
-   # → <prosody volume="x-loud" rate="x-fast" pitch="x-high">loud and fast</prosody>
-
-   # Individual attributes
-   ssmd.to_ssml('[text](v: 5)')    # x-loud
-   ssmd.to_ssml('[text](r: 4)')    # fast
-   ssmd.to_ssml('[text](p: 2)')    # low
-
-   # Multiple attributes
-   ssmd.to_ssml('[text](v: 4, r: 2, p: 3)')
-   # → <prosody volume="loud" rate="slow" pitch="medium">text</prosody>
+   ssmd.to_ssml('[extra loud]{volume="5"}')
+   ssmd.to_ssml('[extra fast]{rate="5"}')
+   ssmd.to_ssml('[extra high]{pitch="5"}')
 
 Scale mapping:
 
-* Volume (v:): 0=silent, 1=x-soft, 2=soft, 3=medium, 4=loud, 5=x-loud
-* Rate (r:): 1=x-slow, 2=slow, 3=medium, 4=fast, 5=x-fast
-* Pitch (p:): 1=x-low, 2=low, 3=medium, 4=high, 5=x-high
+* Volume: 0=silent, 1=x-soft, 2=soft, 3=medium, 4=loud, 5=x-loud
+* Rate: 1=x-slow, 2=slow, 3=medium, 4=fast, 5=x-fast
+* Pitch: 1=x-low, 2=low, 3=medium, 4=high, 5=x-high
 
 Relative Values
-^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~
 
 .. code-block:: python
 
    # Decibels for volume
-   ssmd.to_ssml('[louder](v: +6dB)')
-   ssmd.to_ssml('[quieter](v: -3dB)')
+   ssmd.to_ssml('[louder]{volume="+6dB"}')
+   ssmd.to_ssml('[quieter]{volume="-3dB"}')
 
    # Percentages for rate and pitch
-   ssmd.to_ssml('[faster](r: +20%)')
-   ssmd.to_ssml('[slower](r: -10%)')
-   ssmd.to_ssml('[higher](p: +15%)')
-   ssmd.to_ssml('[lower](p: -5%)')
+   ssmd.to_ssml('[faster]{rate="+20%"}')
+   ssmd.to_ssml('[slower]{rate="-10%"}')
+   ssmd.to_ssml('[higher]{pitch="+15%"}')
+   ssmd.to_ssml('[lower]{pitch="-5%"}')
 
 Audio Files
 -----------
@@ -447,11 +411,11 @@ Basic Audio
 .. code-block:: python
 
    # With description
-   ssmd.to_ssml('[doorbell](https://example.com/sounds/bell.mp3)')
+   ssmd.to_ssml('[doorbell]{src="https://example.com/sounds/bell.mp3"}')
    # → <audio src="https://example.com/sounds/bell.mp3"><desc>doorbell</desc></audio>
 
    # No description
-   ssmd.to_ssml('[](beep.mp3)')
+   ssmd.to_ssml('[]{src="beep.mp3"}')
    # → <audio src="beep.mp3"></audio>
 
 Audio with Fallback
@@ -459,7 +423,7 @@ Audio with Fallback
 
 .. code-block:: python
 
-   ssmd.to_ssml('[cat purring](cat.ogg Sound file not loaded)')
+   ssmd.to_ssml('[cat purring]{src="cat.ogg" alt="Sound file not loaded"}')
    # → <audio src="cat.ogg"><desc>cat purring</desc>Sound file not loaded</audio>
 
 The fallback text is spoken if the audio file can't be played.
@@ -476,10 +440,10 @@ Play a portion of an audio file by specifying start and end times:
 
 .. code-block:: python
 
-   ssmd.to_ssml('[music](song.mp3 clip: 5s-30s)')
+   ssmd.to_ssml('[music]{src="song.mp3" clip="5s-30s"}')
    # → <audio src="song.mp3" clipBegin="5s" clipEnd="30s"><desc>music</desc></audio>
 
-   ssmd.to_ssml('[intro](podcast.mp3 clip: 0s-10s)')
+   ssmd.to_ssml('[intro]{src="podcast.mp3" clip="0s-10s"}')
    # → <audio src="podcast.mp3" clipBegin="0s" clipEnd="10s"><desc>intro</desc></audio>
 
 Speed Control
@@ -489,10 +453,10 @@ Adjust playback speed using percentages:
 
 .. code-block:: python
 
-   ssmd.to_ssml('[announcement](speech.mp3 speed: 150%)')
+   ssmd.to_ssml('[announcement]{src="speech.mp3" speed="150%"}')
    # → <audio src="speech.mp3" speed="150%"><desc>announcement</desc></audio>
 
-   ssmd.to_ssml('[slow](message.mp3 speed: 80%)')
+   ssmd.to_ssml('[slow]{src="message.mp3" speed="80%"}')
    # → <audio src="message.mp3" speed="80%"><desc>slow</desc></audio>
 
 Repeat Audio
@@ -502,10 +466,10 @@ Repeat audio playback a specific number of times:
 
 .. code-block:: python
 
-   ssmd.to_ssml('[jingle](ad.mp3 repeat: 3)')
+   ssmd.to_ssml('[jingle]{src="ad.mp3" repeat="3"}')
    # → <audio src="ad.mp3" repeatCount="3"><desc>jingle</desc></audio>
 
-   ssmd.to_ssml('[beep](alert.mp3 repeat: 5)')
+   ssmd.to_ssml('[beep]{src="alert.mp3" repeat="5"}')
    # → <audio src="alert.mp3" repeatCount="5"><desc>beep</desc></audio>
 
 Volume Adjustment
@@ -515,10 +479,10 @@ Control audio volume using decibel adjustment:
 
 .. code-block:: python
 
-   ssmd.to_ssml('[alarm](alert.mp3 level: +6dB)')
+   ssmd.to_ssml('[alarm]{src="alert.mp3" level="+6dB"}')
    # → <audio src="alert.mp3" soundLevel="+6dB"><desc>alarm</desc></audio>
 
-   ssmd.to_ssml('[background](music.mp3 level: -3dB)')
+   ssmd.to_ssml('[background]{src="music.mp3" level="-3dB"}')
    # → <audio src="music.mp3" soundLevel="-3dB"><desc>background</desc></audio>
 
 Combining Attributes
@@ -528,11 +492,11 @@ Multiple audio attributes can be combined with fallback text:
 
 .. code-block:: python
 
-   ssmd.to_ssml('[bg music](music.mp3 clip: 0s-10s, speed: 120%, level: -3dB Fallback text)')
+   ssmd.to_ssml('[bg music]{src="music.mp3" clip="0s-10s" speed="120%" level="-3dB" alt="Fallback text"}')
    # → <audio src="music.mp3" clipBegin="0s" clipEnd="10s" speed="120%" soundLevel="-3dB">
    #    <desc>bg music</desc>Fallback text</audio>
 
-   ssmd.to_ssml('[effect](sound.mp3 clip: 2s-5s, repeat: 2 Sound unavailable)')
+   ssmd.to_ssml('[effect]{src="sound.mp3" clip="2s-5s" repeat="2" alt="Sound unavailable"}')
    # → <audio src="sound.mp3" clipBegin="2s" clipEnd="5s" repeatCount="2">
    #    <desc>effect</desc>Sound unavailable</audio>
 
@@ -573,11 +537,11 @@ Amazon Polly provides effects like whispering and dynamic range compression:
 .. code-block:: python
 
    # Whisper effect
-   ssmd.to_ssml('[secret message](ext: whisper)')
+   ssmd.to_ssml('[secret message]{ext="whisper"}')
    # → <amazon:effect name="whispered">secret message</amazon:effect>
 
    # Dynamic range compression (for voice over music)
-   ssmd.to_ssml('[announcement](ext: drc)')
+   ssmd.to_ssml('[announcement]{ext="drc"}')
    # → <amazon:effect name="drc">announcement</amazon:effect>
 
 Google Cloud TTS Speaking Styles
@@ -602,9 +566,9 @@ configure these using SSMD's extension system:
    })
 
    # Use styles in your content
-   doc.add_sentence("[Welcome to our service!](ext: cheerful)")
-   doc.add_sentence("[We apologize for the inconvenience.](ext: apologetic)")
-   doc.add_sentence("[Please remain calm.](ext: calm)")
+   doc.add_sentence("[Welcome to our service!]{ext=\"cheerful\"}")
+   doc.add_sentence("[We apologize for the inconvenience.]{ext=\"apologetic\"}")
+   doc.add_sentence("[Please remain calm.]{ext=\"calm\"}")
 
    ssml = doc.to_ssml()
    # → <speak>
@@ -644,22 +608,22 @@ You can define your own extensions for any custom SSML tags your TTS platform su
        }
    })
 
-   doc.add_sentence("[Hello](ext: robotic)")
-   doc.add_sentence("[world](ext: echo)")
+   doc.add_sentence("[Hello]{ext=\"robotic\"}")
+   doc.add_sentence("[world]{ext=\"echo\"}")
 
 For a complete Google TTS styles example, see ``examples/google_tts_styles.py``.
 
 Combining Multiple Annotations
 -------------------------------
 
-Multiple annotations can be comma-separated:
+Multiple annotations can be space-separated inside the braces:
 
 .. code-block:: python
 
-   ssmd.to_ssml('[Bonjour](fr, v: 5, r: 2)')
+   ssmd.to_ssml('[Bonjour]{lang="fr" volume="5" rate="2"}')
    # → <lang xml:lang="fr-FR"><prosody volume="x-loud" rate="slow">Bonjour</prosody></lang>
 
-   ssmd.to_ssml('[important](v: 5, as: character)')
+   ssmd.to_ssml('[important]{volume="5" as="character"}')
    # → <prosody volume="x-loud"><say-as interpret-as="character">important</say-as></prosody>
 
 Escaping
@@ -684,8 +648,8 @@ characters in both text content and annotation parameters are properly escaped:
 .. code-block:: python
 
    # Malicious input is safely escaped
-   ssmd.to_ssml('[text](sub: value"><script>alert(1)</script>)')
-   # → <speak><sub alias="value&quot;&gt;&lt;script&gt;alert(1)&lt;/script&gt;">text</sub></speak>
+   ssmd.to_ssml('[text]{sub="value<script>alert(1)</script>"}')
+   # → <speak><sub alias="value&lt;script&gt;alert(1)&lt;/script&gt;">text</sub></speak>
 
 The library ensures:
 

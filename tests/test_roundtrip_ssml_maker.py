@@ -123,7 +123,7 @@ class TestProsody:
     """Test prosody (volume, rate, pitch) features."""
 
     def test_prosody_volume_loud(self):
-        """Loud volume: SSML → +text+ → SSML."""
+        """Loud volume: SSML → [text]{volume="loud"} → SSML."""
         with Speech() as speech:
             config = ProsodyConfig(volume=VolumeLevel.LOUD)
             with speech.prosody(config):
@@ -133,14 +133,16 @@ class TestProsody:
         ssmd_text = ssmd.from_ssml(original_ssml)
 
         # Validate SSMD syntax
-        assert "+LOUD+" in ssmd_text, f"Expected '+LOUD+' in '{ssmd_text}'"
+        assert (
+            '[LOUD]{volume="loud"}' in ssmd_text
+        ), f"Expected volume annotation in '{ssmd_text}'"
 
         # Validate roundtrip
         result_ssml = ssmd.to_ssml(ssmd_text)
         assert 'volume="loud"' in result_ssml
 
     def test_prosody_volume_xloud(self):
-        """X-loud volume: SSML → ++text++ → SSML."""
+        """X-loud volume: SSML → [text]{volume="x-loud"} → SSML."""
         with Speech() as speech:
             config = ProsodyConfig(volume=VolumeLevel.X_LOUD)
             with speech.prosody(config):
@@ -151,15 +153,15 @@ class TestProsody:
 
         # Validate SSMD syntax
         assert (
-            "++VERY LOUD++" in ssmd_text
-        ), f"Expected '++VERY LOUD++' in '{ssmd_text}'"
+            '[VERY LOUD]{volume="x-loud"}' in ssmd_text
+        ), f"Expected volume annotation in '{ssmd_text}'"
 
         # Validate roundtrip
         result_ssml = ssmd.to_ssml(ssmd_text)
         assert 'volume="x-loud"' in result_ssml
 
     def test_prosody_volume_soft(self):
-        """Soft volume: SSML → -text- → SSML."""
+        """Soft volume: SSML → [text]{volume="soft"} → SSML."""
         with Speech() as speech:
             config = ProsodyConfig(volume=VolumeLevel.SOFT)
             with speech.prosody(config):
@@ -169,14 +171,16 @@ class TestProsody:
         ssmd_text = ssmd.from_ssml(original_ssml)
 
         # Validate SSMD syntax
-        assert "-quiet-" in ssmd_text, f"Expected '-quiet-' in '{ssmd_text}'"
+        assert (
+            '[quiet]{volume="soft"}' in ssmd_text
+        ), f"Expected volume annotation in '{ssmd_text}'"
 
         # Validate roundtrip
         result_ssml = ssmd.to_ssml(ssmd_text)
         assert 'volume="soft"' in result_ssml
 
     def test_prosody_rate_fast(self):
-        """Fast rate: SSML → >text> → SSML."""
+        """Fast rate: SSML → [text]{rate="fast"} → SSML."""
         with Speech() as speech:
             config = ProsodyConfig(rate=ProsodyRate.FAST)
             with speech.prosody(config):
@@ -186,14 +190,16 @@ class TestProsody:
         ssmd_text = ssmd.from_ssml(original_ssml)
 
         # Validate SSMD syntax
-        assert ">quick>" in ssmd_text, f"Expected '>quick>' in '{ssmd_text}'"
+        assert (
+            '[quick]{rate="fast"}' in ssmd_text
+        ), f"Expected rate annotation in '{ssmd_text}'"
 
         # Validate roundtrip
         result_ssml = ssmd.to_ssml(ssmd_text)
         assert 'rate="fast"' in result_ssml
 
     def test_prosody_pitch_high(self):
-        """High pitch: SSML → ^text^ → SSML."""
+        """High pitch: SSML → [text]{pitch="high"} → SSML."""
         with Speech() as speech:
             config = ProsodyConfig(pitch=ProsodyPitch.HIGH)
             with speech.prosody(config):
@@ -203,14 +209,16 @@ class TestProsody:
         ssmd_text = ssmd.from_ssml(original_ssml)
 
         # Validate SSMD syntax
-        assert "^squeaky^" in ssmd_text, f"Expected '^squeaky^' in '{ssmd_text}'"
+        assert (
+            '[squeaky]{pitch="high"}' in ssmd_text
+        ), f"Expected pitch annotation in '{ssmd_text}'"
 
         # Validate roundtrip
         result_ssml = ssmd.to_ssml(ssmd_text)
         assert 'pitch="high"' in result_ssml
 
     def test_prosody_multiple_attributes(self):
-        """Multiple prosody attributes: SSML → [text](v:4,r:4,p:4) → SSML."""
+        """Multiple prosody attributes: SSML → [text]{volume="loud" rate="fast" pitch="high"} → SSML."""
         with Speech() as speech:
             config = ProsodyConfig(
                 volume=VolumeLevel.LOUD, rate=ProsodyRate.FAST, pitch=ProsodyPitch.HIGH
@@ -225,9 +233,9 @@ class TestProsody:
         assert (
             "[energetic]" in ssmd_text
         ), f"Expected annotation format in '{ssmd_text}'"
-        assert "v:" in ssmd_text or "volume" in ssmd_text
-        assert "r:" in ssmd_text or "rate" in ssmd_text
-        assert "p:" in ssmd_text or "pitch" in ssmd_text
+        assert 'volume="loud"' in ssmd_text
+        assert 'rate="fast"' in ssmd_text
+        assert 'pitch="high"' in ssmd_text
 
         # Validate roundtrip
         result_ssml = ssmd.to_ssml(ssmd_text)
@@ -240,7 +248,7 @@ class TestSayAs:
     """Test say-as interpret-as feature."""
 
     def test_say_as_telephone(self):
-        """Telephone: SSML → [text](as: telephone) → SSML."""
+        """Telephone: SSML → [text]{as="telephone"} → SSML."""
         with Speech() as speech:
             with speech.say_as(InterpretAs.TELEPHONE):
                 speech.add_text("+1-555-1234")
@@ -248,15 +256,15 @@ class TestSayAs:
         original_ssml = speech.build()
         ssmd_text = ssmd.from_ssml(original_ssml)
 
-        # Validate SSMD syntax - uses "as:" per SSMD spec
-        assert "[+1-555-1234](as: telephone)" in ssmd_text, f"Got '{ssmd_text}'"
+        # Validate SSMD syntax - uses as="" per SSMD spec
+        assert '[+1-555-1234]{as="telephone"}' in ssmd_text, f"Got '{ssmd_text}'"
 
         # Validate roundtrip
         result_ssml = ssmd.to_ssml(ssmd_text)
         assert 'interpret-as="telephone"' in result_ssml
 
     def test_say_as_characters(self):
-        """Characters: SSML → [text](as: characters) → SSML."""
+        """Characters: SSML → [text]{as="characters"} → SSML."""
         with Speech() as speech:
             with speech.say_as(InterpretAs.CHARACTERS):
                 speech.add_text("ABC")
@@ -264,8 +272,8 @@ class TestSayAs:
         original_ssml = speech.build()
         ssmd_text = ssmd.from_ssml(original_ssml)
 
-        # Validate SSMD syntax - uses "as:" per SSMD spec
-        assert "[ABC](as: characters)" in ssmd_text, f"Got '{ssmd_text}'"
+        # Validate SSMD syntax - uses as="" per SSMD spec
+        assert '[ABC]{as="characters"}' in ssmd_text, f"Got '{ssmd_text}'"
 
         # Validate roundtrip
         result_ssml = ssmd.to_ssml(ssmd_text)
@@ -276,7 +284,7 @@ class TestPhoneme:
     """Test phonetic pronunciation feature."""
 
     def test_phoneme_ipa(self):
-        """IPA phoneme: SSML → [text](ph: ..., alphabet: ipa) → SSML."""
+        """IPA phoneme: SSML → [text]{ph="..." alphabet="ipa"} → SSML."""
         with Speech() as speech:
             with speech.phoneme(PhoneticAlphabet.IPA, "təˈmeɪtoʊ"):
                 speech.add_text("tomato")
@@ -286,7 +294,7 @@ class TestPhoneme:
 
         # Validate SSMD syntax
         assert (
-            "[tomato](ph: təˈmeɪtoʊ, alphabet: ipa)" in ssmd_text
+            '[tomato]{ph="təˈmeɪtoʊ" alphabet="ipa"}' in ssmd_text
         ), f"Got '{ssmd_text}'"
 
         # Validate roundtrip
@@ -299,7 +307,7 @@ class TestSubstitution:
     """Test alias substitution feature."""
 
     def test_substitution(self):
-        """Substitution: SSML → [text](sub: alias) → SSML."""
+        """Substitution: SSML → [text]{sub="alias"} → SSML."""
         with Speech() as speech:
             with speech.sub("World Wide Web Consortium"):
                 speech.add_text("W3C")
@@ -309,7 +317,7 @@ class TestSubstitution:
 
         # Validate SSMD syntax
         assert (
-            "[W3C](sub: World Wide Web Consortium)" in ssmd_text
+            '[W3C]{sub="World Wide Web Consortium"}' in ssmd_text
         ), f"Got '{ssmd_text}'"
 
         # Validate roundtrip
@@ -401,10 +409,10 @@ class TestComplexScenarios:
         original_ssml = speech.build()
         ssmd_text = ssmd.from_ssml(original_ssml)
 
-        # Validate SSMD syntax - uses "as:" per SSMD spec
+        # Validate SSMD syntax - uses as="" per SSMD spec
         assert "*Alert*" in ssmd_text
         assert "...500ms" in ssmd_text
-        assert "[911](as: telephone)" in ssmd_text
+        assert '[911]{as="telephone"}' in ssmd_text
 
         # Validate roundtrip
         result_ssml = ssmd.to_ssml(ssmd_text)

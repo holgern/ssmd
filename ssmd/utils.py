@@ -118,7 +118,7 @@ def escape_ssmd_syntax(
         text: Input text that may contain SSMD-like patterns
         patterns: List of pattern types to escape. If None, escapes all.
             Valid values: 'emphasis', 'annotations', 'breaks', 'marks',
-            'headings', 'voice_directives', 'prosody_shorthand'
+            'headings', 'voice_directives'
 
     Returns:
         Text with SSMD patterns replaced with placeholders
@@ -128,7 +128,7 @@ def escape_ssmd_syntax(
         >>> escape_ssmd_syntax(text)
         'This \ue000word\ue000 should not be emphasized'
 
-        >>> text = "Visit [our site](https://example.com)"
+        >>> text = 'Visit [our site]{src="https://example.com"}'
         >>> escaped = escape_ssmd_syntax(text)
         # Placeholders prevent SSMD interpretation
 
@@ -144,7 +144,6 @@ def escape_ssmd_syntax(
             "marks",
             "headings",
             "voice_directives",
-            "prosody_shorthand",
         ]
 
     result = text
@@ -193,15 +192,15 @@ def escape_ssmd_syntax(
         )
 
     if "annotations" in patterns:
-        # Annotations: [text](params) - replace the brackets
+        # Annotations: [text]{params} - replace the brackets
         result = re.sub(
-            r"\[([^\]]+)\]\(([^)]+)\)",
+            r"\[([^\]]+)\]\{([^}]+)\}",
             lambda m: _PLACEHOLDER_MAP["["]
             + m.group(1)
             + _PLACEHOLDER_MAP["]"]
-            + "("
+            + "{"
             + m.group(2)
-            + ")",
+            + "}",
             result,
         )
 
@@ -219,91 +218,6 @@ def escape_ssmd_syntax(
         result = re.sub(
             r"(?<!\w)@(?!voice)(\w+)",
             lambda m: _PLACEHOLDER_MAP["@"] + m.group(1),
-            result,
-        )
-
-    if "prosody_shorthand" in patterns:
-        # Prosody shorthand - paired characters around text
-        # Double character versions first
-        result = re.sub(
-            r"~~([^~\n]+)~~",
-            lambda m: _PLACEHOLDER_MAP["~"] * 2
-            + m.group(1)
-            + _PLACEHOLDER_MAP["~"] * 2,
-            result,
-        )
-        result = re.sub(
-            r"\+\+([^+\n]+)\+\+",
-            lambda m: _PLACEHOLDER_MAP["+"] * 2
-            + m.group(1)
-            + _PLACEHOLDER_MAP["+"] * 2,
-            result,
-        )
-        result = re.sub(
-            r"--([^-\n]+)--",
-            lambda m: _PLACEHOLDER_MAP["-"] * 2
-            + m.group(1)
-            + _PLACEHOLDER_MAP["-"] * 2,
-            result,
-        )
-        result = re.sub(
-            r"<<([^<\n]+)<<",
-            lambda m: _PLACEHOLDER_MAP["<"] * 2
-            + m.group(1)
-            + _PLACEHOLDER_MAP["<"] * 2,
-            result,
-        )
-        result = re.sub(
-            r">>([^>\n]+)>>",
-            lambda m: _PLACEHOLDER_MAP[">"] * 2
-            + m.group(1)
-            + _PLACEHOLDER_MAP[">"] * 2,
-            result,
-        )
-        result = re.sub(
-            r"\^\^([^^|\n]+)\^\^",
-            lambda m: _PLACEHOLDER_MAP["^"] * 2
-            + m.group(1)
-            + _PLACEHOLDER_MAP["^"] * 2,
-            result,
-        )
-        result = re.sub(
-            r"__([^_\n]+)__",
-            lambda m: _PLACEHOLDER_MAP["_"] * 2
-            + m.group(1)
-            + _PLACEHOLDER_MAP["_"] * 2,
-            result,
-        )
-
-        # Single character versions
-        result = re.sub(
-            r"~([^~\n]+)~",
-            lambda m: _PLACEHOLDER_MAP["~"] + m.group(1) + _PLACEHOLDER_MAP["~"],
-            result,
-        )
-        result = re.sub(
-            r"\+([^+\n]+)\+",
-            lambda m: _PLACEHOLDER_MAP["+"] + m.group(1) + _PLACEHOLDER_MAP["+"],
-            result,
-        )
-        result = re.sub(
-            r"-([^-\n]+)-",
-            lambda m: _PLACEHOLDER_MAP["-"] + m.group(1) + _PLACEHOLDER_MAP["-"],
-            result,
-        )
-        result = re.sub(
-            r"<([^<\n]+)<",
-            lambda m: _PLACEHOLDER_MAP["<"] + m.group(1) + _PLACEHOLDER_MAP["<"],
-            result,
-        )
-        result = re.sub(
-            r">([^>\n]+)>",
-            lambda m: _PLACEHOLDER_MAP[">"] + m.group(1) + _PLACEHOLDER_MAP[">"],
-            result,
-        )
-        result = re.sub(
-            r"\^([^^\n]+)\^",
-            lambda m: _PLACEHOLDER_MAP["^"] + m.group(1) + _PLACEHOLDER_MAP["^"],
             result,
         )
 

@@ -20,15 +20,6 @@ from ssmd.ssml_conversions import (
 from ssmd.ssml_conversions import (
     SSMD_BREAK_STRENGTH_MAP,
 )
-from ssmd.ssml_conversions import (
-    SSMD_PITCH_SHORTHAND as PITCH_TO_SSMD,
-)
-from ssmd.ssml_conversions import (
-    SSMD_RATE_SHORTHAND as RATE_TO_SSMD,
-)
-from ssmd.ssml_conversions import (
-    SSMD_VOLUME_SHORTHAND as VOLUME_TO_SSMD,
-)
 from ssmd.types import (
     AudioAttrs,
     BreakAttrs,
@@ -491,213 +482,102 @@ class Segment:
         if self.audio:
             return self._audio_to_ssmd(self.audio)
 
-        # Collect annotations
-        annotations = []
+        annotations: list[tuple[str, str]] = []
 
-        # Language
         if self.language:
-            annotations.append(self.language)
+            annotations.append(("lang", self.language))
 
-        # Voice
         if self.voice:
-            voice_str = self._voice_to_ssmd_annotation(self.voice)
-            if voice_str:
-                annotations.append(voice_str)
+            annotations.extend(self._voice_to_ssmd_pairs(self.voice))
 
-        # Say-as
         if self.say_as:
-            sa_str = f"as: {self.say_as.interpret_as}"
+            annotations.append(("as", self.say_as.interpret_as))
             if self.say_as.format:
-                sa_str += f', format: "{self.say_as.format}"'
+                annotations.append(("format", self.say_as.format))
             if self.say_as.detail:
-                sa_str += f", detail: {self.say_as.detail}"
-            annotations.append(sa_str)
+                annotations.append(("detail", self.say_as.detail))
 
-        # Substitution
         if self.substitution:
-            annotations.append(f"sub: {self.substitution}")
+            annotations.append(("sub", self.substitution))
 
-        # Phoneme - include alphabet
         if self.phoneme:
-            annotations.append(
-                f"ph: {self.phoneme.ph}, alphabet: {self.phoneme.alphabet}"
-            )
+            annotations.append(("ph", self.phoneme.ph))
+            annotations.append(("alphabet", self.phoneme.alphabet))
 
-        # Extension
         if self.extension:
-            annotations.append(f"ext: {self.extension}")
+            annotations.append(("ext", self.extension))
 
-        # Determine if we can use prosody shorthand
-        # Shorthand is only used when: single prosody attr AND no other annotations
-        use_prosody_shorthand = False
-        if self.prosody and not annotations:
-            # Check if only one prosody attribute is set
-            attrs_set = sum(
-                [
-                    1 if self.prosody.volume else 0,
-                    1 if self.prosody.rate else 0,
-                    1 if self.prosody.pitch else 0,
-                ]
-            )
-            if attrs_set == 1:
-                # Check if the value has a shorthand
-                if self.prosody.volume and self.prosody.volume in VOLUME_TO_SSMD:
-                    use_prosody_shorthand = True
-                elif self.prosody.rate and self.prosody.rate in RATE_TO_SSMD:
-                    use_prosody_shorthand = True
-                elif self.prosody.pitch and self.prosody.pitch in PITCH_TO_SSMD:
-                    use_prosody_shorthand = True
+        if self.prosody:
+            annotations.extend(self._prosody_to_ssmd_pairs(self.prosody))
 
-        # Add prosody to annotations if not using shorthand
-        if self.prosody and not use_prosody_shorthand:
-            prosody_str = self._prosody_to_ssmd_annotation(self.prosody)
-            if prosody_str:
-                annotations.append(prosody_str)
-
-        # Apply emphasis shorthand or include in annotations
         if self.emphasis:
-            if annotations:
-                # Use annotation form
-                if self.emphasis == "none":
-                    annotations.append("emphasis: none")
-                # Other emphasis levels handled by shorthand below
+            if self.emphasis == "none":
+                annotations.append(("emphasis", "none"))
             else:
-                # Use shorthand
                 if self.emphasis is True or self.emphasis == "moderate":
                     text = f"*{text}*"
                 elif self.emphasis == "strong":
                     text = f"**{text}**"
                 elif self.emphasis == "reduced":
                     text = f"_{text}_"
-                elif self.emphasis == "none":
-                    annotations.append("emphasis: none")
 
-        # If we have annotations, wrap in [text](annotations)
         if annotations:
-            # If we also have emphasis shorthand, wrap the emphasized text
-            if (
-                self.emphasis
-                and self.emphasis != "none"
-                and not any("emphasis:" in a for a in annotations)
-            ):
-                if self.emphasis is True or self.emphasis == "moderate":
-                    text = f"*{text}*"
-                elif self.emphasis == "strong":
-                    text = f"**{text}**"
-                elif self.emphasis == "reduced":
-                    text = f"_{text}_"
-            return f"[{text}]({', '.join(annotations)})"
-
-        # Apply prosody shorthand if no annotations
-        if use_prosody_shorthand and self.prosody:
-            text = self._apply_prosody_shorthand(self.prosody, text)
+            annotation_str = self._format_annotation_pairs(annotations)
+            return f"[{text}]{{{annotation_str}}}"
 
         return text
 
-    def _prosody_to_ssmd_annotation(self, prosody: ProsodyAttrs) -> str:
-        """Convert prosody to SSMD annotation format."""
-        parts = []
+    def _format_annotation_pairs(self, pairs: list[tuple[str, str]]) -> str:
+        """Format annotation key/value pairs."""
+        return " ".join([f'{key}="{value}"' for key, value in pairs])
+
+    def _prosody_to_ssmd_pairs(self, prosody: ProsodyAttrs) -> list[tuple[str, str]]:
+        """Convert prosody to annotation pairs."""
+        pairs: list[tuple[str, str]] = []
 
         if prosody.volume:
-            # Check if it's a relative value
-            if prosody.volume.startswith(("+", "-")) or prosody.volume.endswith("dB"):
-                parts.append(f"v: {prosody.volume}")
-            else:
-                # Map to numeric
-                vol_map = {v: k for k, v in VOLUME_MAP.items()}
-                num = vol_map.get(prosody.volume, prosody.volume)
-                parts.append(f"v: {num}")
+            pairs.append(("volume", prosody.volume))
 
         if prosody.rate:
-            if prosody.rate.endswith("%"):
-                parts.append(f"r: {prosody.rate}")
-            else:
-                rate_map = {v: k for k, v in RATE_MAP.items()}
-                num = rate_map.get(prosody.rate, prosody.rate)
-                parts.append(f"r: {num}")
+            pairs.append(("rate", prosody.rate))
 
         if prosody.pitch:
-            if prosody.pitch.startswith(("+", "-")) or prosody.pitch.endswith("%"):
-                parts.append(f"p: {prosody.pitch}")
-            else:
-                pitch_map = {v: k for k, v in PITCH_MAP.items()}
-                num = pitch_map.get(prosody.pitch, prosody.pitch)
-                parts.append(f"p: {num}")
+            pairs.append(("pitch", prosody.pitch))
 
-        return ", ".join(parts)
+        return pairs
 
-    def _apply_prosody_shorthand(self, prosody: ProsodyAttrs, text: str) -> str:
-        """Apply prosody shorthand notation."""
-        # Only one attribute at a time for shorthand
-        attrs_set = sum(
-            [
-                1 if prosody.volume else 0,
-                1 if prosody.rate else 0,
-                1 if prosody.pitch else 0,
-            ]
-        )
-
-        if attrs_set != 1:
-            # Multiple attrs, use annotation
-            ann = self._prosody_to_ssmd_annotation(prosody)
-            if ann:
-                return f"[{text}]({ann})"
-            return text
-
-        if prosody.volume:
-            wrap = VOLUME_TO_SSMD.get(prosody.volume)
-            if wrap:
-                return f"{wrap[0]}{text}{wrap[1]}"
-
-        if prosody.rate:
-            wrap = RATE_TO_SSMD.get(prosody.rate)
-            if wrap:
-                return f"{wrap[0]}{text}{wrap[1]}"
-
-        if prosody.pitch:
-            wrap = PITCH_TO_SSMD.get(prosody.pitch)
-            if wrap:
-                return f"{wrap[0]}{text}{wrap[1]}"
-
-        return text
-
-    def _voice_to_ssmd_annotation(self, voice: VoiceAttrs) -> str:
-        """Convert voice to SSMD annotation format."""
+    def _voice_to_ssmd_pairs(self, voice: VoiceAttrs) -> list[tuple[str, str]]:
+        """Convert voice to annotation pairs."""
+        pairs: list[tuple[str, str]] = []
         if voice.name:
-            return f"voice: {voice.name}"
-        else:
-            parts = []
-            if voice.language:
-                parts.append(f"voice: {voice.language}")
-            if voice.gender:
-                parts.append(f"gender: {voice.gender}")
-            if voice.variant:
-                parts.append(f"variant: {voice.variant}")
-            return ", ".join(parts)
+            pairs.append(("voice", voice.name))
+        if voice.language:
+            pairs.append(("voice-lang", voice.language))
+        if voice.gender:
+            pairs.append(("gender", voice.gender))
+        if voice.variant is not None:
+            pairs.append(("variant", str(voice.variant)))
+        return pairs
 
     def _audio_to_ssmd(self, audio: AudioAttrs) -> str:
         """Convert audio to SSMD format."""
-        parts = [audio.src]
+        pairs: list[tuple[str, str]] = [("src", audio.src)]
 
-        # Add attributes
         if audio.clip_begin and audio.clip_end:
-            parts.append(f"clip: {audio.clip_begin}-{audio.clip_end}")
+            pairs.append(("clip", f"{audio.clip_begin}-{audio.clip_end}"))
         if audio.speed:
-            parts.append(f"speed: {audio.speed}")
+            pairs.append(("speed", audio.speed))
         if audio.repeat_count:
-            parts.append(f"repeat: {audio.repeat_count}")
+            pairs.append(("repeat", str(audio.repeat_count)))
         if audio.repeat_dur:
-            parts.append(f"repeatDur: {audio.repeat_dur}")
+            pairs.append(("repeatDur", audio.repeat_dur))
         if audio.sound_level:
-            parts.append(f"level: {audio.sound_level}")
-
-        # Add alt text
+            pairs.append(("level", audio.sound_level))
         if audio.alt_text:
-            parts.append(audio.alt_text)
+            pairs.append(("alt", audio.alt_text))
 
-        # Use self.text as description (can be empty)
-        # Audio attributes are space-separated per spec
-        return f"[{self.text}]({' '.join(parts)})"
+        annotation_str = self._format_annotation_pairs(pairs)
+        return f"[{self.text}]{{{annotation_str}}}"
 
     def _break_to_ssmd(self, brk: BreakAttrs) -> str:
         """Convert break to SSMD format."""

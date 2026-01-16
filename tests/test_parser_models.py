@@ -519,6 +519,18 @@ class TestParseSentencesIntegration:
         # Emphasis should be preserved in segments
         assert any("world" in seg.text for seg in sentences[0].segments)
 
+    def test_regex_mode_with_language(self):
+        """Regex mode should preserve lang info."""
+        text = 'Hello [world]{lang="en-gb"}, [cafe]{lang="fr"}. Hello again.'
+        sentences = parse_sentences(text, use_spacy=False)
+
+        assert len(sentences) == 2
+        assert len(sentences[0].segments) == 5
+        assert sentences[0].segments[1].language == "en-gb"
+        assert sentences[0].segments[3].language == "fr"
+        # Emphasis should be preserved in segments
+        assert any("world" in seg.text for seg in sentences[0].segments)
+
     def test_regex_mode_with_voice_blocks(self):
         """Regex mode should work with voice blocks."""
         text = """

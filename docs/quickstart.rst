@@ -25,7 +25,7 @@ SSMD to SSML
    # Welcome
    Hello *world*!
    This is a ...500ms pause.
-   [Bonjour](fr) everyone!
+   [Bonjour]{lang="fr"} everyone!
    """)
 
 Strip Markup
@@ -207,13 +207,13 @@ Using Presets
    from ssmd import Document
 
    # Use preset for eSpeak (limited SSML support)
-   doc = Document("*Hello* [world](fr)!", capabilities='espeak')
+   doc = Document('*Hello* [world]{lang="fr"}!', capabilities='espeak')
    ssml = doc.to_ssml()
    # eSpeak doesn't support emphasis or language switching
    # Output: <speak>Hello world!</speak>
 
    # Use preset for Google TTS (full support)
-   doc = Document("*Hello* [world](fr)!", capabilities='google')
+   doc = Document('*Hello* [world]{lang="fr"}!', capabilities='google')
    ssml = doc.to_ssml()
    # Output: <speak><emphasis>Hello</emphasis> <lang xml:lang="fr-FR">world</lang>!</speak>
 
@@ -276,36 +276,36 @@ Voice Control
 .. code-block:: python
 
    # Volume
-   ssmd.to_ssml("This is +loud+")
-   ssmd.to_ssml("This is ++very loud++")
-   ssmd.to_ssml("This is -soft-")
+   ssmd.to_ssml('[loud]{volume="loud"}')
+   ssmd.to_ssml('[very loud]{volume="x-loud"}')
+   ssmd.to_ssml('[soft]{volume="soft"}')
 
    # Speed
-   ssmd.to_ssml("This is >fast>")
-   ssmd.to_ssml("This is >>very fast>>")
-   ssmd.to_ssml("This is <slow<")
+   ssmd.to_ssml('[fast]{rate="fast"}')
+   ssmd.to_ssml('[very fast]{rate="x-fast"}')
+   ssmd.to_ssml('[slow]{rate="slow"}')
 
    # Pitch
-   ssmd.to_ssml("This is ^high^")
-   ssmd.to_ssml("This is ^^very high^^")
-   ssmd.to_ssml("This is _low_")
+   ssmd.to_ssml('[high]{pitch="high"}')
+   ssmd.to_ssml('[very high]{pitch="x-high"}')
+   ssmd.to_ssml('[low]{pitch="low"}')
 
 Language Switching
 ~~~~~~~~~~~~~~~~~~
 
 .. code-block:: python
 
-   ssmd.to_ssml('[Bonjour](fr) everyone!')
-   ssmd.to_ssml('[Hola](es-MX) amigos!')
-   ssmd.to_ssml('[Hello](en-GB) there!')
+   ssmd.to_ssml('[Bonjour]{lang="fr"} everyone!')
+   ssmd.to_ssml('[Hola]{lang="es-MX"} amigos!')
+   ssmd.to_ssml('[Hello]{lang="en-GB"} there!')
 
 Phonetic Pronunciation
 ~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: python
 
-   ssmd.to_ssml('[tomato](ph: təˈmeɪtoʊ)')
-   ssmd.to_ssml('[hello](ipa: həˈloʊ)')
+   ssmd.to_ssml('[tomato]{ph="təˈmeɪtoʊ"}')
+   ssmd.to_ssml('[hello]{ipa="həˈloʊ"}')
 
 Next Steps
 ----------

@@ -31,7 +31,7 @@ class TestEscapeSyntaxUtility:
 
     def test_escape_annotations(self):
         """Annotation syntax should be escaped."""
-        text = "Visit [our website](https://example.com)"
+        text = 'Visit [our website]{src="https://example.com"}'
         result = ssmd.escape_ssmd_syntax(text)
         assert result != text
         assert ssmd.unescape_ssmd_syntax(result) == text
@@ -71,16 +71,16 @@ class TestEscapeSyntaxUtility:
         assert result != text
         assert ssmd.unescape_ssmd_syntax(result) == text
 
-    def test_escape_prosody_shorthand(self):
-        """Prosody shorthand should be escaped."""
-        text = "This is ++loud++ and <<slow<< text"
+    def test_escape_prosody_annotation(self):
+        """Prosody annotation should be escaped."""
+        text = 'This is [loud]{volume="x-loud"} text'
         result = ssmd.escape_ssmd_syntax(text)
         assert result != text
         assert ssmd.unescape_ssmd_syntax(result) == text
 
     def test_selective_escaping_emphasis_only(self):
         """Test escaping only emphasis patterns."""
-        text = "This *word* has [annotation](param) and @mark"
+        text = 'This *word* has [annotation]{lang="fr"} and @mark'
         result = ssmd.escape_ssmd_syntax(text, patterns=["emphasis"])
         # Emphasis should be changed
         assert "*word*" not in result
@@ -90,7 +90,7 @@ class TestEscapeSyntaxUtility:
 
     def test_selective_escaping_annotations_only(self):
         """Test escaping only annotation patterns."""
-        text = "This *word* has [annotation](param)"
+        text = 'This *word* has [annotation]{lang="fr"}'
         result = ssmd.escape_ssmd_syntax(text, patterns=["annotations"])
         # Emphasis should remain
         assert "*word*" in result
@@ -99,7 +99,7 @@ class TestEscapeSyntaxUtility:
 
     def test_selective_escaping_multiple(self):
         """Test escaping multiple specific patterns."""
-        text = "This *word* has [link](url) and @mark"
+        text = 'This *word* has [link]{src="url"} and @mark'
         result = ssmd.escape_ssmd_syntax(text, patterns=["emphasis", "annotations"])
         # Emphasis and annotations should be changed
         assert "*word*" not in result
@@ -109,7 +109,7 @@ class TestEscapeSyntaxUtility:
 
     def test_unescape_removes_placeholders(self):
         """Test that unescape removes placeholder escapes."""
-        text = "This *word* has [annotation](param)"
+        text = 'This *word* has [annotation]{lang="fr"}'
         escaped = ssmd.escape_ssmd_syntax(text)
         result = ssmd.unescape_ssmd_syntax(escaped)
         assert result == text
@@ -154,7 +154,7 @@ class TestDocumentEscapeParameter:
 
     def test_markdown_link_escaped(self):
         """Markdown links should not trigger audio/annotation."""
-        text = "[Click here](https://example.com)"
+        text = '[Click here]{src="https://example.com"}'
         doc = ssmd.Document(text, escape_syntax=True)
         ssml = doc.to_ssml()
         # Should not have audio or annotation tags
@@ -185,7 +185,7 @@ class TestDocumentEscapeParameter:
 
     def test_selective_escape_emphasis_only(self):
         """Test Document with selective pattern escaping."""
-        text = "This *word* has [annotation](param)"
+        text = 'This *word* has [annotation]{lang="fr"}'
         doc = ssmd.Document(text, escape_syntax=True, escape_patterns=["emphasis"])
         ssml = doc.to_ssml()
         # Emphasis should not be created
@@ -300,7 +300,7 @@ class TestEdgeCases:
         """Multiline content should be handled correctly."""
         text = """Line 1 with *emphasis*
 Line 2 with **strong**
-Line 3 with [link](url)"""
+Line 3 with [link]{src="url"}"""
         result = ssmd.escape_ssmd_syntax(text)
         # Should be different from original
         assert result != text
@@ -309,7 +309,7 @@ Line 3 with [link](url)"""
 
     def test_special_characters_in_annotations(self):
         """Special characters in annotation params should work."""
-        text = "[text](https://example.com?param=value&other=123)"
+        text = '[text]{src="https://example.com?param=value&other=123"}'
         result = ssmd.escape_ssmd_syntax(text)
         # Should be different from original
         assert result != text

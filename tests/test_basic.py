@@ -31,14 +31,14 @@ def test_break():
 
 def test_language_annotation():
     """Test language annotation."""
-    result = ssmd.to_ssml("[Guardians of the Galaxy](en)")
+    result = ssmd.to_ssml('[Guardians of the Galaxy]{lang="en"}')
     assert 'xml:lang="en-US"' in result
     assert "Guardians of the Galaxy" in result
 
 
 def test_substitution():
     """Test substitution annotation."""
-    result = ssmd.to_ssml("[H2O](sub: water)")
+    result = ssmd.to_ssml('[H2O]{sub="water"}')
     assert '<sub alias="water">H2O</sub>' in result
 
 
@@ -110,9 +110,9 @@ def test_config_skip_processor():
     assert "world" in result
 
 
-def test_prosody_shorthand():
-    """Test prosody shorthand."""
-    result = ssmd.to_ssml("++loud++")
+def test_prosody_annotation():
+    """Test prosody annotation."""
+    result = ssmd.to_ssml('[loud]{volume="x-loud"}')
     assert '<prosody volume="x-loud">loud</prosody>' in result
 
 
@@ -166,31 +166,31 @@ def test_document_from_text():
 
 def test_voice_simple_name():
     """Test voice with simple name."""
-    result = ssmd.to_ssml("[Hello](voice: Joanna)")
+    result = ssmd.to_ssml('[Hello]{voice="Joanna"}')
     assert '<voice name="Joanna">Hello</voice>' in result
 
 
 def test_voice_language_gender():
     """Test voice with language and gender."""
-    result = ssmd.to_ssml("[Bonjour](voice: fr-FR, gender: female)")
+    result = ssmd.to_ssml('[Bonjour]{voice-lang="fr-FR" gender="female"}')
     assert '<voice language="fr-FR" gender="female">Bonjour</voice>' in result
 
 
 def test_voice_all_attributes():
     """Test voice with all attributes."""
-    result = ssmd.to_ssml("[Text](voice: en-GB, gender: male, variant: 1)")
+    result = ssmd.to_ssml('[Text]{voice-lang="en-GB" gender="male" variant="1"}')
     assert '<voice language="en-GB" gender="male" variant="1">Text</voice>' in result
 
 
 def test_voice_wavenet_name():
     """Test voice with Wavenet-style name."""
-    result = ssmd.to_ssml("[Hello](voice: en-US-Wavenet-A)")
+    result = ssmd.to_ssml('[Hello]{voice="en-US-Wavenet-A"}')
     assert '<voice name="en-US-Wavenet-A">Hello</voice>' in result
 
 
 def test_strip_voice():
     """Test stripping voice markup."""
-    result = ssmd.to_text("[Hello](voice: Joanna)")
+    result = ssmd.to_text('[Hello]{voice="Joanna"}')
     assert result == "Hello"
 
 
@@ -245,7 +245,7 @@ Hello from Sarah"""
 def test_voice_inline_and_directive():
     """Test mixing inline and directive voice syntax."""
     text = """@voice: sarah
-Hello from Sarah, and [this is Michael](voice: michael) interrupting!
+Hello from Sarah, and [this is Michael]{voice="michael"} interrupting!
 
 @voice: michael
 Now I'm speaking normally."""

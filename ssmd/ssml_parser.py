@@ -6,15 +6,7 @@ from typing import Any
 
 from ssmd.formatter import format_ssmd
 from ssmd.parser import parse_sentences
-from ssmd.ssml_conversions import (
-    SSML_BREAK_STRENGTH_MAP,
-    SSML_PITCH_SHORTHAND,
-    SSML_PITCH_TO_NUMERIC,
-    SSML_RATE_SHORTHAND,
-    SSML_RATE_TO_NUMERIC,
-    SSML_VOLUME_SHORTHAND,
-    SSML_VOLUME_TO_NUMERIC,
-)
+from ssmd.ssml_conversions import SSML_BREAK_STRENGTH_MAP
 
 
 class SSMLParser:
@@ -185,7 +177,7 @@ class SSMLParser:
             return f"_{content}_"
         elif level == "none":
             # Level "none" is rare - use explicit annotation
-            return f"[{content}](emphasis: none)"
+            return f'[{content}]{{emphasis="none"}}'
         else:  # moderate or default
             return f"*{content}*"
 
@@ -239,59 +231,24 @@ class SSMLParser:
         if pitch == "medium":
             pitch = None
 
-        # Count non-default attributes
-        attr_count = sum([1 for v in [volume, rate, pitch] if v is not None])
-
-        # Try shorthand notation first (single non-default attribute)
-        if attr_count == 1:
-            if volume and not rate and not pitch:
-                wrap = SSML_VOLUME_SHORTHAND.get(volume)
-                if wrap and wrap[0]:  # Has shorthand
-                    return f"{wrap[0]}{content}{wrap[1]}"
-
-            if rate and not volume and not pitch:
-                wrap = SSML_RATE_SHORTHAND.get(rate)
-                if wrap and wrap[0]:
-                    return f"{wrap[0]}{content}{wrap[1]}"
-
-            if pitch and not volume and not rate:
-                wrap = SSML_PITCH_SHORTHAND.get(pitch)
-                if wrap and wrap[0]:
-                    return f"{wrap[0]}{content}{wrap[1]}"
-
-        # No attributes set - return plain content
-        if attr_count == 0:
+        if not any([volume, rate, pitch]):
             return content
 
-        # Multiple attributes or numeric values - use annotation syntax
         annotations = []
 
         if volume:
-            # Map to numeric scale (1-5)
-            if volume in SSML_VOLUME_TO_NUMERIC:
-                annotations.append(f"v: {SSML_VOLUME_TO_NUMERIC[volume]}")
-            elif volume.startswith(("+", "-")) or volume.endswith("dB"):
-                annotations.append(f"v: {volume}")
+            annotations.append(f'volume="{volume}"')
 
         if rate:
-            if rate in SSML_RATE_TO_NUMERIC:
-                annotations.append(f"r: {SSML_RATE_TO_NUMERIC[rate]}")
-            elif rate.endswith("%"):
-                annotations.append(f"r: {rate}")
+            annotations.append(f'rate="{rate}"')
 
         if pitch:
-            if pitch in SSML_PITCH_TO_NUMERIC:
-                annotations.append(f"p: {SSML_PITCH_TO_NUMERIC[pitch]}")
-            elif pitch.startswith(("+", "-")) or pitch.endswith("Hz"):
-                annotations.append(f"p: {pitch}")
+            annotations.append(f'pitch="{pitch}"')
 
-        if annotations:
-            return f"[{content}]({', '.join(annotations)})"
-
-        return content
+        return f"[{content}]{{{' '.join(annotations)}}}"
 
     def _process_language(self, element: ET.Element) -> str:
-        """Convert <lang> to [text](lang).
+        """Convert <lang> to [text]{lang="..."}.
 
         Args:
             element: lang element
@@ -308,9 +265,9 @@ class SSMLParser:
             # Check if it's in our standard locales mapping
             simplified = self.STANDARD_LOCALES.get(lang)
             if simplified:
-                return f"[{content}]({simplified})"
+                return f'[{content}]{{lang="{simplified}"}}'
             # Otherwise use full locale
-            return f"[{content}]({lang})"
+            return f'[{content}]{{lang="{lang}"}}'
 
         return content
 
@@ -318,7 +275,7 @@ class SSMLParser:
         """Convert <voice> to directive or annotation syntax.
 
         Uses directive syntax (@voice: name) for multi-line content,
-        and annotation syntax ([text](voice: name)) for single-line content.
+        and annotation syntax ([text]{voice="name"}) for single-line content.
 
         Args:
             element: voice element
@@ -364,25 +321,25 @@ class SSMLParser:
         # Use inline annotation syntax
         if name:
             # Simple name-only format
-            return f"[{content}](voice: {name})"
+            return f'[{content}]{{voice="{name}"}}'
         else:
             # Complex format with language/gender/variant
             parts = []
             if language:
-                parts.append(f"voice: {language}")
+                parts.append(f'voice-lang="{language}"')
             if gender:
-                parts.append(f"gender: {gender}")
+                parts.append(f'gender="{gender}"')
             if variant:
-                parts.append(f"variant: {variant}")
+                parts.append(f'variant="{variant}"')
 
             if parts:
-                annotation = ", ".join(parts)
-                return f"[{content}]({annotation})"
+                annotation = " ".join(parts)
+                return f"[{content}]{{{annotation}}}"
 
         return content
 
     def _process_phoneme(self, element: ET.Element) -> str:
-        """Convert <phoneme> to [text](ph: ..., alphabet: ...).
+        """Convert <phoneme> to [text]{ph="..." alphabet="..."}.
 
         Args:
             element: phoneme element
@@ -394,11 +351,11 @@ class SSMLParser:
         alphabet = element.get("alphabet", "ipa")
         ph = element.get("ph", "")
 
-        # Use explicit format: [text](ph: value, alphabet: type)
-        return f"[{content}](ph: {ph}, alphabet: {alphabet})"
+        # Use explicit format: [text]{ph="value" alphabet="type"}
+        return f'[{content}]{{ph="{ph}" alphabet="{alphabet}"}}'
 
     def _process_substitution(self, element: ET.Element) -> str:
-        """Convert <sub> to [text](sub: alias).
+        """Convert <sub> to [text]{sub="alias"}.
 
         Args:
             element: sub element
@@ -410,12 +367,12 @@ class SSMLParser:
         alias = element.get("alias", "")
 
         if alias:
-            return f"[{content}](sub: {alias})"
+            return f'[{content}]{{sub="{alias}"}}'
 
         return content
 
     def _process_say_as(self, element: ET.Element) -> str:
-        """Convert <say-as> to [text](as: type).
+        """Convert <say-as> to [text]{as="type"}.
 
         Args:
             element: say-as element
@@ -429,22 +386,22 @@ class SSMLParser:
         detail_attr = element.get("detail")
 
         # Build annotation string
-        parts = [f"as: {interpret_as}"]
+        parts = [f'as="{interpret_as}"']
 
         if format_attr:
-            parts.append(f'format: "{format_attr}"')
+            parts.append(f'format="{format_attr}"')
         if detail_attr:
-            parts.append(f"detail: {detail_attr}")
+            parts.append(f'detail="{detail_attr}"')
 
-        annotation = ", ".join(parts)
+        annotation = " ".join(parts)
 
         if interpret_as:
-            return f"[{content}]({annotation})"
+            return f"[{content}]{{{annotation}}}"
 
         return content
 
     def _process_audio(self, element: ET.Element) -> str:
-        """Convert <audio> to [desc](url.mp3 attrs alt).
+        """Convert <audio> to [desc]{src="url" ...}.
 
         Args:
             element: audio element
@@ -485,53 +442,33 @@ class SSMLParser:
         content_text = content_text.strip()
 
         # If there's no <desc> tag but there is text content,
-        # treat the text as description with "alt" marker
+        # treat the text as description
         if not has_desc_tag and content_text:
             description = content_text
-            has_alt_marker = True
-        else:
-            # If there's a <desc> tag, any other text is alt text
-            has_alt_marker = False
 
         if not src:
             return description if description else content_text
 
-        # Build attributes string
-        attrs = []
+        pairs = [("src", src)]
 
         if clip_begin and clip_end:
-            attrs.append(f"clip: {clip_begin}-{clip_end}")
+            pairs.append(("clip", f"{clip_begin}-{clip_end}"))
         if speed:
-            attrs.append(f"speed: {speed}")
+            pairs.append(("speed", speed))
         if repeat_count:
-            attrs.append(f"repeat: {repeat_count}")
+            pairs.append(("repeat", repeat_count))
         if repeat_dur:
-            attrs.append(f"repeatDur: {repeat_dur}")
+            pairs.append(("repeatDur", repeat_dur))
         if sound_level:
-            attrs.append(f"level: {sound_level}")
-
-        # Build the annotation
-        attrs_str = ", ".join(attrs)
-
-        # Combine: [description](url attrs alt)
-        url_parts = [src]
-        if attrs_str:
-            url_parts.append(attrs_str)
-
-        # Add alt text or alt marker
+            pairs.append(("level", sound_level))
         if has_desc_tag and content_text:
-            # Has <desc> tag and additional text - include the text
-            url_parts.append(content_text)
-        elif has_alt_marker:
-            # No <desc> tag, text became description - add "alt" marker
-            url_parts.append("alt")
+            pairs.append(("alt", content_text))
 
-        url_part = " ".join(url_parts)
+        annotation = " ".join([f'{key}="{value}"' for key, value in pairs])
 
         if description:
-            return f"[{description}]({url_part})"
-        else:
-            return f"[]({url_part})"
+            return f"[{description}]{{{annotation}}}"
+        return f"[]{{{annotation}}}"
 
     def _process_mark(self, element: ET.Element) -> str:
         """Convert <mark> to @name.
@@ -551,7 +488,7 @@ class SSMLParser:
         return ""
 
     def _process_amazon_effect(self, element: ET.Element) -> str:
-        """Convert Amazon effects to [text](ext: name).
+        """Convert Amazon effects to [text]{ext="name"}.
 
         Args:
             element: amazon:effect element
@@ -571,7 +508,7 @@ class SSMLParser:
         ext_name = effect_map.get(name, name)
 
         if ext_name:
-            return f"[{content}](ext: {ext_name})"
+            return f'[{content}]{{ext="{ext_name}"}}'
 
         return content
 

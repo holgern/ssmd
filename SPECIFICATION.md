@@ -63,16 +63,18 @@ SSMD:
 *moderate emphasis*
 **strong emphasis**
 ~~reduced emphasis~~
-[no emphasis]{emphasis="none"}
 [moderate]{emphasis="moderate"}
 [strong]{emphasis="strong"}
 [reduced]{emphasis="reduced"}
+[no emphasis]{emphasis="none"}
 ```
 
 SSML:
 
 ```xml
 <emphasis>moderate emphasis</emphasis>
+<emphasis level="strong">strong emphasis</emphasis>
+<emphasis level="reduced">reduced emphasis</emphasis>
 <emphasis level="moderate">moderate emphasis</emphasis>
 <emphasis level="strong">strong emphasis</emphasis>
 <emphasis level="reduced">reduced emphasis</emphasis>
@@ -160,6 +162,36 @@ I saw <lang xml:lang="de-DE">"Die Häschenschule"</lang> in the cinema.
 - `zh` → `zh-CN`
 - `ru` → `ru-RU`
 
+#### Lang Directives (Block Syntax)
+
+For multi language documents:
+
+```
+@lang: en-us
+Welcome to the show! I'm Sarah.
+
+@lang: en-gb
+Thanks Sarah! Great to be here.
+```
+
+SSML:
+
+```xml
+<lang xml:lang="en-US">
+<p>Welcome to the show! I'm Sarah.</p>
+</lang>
+
+<lang xml:lang="en-GB">
+<p>Thanks Sarah! Great to be here.</p>
+</lang>
+```
+
+**Directive Syntax Options:**
+
+- `@lang: language-code`
+
+Voice directives apply to all text until the next directive or paragraph break.
+
 ---
 
 ### Voice
@@ -192,7 +224,7 @@ SSML:
 **Voice Attributes:**
 
 - `voice: NAME` - Voice name
-- `language: LANG` - Language code (e.g., `en-US`, `fr-FR`)
+- `voice-lang: LANG` - Language code (e.g., `en-US`, `fr-FR`)
 - `gender: GENDER` - male, female, or neutral
 - `variant: NUMBER` - Variant number for tiebreaking
 
@@ -214,6 +246,9 @@ This story takes place in London.
 
 @voice-lang: fr-FR, gender: female
 Bonjour tout le monde!
+
+@gender: female
+Hello World.
 ```
 
 SSML:
@@ -234,6 +269,11 @@ SSML:
 <voice language="fr-FR" gender="female">
 <p>Bonjour tout le monde!</p>
 </voice>
+
+<voice gender="female">
+<p>Hello world.</p>
+</voice>
+
 ```
 
 **Directive Syntax Options:**
@@ -241,7 +281,8 @@ SSML:
 - `@voice: name`
 - `@voice: name, voice-lang: code`
 - `@voice: name, voice-lang: code, gender: value`
-- `@voice-lang: langcwuage-code, gender: value`
+- `@voice-lang: language-code, gender: value`
+- `@gender: value`
 
 Voice directives apply to all text until the next directive or paragraph break.
 
@@ -267,8 +308,8 @@ I always wanted a <mark name="animal"/> cat as a pet.
 Click <mark name="here"/> to continue.
 ```
 
-**Note:** The `@voice` directive is reserved and will not be interpreted as a marker.
-Use `@voice:` for voice directives.
+**Note:** The `@text:` directive is reserved and will not be interpreted as a marker.
+Where text is any word.
 
 ---
 
@@ -409,16 +450,12 @@ SSML (with default configuration):
 
 **Configurable Heading Levels:**
 
-Heading effects can be customized via configuration:
+Heading effects can be customized via heading_level directive:
 
 ```python
-config = {
-    'heading_levels': {
-        1: [('pause_before', '300ms'), ('emphasis', 'strong'), ('pause', '300ms')],
-        2: [('pause_before', '75ms'), ('emphasis', 'moderate'), ('pause', '75ms')],
-        3: [('pause_before', '50ms'), ('prosody', {'rate': 'slow'}), ('pause', '50ms')],
-    }
-}
+@heading_level: 1, pause_before: 300ms, emphasis: strong, pause: 300ms
+@heading_level: 2, pause_before: 75ms, emphasis: moderate, pause: 75ms
+@heading_level: 3, pause_before: 50ms, rate: slow, pause: 50ms
 ```
 
 Available effect types:
@@ -426,7 +463,9 @@ Available effect types:
 - `pause_before`: Adds a pause before the heading text is spoken
 - `emphasis`: Sets the emphasis level for the heading text
 - `pause`: Adds a pause after the heading text is spoken
-- `prosody`: Adjusts volume, rate, or pitch for the heading text
+- `volume`: Adjusts volume for the heading text
+- `rate`: Adjusts rate for the heading text
+- `pitch`: Adjusts pitch for the heading text
 
 ---
 
@@ -581,7 +620,31 @@ SSML:
 <prosody pitch="-4%">lower</prosody>
 ```
 
----
+#### Directive
+
+SSMD:
+
+```
+@volume: x-loud, rate: x-fast, pitch=x-high
+extra loud, fast, and high
+
+@volume: 5, rate: 5, pitch 5
+extra loud, fast, and high
+
+@volume: 4, rate: 2
+loud and slow
+
+```
+
+SSML:
+
+```xml
+<prosody volume="x-loud" rate="x-fast" pitch="x-high">extra loud, fast, and high</prosody>
+<prosody volume="x-loud" rate="x-fast" pitch="x-high">extra loud, fast, and high</prosody>
+<prosody volume="loud" rate="slow">loud and slow</prosody>
+```
+
+## SSMD:
 
 ### Say-as
 
@@ -768,13 +831,9 @@ SSML:
 Speaking styles for Google Cloud TTS can be configured:
 
 ```python
-config = {
-    'extensions': {
-        'cheerful': lambda text: f'<google:style name="cheerful">{text}</google:style>',
-        'calm': lambda text: f'<google:style name="calm">{text}</google:style>',
-        'empathetic': lambda text: f'<google:style name="empathetic">{text}</google:style>',
-    }
-}
+@extensions: cheerful, value: lambda text: f'<google:style name="cheerful">{text}</google:style>'
+@extensions: calm, value: lambda text: f'<google:style name="calm">{text}</google:style>'
+@extensions: empathetic: lambda text: f'<google:style name="empathetic">{text}</google:style>'
 ```
 
 SSMD:
@@ -806,12 +865,8 @@ SSML:
 Extensions can be registered via configuration:
 
 ```python
-config = {
-    'extensions': {
-        'whisper': lambda text: f'<amazon:effect name="whispered">{text}</amazon:effect>',
-        'robotic': lambda text: f'<voice-transformation type="robot">{text}</voice-transformation>',
-    }
-}
+@extensions: whisper, value: lambda text: f'<amazon:effect name="whispered">{text}</amazon:effect>'
+@extensions: robotic, value: lambda text: f'<voice-transformation type="robot">{text}</voice-transformation>'
 ```
 
 ---

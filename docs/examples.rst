@@ -22,7 +22,7 @@ pyttsx3 (Offline TTS)
    # Welcome Message
    *Hello* and welcome!
    Please ...500ms listen carefully.
-   This is >>very fast>>.
+   This is [very fast]{rate="x-fast"}.
    """
 
    # Create document with pyttsx3 capabilities
@@ -49,7 +49,7 @@ Google Text-to-Speech
    # Create content
    text = """
    *Welcome* to our service.
-   [Bonjour](fr) to our French users!
+   [Bonjour]{lang="fr"} to our French users!
    Please wait ...1s for the next message.
    """
 
@@ -101,10 +101,10 @@ Google Cloud TTS supports speaking styles for Neural2 and Studio voices:
    })
 
    # Build content with speaking styles
-   doc.add_sentence("[Welcome to our customer service!](ext: cheerful)")
-   doc.add_sentence("[We understand this must be frustrating.](ext: empathetic)")
-   doc.add_sentence("[We sincerely apologize for the inconvenience.](ext: apologetic)")
-   doc.add_sentence("[Please take a moment to breathe.](ext: calm)")
+   doc.add_sentence("[Welcome to our customer service!]{ext=\"cheerful\"}")
+   doc.add_sentence("[We understand this must be frustrating.]{ext=\"empathetic\"}")
+   doc.add_sentence("[We sincerely apologize for the inconvenience.]{ext=\"apologetic\"}")
+   doc.add_sentence("[Please take a moment to breathe.]{ext=\"calm\"}")
 
    # Generate SSML
    ssml = doc.to_ssml()
@@ -150,7 +150,7 @@ Amazon Polly
    # Create content with Amazon extensions
    text = """
    *Welcome* to our podcast.
-   Now for the [secret message](ext: whisper).
+   Now for the [secret message]{ext="whisper"}.
    Back to normal voice.
    """
 
@@ -310,14 +310,14 @@ Interactive Story Reader
    story = """
    # The Adventure Begins
 
-   [Once upon a time](v: 2, r: 2), in a land far away.
+   [Once upon a time]{volume="2" rate="2"}, in a land far away.
    There lived a brave *knight* named Sir Galahad.
    He faced many challenges ...1s but never gave up.
 
    # The Quest
 
    One day, the king summoned him.
-   ++Go forth++ said the king, ++and save our kingdom++!
+   [Go forth]{volume="x-loud"} said the king, [and save our kingdom]{volume="x-loud"}!
    """
 
    reader = StoryReader()
@@ -431,8 +431,9 @@ Language-Aware TTS
            for lang, text in messages:
                if lang == 'en':
                    parts.append(text)
-               else:
-                   parts.append(f"[{text}]({lang})")
+                else:
+                    parts.append(f"[{text}]{{lang=\"{lang}\"}}")
+
 
            return " ".join(parts)
 
@@ -473,7 +474,8 @@ Podcast Generator
            enhanced_script = f"""
            # Episode {episode_number}
 
-           [Podcast intro music](@intro_music.mp3)
+            [Podcast intro music]{src="@intro_music.mp3"}
+
 
            ...1s
 
@@ -481,7 +483,8 @@ Podcast Generator
 
            ...2s
 
-           [Outro music](@outro_music.mp3)
+            [Outro music]{src="@outro_music.mp3"}
+
            """
 
            # Create document with Polly capabilities
@@ -509,7 +512,7 @@ Podcast Generator
    Today we're discussing artificial intelligence.
 
    Our guest is Dr. Smith, an expert in machine learning.
-   [Welcome to the show](v: 4), Doctor Smith!
+   [Welcome to the show]{volume="4"}, Doctor Smith!
 
    ...500ms
 
@@ -733,7 +736,7 @@ Custom TTS Pipeline
    tts = CustomTTS()
    tts.process_script("""
    @voice: sarah
-   Call [+1-555-0123](as: telephone) today!
+   Call [+1-555-0123]{as="telephone"} today!
    """)
 
 Text Transformation Example
@@ -744,9 +747,9 @@ Text Transformation Example
    from ssmd import parse_segments
 
    text = """
-   Call [+1-555-0123](as: telephone) for info.
-   [H2O](sub: water) is important.
-   Say [tomato](ph: təˈmeɪtoʊ) correctly.
+   Call [+1-555-0123]{as="telephone"} for info.
+   [H2O]{sub="water"} is important.
+   Say [tomato]{ph="təˈmeɪtoʊ"} correctly.
    """
 
    segments = parse_segments(text)

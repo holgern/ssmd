@@ -79,11 +79,11 @@ Language
 
    # Full locale
    ssmd.from_ssml('<lang xml:lang="fr-FR">Bonjour</lang>')
-   # → [Bonjour](fr)
+   # → [Bonjour]{lang="fr"}
 
    # Non-standard locales preserved
    ssmd.from_ssml('<lang xml:lang="en-GB">Hello</lang>')
-   # → [Hello](en-GB)
+   # → [Hello]{lang="en-GB"}
 
 Phonemes
 ~~~~~~~~
@@ -92,11 +92,11 @@ Phonemes
 
    # IPA notation
    ssmd.from_ssml('<phoneme alphabet="ipa" ph="təˈmeɪtoʊ">tomato</phoneme>')
-   # → [tomato](ph: təˈmeɪtoʊ)
+   # → [tomato]{ph="təˈmeɪtoʊ" alphabet="ipa"}
 
    # X-SAMPA notation
    ssmd.from_ssml('<phoneme alphabet="x-sampa" ph="t@meIt@U">tomato</phoneme>')
-   # → [tomato](sampa: t@meIt@U)
+   # → [tomato]{ph="t@meIt@U" alphabet="x-sampa"}
 
 Prosody
 ~~~~~~~
@@ -105,22 +105,22 @@ Prosody
 
    # Volume
    ssmd.from_ssml('<prosody volume="loud">text</prosody>')
-   # → [text](v: 4)
+   # → [text]{volume="loud"}
 
    ssmd.from_ssml('<prosody volume="x-loud">text</prosody>')
-   # → [text](v: 5)
+   # → [text]{volume="x-loud"}
 
    # Rate
    ssmd.from_ssml('<prosody rate="fast">text</prosody>')
-   # → [text](r: 4)
+   # → [text]{rate="fast"}
 
    # Pitch
    ssmd.from_ssml('<prosody pitch="high">text</prosody>')
-   # → [text](p: 4)
+   # → [text]{pitch="high"}
 
    # Multiple attributes
    ssmd.from_ssml('<prosody volume="loud" rate="fast" pitch="high">text</prosody>')
-   # → [text](v: 4, r: 4, p: 4)
+   # → [text]{volume="loud" rate="fast" pitch="high"}
 
 Say-As
 ~~~~~~
@@ -129,11 +129,11 @@ Say-As
 
    # Basic say-as
    ssmd.from_ssml('<say-as interpret-as="telephone">+1-555-1234</say-as>')
-   # → [+1-555-1234](as: telephone)
+   # → [+1-555-1234]{as="telephone"}
 
    # With format attribute
    ssmd.from_ssml('<say-as interpret-as="date" format="mdy">12/31/2024</say-as>')
-   # → [12/31/2024](as: date, format: "mdy")
+   # → [12/31/2024]{as="date" format="mdy"}
 
 Substitution
 ~~~~~~~~~~~~
@@ -141,7 +141,7 @@ Substitution
 .. code-block:: python
 
    ssmd.from_ssml('<sub alias="World Wide Web">WWW</sub>')
-   # → [WWW](sub: World Wide Web)
+   # → [WWW]{sub="World Wide Web"}
 
 Audio
 ~~~~~
@@ -150,15 +150,15 @@ Audio
 
    # With description
    ssmd.from_ssml('<audio src="sound.mp3">Alternative text</audio>')
-   # → [](sound.mp3 Alternative text)
+   # → [Alternative text]{src="sound.mp3"}
 
    # With desc tag
    ssmd.from_ssml('<audio src="bell.mp3"><desc>doorbell</desc></audio>')
-   # → [doorbell](bell.mp3)
+   # → [doorbell]{src="bell.mp3"}
 
    # No description
    ssmd.from_ssml('<audio src="beep.mp3"></audio>')
-   # → [](beep.mp3)
+   # → []{src="beep.mp3"}
 
 Marks
 ~~~~~
@@ -192,7 +192,7 @@ Platform Extensions
    # Amazon whisper effect
    ssml = '<amazon:effect name="whispered">secret</amazon:effect>'
    ssmd.from_ssml(ssml)
-   # → [secret](ext: whisper)
+   # → [secret]{ext="whisper"}
 
 Default Value Filtering
 ------------------------
@@ -204,12 +204,12 @@ SSMD automatically removes default/medium values to keep output clean:
    # Medium values are filtered out
    ssml = '<prosody volume="medium" rate="medium" pitch="medium">text</prosody>'
    ssmd.from_ssml(ssml)
-   # → text  (not [text](v: 3, r: 3, p: 3))
+   # → text  (not [text]{volume="medium" rate="medium" pitch="medium"})
 
    # Only non-default values are included
    ssml = '<prosody volume="loud" rate="medium" pitch="medium">text</prosody>'
    ssmd.from_ssml(ssml)
-   # → [text](v: 4)
+   # → [text]{volume="loud"}
 
 Round-Trip Conversion
 ---------------------
@@ -221,7 +221,7 @@ Convert SSMD → SSML → SSMD preserving semantics:
    import ssmd
 
    # Original SSMD
-   original = "*Hello* [world](fr) ...500ms +loud+"
+   original = '*Hello* [world]{lang="fr"} ...500ms [loud]{volume="loud"}'
 
    # Convert to SSML
    ssml = ssmd.to_ssml(original)
@@ -232,7 +232,7 @@ Convert SSMD → SSML → SSMD preserving semantics:
    # Convert back to SSMD
    restored = ssmd.from_ssml(ssml)
    print(restored)
-   # *Hello* [world](fr) ...500ms [loud](v: 4)
+   # *Hello* [world]{lang="fr"} ...500ms [loud]{volume="loud"}
 
    # Semantically equivalent, even if syntax differs slightly
 
@@ -254,7 +254,7 @@ Nested Elements
    </speak>'''
 
    ssmd_text = ssmd.from_ssml(ssml)
-   # Output: *Important:* [[Bonjour](v: 4)](fr)
+   # Output: *Important:* [Bonjour]{lang="fr" volume="loud"}
 
 Mixed Content
 ~~~~~~~~~~~~~
@@ -272,7 +272,7 @@ Mixed Content
    # Output:
    # *Hello* world
    #
-   # This is [important](v: 4)
+   # This is [important]{volume="loud"}
    #
    # ...500ms
    #
@@ -399,7 +399,7 @@ Limitations
 -----------
 
 1. **Syntax differences**: Round-trip conversion is semantically equivalent but may
-   use different syntax (e.g., ``+loud+`` becomes ``[loud](v: 4)``)
+   normalize attribute order or quoting in annotations
 
 2. **Comments lost**: XML comments are not preserved
 

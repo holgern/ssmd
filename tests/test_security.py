@@ -13,28 +13,25 @@ class TestXMLInjectionPrevention:
         # Use ssmd.to_ssml convenience function
 
         # Attempt to inject script tag via voice name
-        result = ssmd.to_ssml('[hello](voice: Joanna"><script>alert(1)</script><x a=")')
+        result = ssmd.to_ssml('[hello]{voice="Joanna<script>alert(1)</script>"}')
 
         # Should not contain unescaped script tag
         assert "<script>" not in result
-        assert "alert(1)" not in result or "&lt;script&gt;" in result
+        assert "&lt;script&gt;" in result
 
-        # Should contain escaped quotes
-        assert "Joanna&quot;&gt;&lt;script&gt;" in result or 'Joanna"' not in result
+        # Should contain escaped tag content
+        assert "Joanna&lt;script&gt;" in result
 
     def test_voice_language_injection(self):
         """Test that malicious language codes are escaped."""
         # Use ssmd.to_ssml convenience function
 
         # Attempt to inject via language attribute
-        # This won't match the voice regex and will be treated as plain text
-        result = ssmd.to_ssml('[text](voice: en-US"><evil/><x lang=")')
+        result = ssmd.to_ssml('[text]{voice-lang="en-US<evil/>"}')
 
         # Should not contain unescaped evil tag
-        # The annotation won't match, so it becomes plain text - that's OK!
         assert "<evil/>" not in result
-        # Either it doesn't match (becomes plain text) or it's escaped
-        assert "<evil" not in result or "&lt;evil" in result
+        assert "&lt;evil" in result
 
     def test_voice_gender_injection(self):
         """Test that malicious gender values are escaped."""
@@ -42,22 +39,22 @@ class TestXMLInjectionPrevention:
 
         # Attempt to inject via gender attribute
         result = ssmd.to_ssml(
-            '[text](voice: en-US, gender: female"><script>evil()</script><x a=")'
+            '[text]{voice-lang="en-US" gender="female<script>evil()</script>"}'
         )
 
         # Should not contain unescaped script
         assert "<script>" not in result
-        assert "evil()" not in result or "&lt;script&gt;" in result
+        assert "&lt;script&gt;" in result
 
     def test_substitution_injection(self):
         """Test that malicious aliases are escaped."""
         # Use ssmd.to_ssml convenience function
 
         # Attempt to inject via substitution alias
-        result = ssmd.to_ssml('[H2O](sub: water"><evil attr="value"/><x a=")')
+        result = ssmd.to_ssml('[H2O]{sub="water<evil/>"}')
 
         # Should not contain UNESCAPED evil tag (key test!)
-        assert '<evil attr="value"/>' not in result
+        assert "<evil/>" not in result
         # The escaped version should be present
         assert "&lt;evil" in result and "&gt;" in result
 
@@ -66,13 +63,11 @@ class TestXMLInjectionPrevention:
         # Use ssmd.to_ssml convenience function
 
         # Attempt to inject via phoneme
-        result = ssmd.to_ssml(
-            '[text](ipa: ɑ"></phoneme><script>alert(1)</script><phoneme ph=")'
-        )
+        result = ssmd.to_ssml('[text]{ipa="ɑ<phoneme><script>alert(1)</script>"}')
 
         # Should not contain unescaped script tag
-        assert "<script>" not in result or "</phoneme><script>" not in result
-        assert "&lt;script&gt;" in result or "&quot;&gt;&lt;/phoneme&gt;" in result
+        assert "<script>" not in result
+        assert "&lt;script&gt;" in result
 
     def test_audio_url_injection(self):
         """Test that malicious URLs are escaped."""
@@ -80,21 +75,22 @@ class TestXMLInjectionPrevention:
 
         # Attempt to inject via audio URL
         # This won't match the audio regex (doesn't end with .mp3 properly)
-        result = ssmd.to_ssml('[desc](sound.mp3" onload="alert(1)" x=")')
+        result = ssmd.to_ssml('[desc]{src="sound.mp3<evil/>"}')
 
-        # Should not create executable onload
-        # Either it doesn't match (plain text) or it's escaped
-        assert 'onload="alert(1)"' not in result or "&quot;" in result
+        # Should not create unescaped tag
+        assert "<evil/>" not in result
+        assert "&lt;evil" in result
 
     def test_audio_clip_injection(self):
         """Test that audio clip attributes are escaped."""
         # Use ssmd.to_ssml convenience function
 
         # Attempt to inject via clip attribute
-        result = ssmd.to_ssml('[music](song.mp3 clip: 0s"-1s"><evil/><x a=")')
+        result = ssmd.to_ssml('[music]{src="song.mp3" clip="0s-1s<evil/>"}')
 
         # Should not contain unescaped evil tag
-        assert "<evil/>" not in result or "&lt;evil/&gt;" in result
+        assert "<evil/>" not in result
+        assert "&lt;evil" in result
 
     def test_audio_speed_injection(self):
         """Test that audio speed attribute is escaped."""
@@ -102,24 +98,23 @@ class TestXMLInjectionPrevention:
 
         # Attempt to inject via speed attribute
         result = ssmd.to_ssml(
-            '[fast](speech.mp3 speed: 150%"><script>pwned()</script><x a=")'
+            '[fast]{src="speech.mp3" speed="150%<script>pwned()</script>"}'
         )
 
         # Should not contain unescaped script
-        assert "<script>" not in result or "&lt;script&gt;" in result
-        assert (
-            "pwned()" not in result or "&lt;script&gt;pwned()&lt;/script&gt;" in result
-        )
+        assert "<script>" not in result
+        assert "&lt;script&gt;" in result
 
     def test_say_as_interpret_injection(self):
         """Test that say-as interpret-as is escaped."""
         # Use ssmd.to_ssml convenience function
 
         # Attempt to inject via interpret-as
-        result = ssmd.to_ssml('[123](as: cardinal"><evil/><say-as interpret-as=")')
+        result = ssmd.to_ssml('[123]{as="cardinal<evil/>"}')
 
         # Should not contain unescaped evil tag
-        assert "<evil/>" not in result or "&lt;evil/&gt;" in result
+        assert "<evil/>" not in result
+        assert "&lt;evil" in result
 
     def test_say_as_format_injection(self):
         """Test that say-as format attribute is escaped."""
@@ -127,50 +122,54 @@ class TestXMLInjectionPrevention:
 
         # Attempt to inject via format
         result = ssmd.to_ssml(
-            '[date](as: date, format: "dd.mm.yyyy"><script>alert()</script><x a=")'
+            '[date]{as="date" format="dd.mm.yyyy<script>alert()</script>"}'
         )
 
         # Should not contain unescaped script
-        assert "<script>" not in result or "&lt;script&gt;" in result
+        assert "<script>" not in result
+        assert "&lt;script&gt;" in result
 
     def test_language_code_injection(self):
         """Test that language codes are escaped."""
         # Use ssmd.to_ssml convenience function
 
         # Attempt to inject via language code
-        result = ssmd.to_ssml('[text](en-US"><evil/><lang xml:lang=")')
+        result = ssmd.to_ssml('[text]{lang="en-US<evil/>"}')
 
         # Should not contain unescaped evil tag
-        assert "<evil/>" not in result or "&lt;evil/&gt;" in result
+        assert "<evil/>" not in result
+        assert "&lt;evil" in result
 
     def test_prosody_volume_injection(self):
         """Test that prosody volume values are escaped."""
         # Use ssmd.to_ssml convenience function
 
         # Attempt to inject via volume value (using annotation syntax)
-        result = ssmd.to_ssml('[loud](v: +10dB"><evil/><prosody volume=")')
+        result = ssmd.to_ssml('[loud]{volume="+10dB<evil/>"}')
 
         # Should not contain unescaped evil tag
-        assert "<evil/>" not in result or "&lt;evil/&gt;" in result
+        assert "<evil/>" not in result
+        assert "&lt;evil" in result
 
     def test_prosody_rate_injection(self):
         """Test that prosody rate values are escaped."""
         # Use ssmd.to_ssml convenience function
 
         # Attempt to inject via rate value
-        result = ssmd.to_ssml('[fast](r: 150%"><script>bad()</script><x a=")')
+        result = ssmd.to_ssml('[fast]{rate="150%<script>bad()</script>"}')
 
         # Should not contain unescaped script
-        assert "<script>" not in result or "&lt;script&gt;" in result
+        assert "<script>" not in result
+        assert "&lt;script&gt;" in result
 
     def test_multiple_injections(self):
         """Test multiple injection attempts in same document."""
         # Use ssmd.to_ssml convenience function
 
         text = """
-[evil1](voice: Joanna"><script>alert(1)</script><x a=")
-[evil2](sub: water"><evil/><x a=")
-[evil3](ipa: ɑ"></phoneme><script>pwned()</script><phoneme ph=")
+[evil1]{voice="Joanna<script>alert(1)</script>"}
+[evil2]{sub="water<evil/>"}
+[evil3]{ipa="ɑ<phoneme><script>pwned()</script>"}
         """
 
         result = ssmd.to_ssml(text)
@@ -194,7 +193,7 @@ class TestQuoteEscaping:
         """Test that double quotes in voice names are escaped."""
         # Use ssmd.to_ssml convenience function
 
-        result = ssmd.to_ssml('[text](voice: Voice"Name)')
+        result = ssmd.to_ssml("[text]{voice='Voice\"Name'}")
 
         # Should escape the quote
         assert "Voice&quot;Name" in result or 'Voice"Name' not in result.replace(
@@ -206,7 +205,7 @@ class TestQuoteEscaping:
         # Use ssmd.to_ssml convenience function
 
         # HTML escape should handle quotes
-        result = ssmd.to_ssml("[text](sub: O'Brien)")
+        result = ssmd.to_ssml('[text]{sub="O\'Brien"}')
 
         # Should be valid XML (parser won't throw)
         import xml.etree.ElementTree as ET
@@ -220,7 +219,7 @@ class TestQuoteEscaping:
         """Test mixed single and double quotes."""
         # Use ssmd.to_ssml convenience function
 
-        result = ssmd.to_ssml("[text](sub: He said \"hi\" and she said 'bye')")
+        result = ssmd.to_ssml("[text]{sub='He said \"hi\" and she said \\'bye\\''}")
 
         # Should be valid XML
         import xml.etree.ElementTree as ET
@@ -238,7 +237,7 @@ class TestSpecialCharacters:
         """Test that ampersands are escaped."""
         # Use ssmd.to_ssml convenience function
 
-        result = ssmd.to_ssml("[R&D](sub: Research & Development)")
+        result = ssmd.to_ssml('[R&D]{sub="Research & Development"}')
 
         # Should escape ampersand
         assert "Research &amp; Development" in result or "&amp;" in result
@@ -247,7 +246,7 @@ class TestSpecialCharacters:
         """Test that < is escaped."""
         # Use ssmd.to_ssml convenience function
 
-        result = ssmd.to_ssml("[text](ipa: ɑ<test)")
+        result = ssmd.to_ssml('[text]{ipa="ɑ<test"}')
 
         # Should escape <
         assert "ɑ&lt;test" in result or "<test" not in result.split(">")[-1]
@@ -257,7 +256,7 @@ class TestSpecialCharacters:
         # Use ssmd.to_ssml convenience function
 
         # Test with > in the ALIAS, not the text
-        result = ssmd.to_ssml("[text](sub: A>B means A greater than B)")
+        result = ssmd.to_ssml('[text]{sub="A>B means A greater than B"}')
 
         # Should escape > in the alias attribute
         assert "A&gt;B" in result or 'alias="A>B' not in result
@@ -267,7 +266,7 @@ class TestSpecialCharacters:
         # Use ssmd.to_ssml convenience function
 
         # All 5 XML special chars: < > & " '
-        result = ssmd.to_ssml("[text](sub: <tag> & \"quotes\" 'test')")
+        result = ssmd.to_ssml("[text]{sub='<tag> & \"quotes\" \\'test\\''}")
 
         # Should be valid XML
         import xml.etree.ElementTree as ET
@@ -285,7 +284,7 @@ class TestEdgeCases:
         """Test injection with empty content."""
         # Use ssmd.to_ssml convenience function
 
-        result = ssmd.to_ssml('[](voice: "><script></script><x a=")')
+        result = ssmd.to_ssml('[]{voice="<script></script>"}')
 
         # Should not contain script tag
         assert "<script>" not in result or "&lt;script&gt;" in result
@@ -295,7 +294,7 @@ class TestEdgeCases:
         # Use ssmd.to_ssml convenience function
 
         malicious = "<a><b><c><script>alert(1)</script></c></b></a>"
-        result = ssmd.to_ssml(f"[text](sub: {malicious})")
+        result = ssmd.to_ssml(f'[text]{{sub="{malicious}"}}')
 
         # Should escape all tags
         assert "<script>" not in result or "&lt;script&gt;" in result
@@ -306,7 +305,7 @@ class TestEdgeCases:
         # Use ssmd.to_ssml convenience function
 
         # Null bytes should be handled safely
-        result = ssmd.to_ssml("[text](voice: Joanna\x00Evil)")
+        result = ssmd.to_ssml('[text]{voice="Joanna\x00Evil"}')
 
         # Should be valid XML (parser won't crash)
         import xml.etree.ElementTree as ET
@@ -322,7 +321,7 @@ class TestEdgeCases:
         # Use ssmd.to_ssml convenience function
 
         # Unicode look-alike characters
-        result = ssmd.to_ssml("[text](voice: Joanna＜script＞alert()＜/script＞)")
+        result = ssmd.to_ssml('[text]{voice="Joanna＜script＞alert()＜/script＞"}')
 
         # Should not break XML parsing
         import xml.etree.ElementTree as ET
@@ -338,7 +337,7 @@ class TestEdgeCases:
 
         # Very long malicious string
         long_evil = "<script>" + "A" * 10000 + "alert(1)" + "</script>"
-        result = ssmd.to_ssml(f"[text](sub: {long_evil})")
+        result = ssmd.to_ssml(f'[text]{{sub="{long_evil}"}}')
 
         # Should escape without crashing
         assert len(result) > 0
@@ -353,7 +352,7 @@ class TestValidSSMLOutput:
         # Use ssmd.to_ssml convenience function
 
         # Use a valid voice name (alphanumeric + hyphens/underscores only)
-        result = ssmd.to_ssml("[hello](voice: Joanna-Test_1)")
+        result = ssmd.to_ssml('[hello]{voice="Joanna-Test_1"}')
 
         # Should be valid XML
         import xml.etree.ElementTree as ET
@@ -371,7 +370,7 @@ class TestValidSSMLOutput:
         """Test that escaped substitution parses correctly."""
         # Use ssmd.to_ssml convenience function
 
-        result = ssmd.to_ssml("[H2O](sub: water & ice)")
+        result = ssmd.to_ssml('[H2O]{sub="water & ice"}')
 
         # Should be valid XML
         import xml.etree.ElementTree as ET
@@ -389,13 +388,13 @@ class TestValidSSMLOutput:
         # Use ssmd.to_ssml convenience function
 
         text = """
-[text](voice: Jo&anna)
-[H2O](sub: water & ice)
-[text](ipa: ɑ&test)
-[123](as: cardinal)
-[hello](en-GB)
-[loud](v: 5, r: 3, p: 4)
-[desc](sound.mp3 clip: 0s-10s)
+[text]{voice="Jo&anna"}
+[H2O]{sub="water & ice"}
+[text]{ipa="ɑ&test"}
+[123]{as="cardinal"}
+[hello]{lang="en-GB"}
+[loud]{volume="5" rate="3" pitch="4"}
+[desc]{src="sound.mp3" clip="0s-10s"}
         """
 
         result = ssmd.to_ssml(text)
@@ -416,7 +415,7 @@ class TestRoundtripWithEscaping:
         """Test SSMD -> SSML -> SSMD with special characters."""
         from ssmd.ssml_parser import SSMLParser
 
-        original = "[R&D](sub: Research & Development)"
+        original = '[R&D]{sub="Research & Development"}'
         # Use ssmd.to_ssml convenience function
         parser = SSMLParser()
 
@@ -439,7 +438,7 @@ class TestRoundtripWithEscaping:
         from ssmd.ssml_parser import SSMLParser
 
         # Voice names with special chars
-        original = "[text](voice: Test-Voice-1)"
+        original = '[text]{voice="Test-Voice-1"}'
         # Use ssmd.to_ssml convenience function
         parser = SSMLParser()
 

@@ -28,7 +28,7 @@ each feature individually instead of generating a complete SSML document.
 
    script = """
    @voice: sarah
-   Hello! Call [+1-555-0123](as: telephone) for info.
+   Hello! Call [+1-555-0123]{as="telephone"} for info.
 
    @voice: michael
    Thanks *Sarah*!
@@ -224,7 +224,7 @@ Parse SSMD text into segments without sentence grouping.
 
    from ssmd import parse_segments
 
-   segments = parse_segments("Call [+1-555-0123](as: telephone) now")
+   segments = parse_segments('Call [+1-555-0123]{as="telephone"} now')
 
    for seg in segments:
        if seg.say_as:
@@ -427,9 +427,9 @@ Handle say-as, substitution, and phoneme features:
    from ssmd import parse_segments
 
    text = """
-   Call [+1-555-0123](as: telephone) for info.
-   [H2O](sub: water) is important.
-   Say [tomato](ph: təˈmeɪtoʊ) correctly.
+   Call [+1-555-0123]{as="telephone"} for info.
+   [H2O]{sub="water"} is important.
+   Say [tomato]{ph="təˈmeɪtoʊ"} correctly.
    """
 
    segments = parse_segments(text)
@@ -453,11 +453,15 @@ Process voice blocks separately:
 
    script = """
    @voice: sarah
-   Welcome to the show!
+   Hello! Call [+1-555-0123]{as="telephone"} for info.
 
    @voice: michael
-   Thanks Sarah! Great to be here.
+   Thanks *Sarah*!
    """
+
+
+
+
 
    blocks = parse_voice_blocks(script)
 
@@ -476,7 +480,7 @@ Build sentences from segments for TTS processing:
 
    script = """
    @voice: sarah
-   Hello! Call [+1-555-0123](as: telephone) for info.
+   Hello! Call [+1-555-0123]{as="telephone"} for info.
 
    @voice: michael
    Thanks *Sarah*!
@@ -599,7 +603,7 @@ Example integration with a TTS engine:
    # Usage
    script = """
    @voice: sarah
-   Hello! Today's date is [2024-01-15](as: date, format: mdy).
+   Hello! Today's date is [2024-01-15]{as="date" format="mdy"}.
 
    @voice: michael
    Thank you for listening!
@@ -619,7 +623,7 @@ Filter features based on TTS engine capabilities:
 
    # Parse with pyttsx3 capabilities (limited SSML support)
    sentences = parse_sentences(
-       "Hello *world*! [Bonjour](fr) everyone!",
+       'Hello *world*! [Bonjour]{lang="fr"} everyone!',
        capabilities='pyttsx3'
    )
 

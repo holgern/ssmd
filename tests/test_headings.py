@@ -334,7 +334,7 @@ class TestHeadingEdgeCases:
 
     def test_heading_with_inline_annotations(self):
         """Test heading with inline SSMD annotations."""
-        result = to_ssml("# Chapter [1](as: cardinal)")
+        result = to_ssml('# Chapter [1]{as="cardinal"}')
         # Should process heading and say-as
         assert "Chapter" in result
         assert '<emphasis level="strong">' in result

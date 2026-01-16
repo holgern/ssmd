@@ -575,100 +575,87 @@ class TestLosslessRoundtrip:
 
     def test_language_annotation(self):
         """Language annotation should be preserved."""
-        text = "[bonjour](lang: fr) my friend"
+        text = '[bonjour]{lang="fr"} my friend'
         sentences = parse_sentences(text)
         formatted = format_ssmd(sentences)
 
-        # SSMD spec uses short form: [text](fr) not [text](lang: fr)
-        assert "[bonjour](fr)" in formatted
+        assert '[bonjour]{lang="fr"}' in formatted
 
     def test_substitution(self):
         """Substitution should be preserved."""
-        text = "[SSMD](sub: Speech Synthesis Markdown) is great"
+        text = '[SSMD]{sub="Speech Synthesis Markdown"} is great'
         sentences = parse_sentences(text)
         formatted = format_ssmd(sentences)
 
-        assert "[SSMD](sub: Speech Synthesis Markdown)" in formatted
+        assert '[SSMD]{sub="Speech Synthesis Markdown"}' in formatted
 
     def test_say_as(self):
         """Say-as annotation should be preserved."""
-        text = "Call [555-1234](say-as: telephone) now"
+        text = 'Call [555-1234]{as="telephone"} now'
         sentences = parse_sentences(text)
         formatted = format_ssmd(sentences)
 
-        # SSMD spec uses short form: [text](as: type) not [text](say-as: type)
-        assert "[555-1234](as: telephone)" in formatted
+        assert '[555-1234]{as="telephone"}' in formatted
 
     def test_say_as_with_format(self):
         """Say-as with format should be preserved."""
-        text = "The date is [12/31/2023](say-as: date, format: mdy)"
+        text = 'The date is [12/31/2023]{as="date" format="mdy"}'
         sentences = parse_sentences(text)
         formatted = format_ssmd(sentences)
 
-        # SSMD spec uses short form: [text](as: type, format: value)
-        assert "[12/31/2023](as: date" in formatted
-        assert "format:" in formatted
+        assert '[12/31/2023]{as="date"' in formatted
+        assert 'format="mdy"' in formatted
 
     def test_phoneme(self):
         """Phoneme annotation should be preserved."""
-        text = "Say [tomato](ph: təˈmeɪtoʊ, alphabet: ipa) carefully"
+        text = 'Say [tomato]{ph="təˈmeɪtoʊ" alphabet="ipa"} carefully'
         sentences = parse_sentences(text)
         formatted = format_ssmd(sentences)
 
-        assert "[tomato](ph: təˈmeɪtoʊ, alphabet: ipa)" in formatted
+        assert '[tomato]{ph="təˈmeɪtoʊ" alphabet="ipa"}' in formatted
 
     def test_prosody_rate(self):
         """Prosody rate should be preserved."""
-        text = "[speak quickly](rate: fast) please"
+        text = '[speak quickly]{rate="fast"} please'
         sentences = parse_sentences(text)
         formatted = format_ssmd(sentences)
 
-        # SSMD spec uses shorthand: >text> for fast rate
-        assert ">speak quickly>" in formatted or "[speak quickly](r:" in formatted
+        assert 'rate="fast"' in formatted
 
     def test_prosody_pitch(self):
         """Prosody pitch should be preserved."""
-        text = "[high voice](pitch: +20%) sounds different"
+        text = '[high voice]{pitch="+20%"} sounds different'
         sentences = parse_sentences(text)
         formatted = format_ssmd(sentences)
 
-        # Prosody pitch can use shorthand or bracket notation
         assert "high voice" in formatted
-        # Check for pitch info in some form
-        assert "(p:" in formatted or "^" in formatted
+        assert 'pitch="+20%"' in formatted
 
     def test_prosody_volume(self):
         """Prosody volume should be preserved."""
-        text = "[quiet words](volume: soft) are hard to hear"
+        text = '[quiet words]{volume="soft"} are hard to hear'
         sentences = parse_sentences(text)
         formatted = format_ssmd(sentences)
 
-        # SSMD spec uses shorthand: -text- for soft volume
-        assert "-quiet words-" in formatted or "(v:" in formatted
+        assert 'volume="soft"' in formatted
 
     def test_prosody_multiple(self):
         """Multiple prosody attributes should be preserved."""
-        text = "[fast and loud](rate: fast, volume: loud) speech"
+        text = '[fast and loud]{rate="fast" volume="loud"} speech'
         sentences = parse_sentences(text)
         formatted = format_ssmd(sentences)
 
-        # Multiple prosody attributes use bracket notation
         assert "fast and loud" in formatted
-        # Check that some prosody info is preserved
-        assert (
-            "(v:" in formatted
-            or "(r:" in formatted
-            or "+" in formatted
-            or ">" in formatted
-        )
+        assert 'rate="fast"' in formatted
+        assert 'volume="loud"' in formatted
 
     def test_audio(self):
         """Audio should be preserved."""
-        text = "Listen to this [sound](sound.mp3) effect"
+        text = 'Listen to this [sound]{src="sound.mp3"} effect'
         sentences = parse_sentences(text)
         formatted = format_ssmd(sentences)
 
-        assert "[sound](sound.mp3)" in formatted
+        assert '[sound]{src="sound.mp3"}' in formatted
 
     def test_marks(self):
         """Marks should be preserved."""
@@ -680,13 +667,13 @@ class TestLosslessRoundtrip:
 
     def test_complex_mixed(self):
         """Complex mixed markup should be preserved."""
-        text = "*Hello* [world](lang: en) ...s how are [you](emphasis: strong)?"
+        text = '*Hello* [world]{lang="en"} ...s how are [you]{emphasis="strong"}?'
         sentences = parse_sentences(text)
         formatted = format_ssmd(sentences)
 
-        # All markup should be present (SSMD uses short form for language)
         assert "*Hello*" in formatted
-        assert "[world](en)" in formatted  # short form
+        assert '[world]{lang="en"}' in formatted
+        assert "**you**" in formatted
         assert "...s" in formatted
 
     def test_paragraph_breaks(self):
@@ -731,24 +718,23 @@ class TestLosslessRoundtrip:
         """Complex document with all features should roundtrip."""
         text = """*Welcome* to SSMD. ...s
 
-This is [français](lang: fr) text.
-Call [555-1234](say-as: telephone) now. ...w
-Say [tomato](ph: təˈmeɪtoʊ, alphabet: ipa) correctly.
+This is [français]{lang="fr"} text.
+Call [555-1234]{as="telephone"} now. ...w
+Say [tomato]{ph="təˈmeɪtoʊ" alphabet="ipa"} correctly.
 
 @bookmark Start here.
-[Speak fast](rate: fast) please."""
+[Speak fast]{rate="fast"} please."""
 
         sentences = parse_sentences(text)
         formatted = format_ssmd(sentences)
 
         # Key features should be preserved (SSMD spec formats)
         assert "*Welcome*" in formatted
-        assert "[français](fr)" in formatted  # short form
-        assert "[555-1234](as: telephone)" in formatted  # short form
-        assert "[tomato](ph: təˈmeɪtoʊ, alphabet: ipa)" in formatted
+        assert '[français]{lang="fr"}' in formatted
+        assert '[555-1234]{as="telephone"}' in formatted
+        assert '[tomato]{ph="təˈmeɪtoʊ" alphabet="ipa"}' in formatted
         assert "@bookmark" in formatted
-        # Prosody may use shorthand
-        assert "Speak fast" in formatted
+        assert 'rate="fast"' in formatted
         assert "...s" in formatted
         assert "...w" in formatted
 

@@ -47,8 +47,8 @@ STRONG_EMPHASIS_PATTERN = re.compile(r"\*\*([^\*]+)\*\*")
 MODERATE_EMPHASIS_PATTERN = re.compile(r"\*([^\*]+)\*")
 REDUCED_EMPHASIS_PATTERN = re.compile(r"(?<!_)_(?!_)([^_]+?)(?<!_)_(?!_)")
 
-# Annotation pattern: [text](annotation)
-ANNOTATION_PATTERN = re.compile(r"\[([^\]]*)\]\(([^\)]+)\)")
+# Annotation pattern: [text]{key="value"}
+ANNOTATION_PATTERN = re.compile(r"\[([^\]]*)\]\{([^}]*)\}")
 
 # Break pattern: ...500ms, ...2s, ...n, ...w, ...c, ...s, ...p
 BREAK_PATTERN = re.compile(r"\.\.\.(\d+(?:s|ms)|[nwcsp])")
@@ -58,31 +58,6 @@ MARK_PATTERN = re.compile(r"@(?!voice[:(])(\w+)")
 
 # Heading pattern: # ## ###
 HEADING_PATTERN = re.compile(r"^\s*(#{1,6})\s*(.+)$", re.MULTILINE)
-
-# Prosody shorthand patterns (applied after XML escaping, but we handle raw here)
-PROSODY_VOLUME_PATTERN = re.compile(
-    r"(?<![a-zA-Z0-9])"
-    r"(~~|--|\+\+|-(?!-)|(?<!\+)\+|~)"  # Volume markers
-    r"([^~\-+<>_^]+?)"
-    r"\1"
-    r"(?![a-zA-Z0-9])"
-)
-
-PROSODY_RATE_PATTERN = re.compile(
-    r"(?<![a-zA-Z0-9])"
-    r"(<<|<(?!<)|(?<!>)>|>>)"  # Rate markers
-    r"([^<>]+?)"
-    r"\1"
-    r"(?![a-zA-Z0-9])"
-)
-
-PROSODY_PITCH_PATTERN = re.compile(
-    r"(?<![a-zA-Z0-9_])"
-    r"(__|\^\^|(?<!_)_(?!_)|(?<!\^)\^(?!\^))"  # Pitch markers
-    r"([^_^]+?)"
-    r"\1"
-    r"(?![a-zA-Z0-9_])"
-)
 
 # Paragraph break: two or more newlines
 PARAGRAPH_PATTERN = re.compile(r"\n\n+")
@@ -389,21 +364,9 @@ def _parse_segments(  # noqa: C901
         r"\*\*[^\*]+\*\*"  # **strong**
         r"|\*[^\*]+\*"  # *moderate*
         r"|(?<![_a-zA-Z0-9])_(?!_)[^_]+?(?<!_)_(?![_a-zA-Z0-9])"  # _reduced_
-        r"|\[[^\]]*\]\([^\)]+\)"  # [text](annotation)
+        r"|\[[^\]]*\]\{[^}]+\}"  # [text]{annotation}
         r"|\.\.\.(?:\d+(?:s|ms)|[nwcsp])"  # breaks
         r"|@(?!voice[:(])\w+"  # marks
-        r"|~~[^~]+~~"  # ~silent~
-        r"|--[^-]+--"  # --x-soft--
-        r"|\+\+[^+]+\+\+"  # ++x-loud++
-        r"|(?<![a-zA-Z0-9+])\+[^+]+\+(?![a-zA-Z0-9+])"  # +loud+
-        r"|(?<![a-zA-Z0-9-])-[^-]+-(?![a-zA-Z0-9-])"  # -soft-
-        r"|<<[^<>]+<<"  # <<x-slow<<
-        r"|(?<![<a-zA-Z0-9])<[^<>]+<(?![<a-zA-Z0-9])"  # <slow<
-        r"|>>[^<>]+>>"  # >>x-fast>>
-        r"|(?<![>a-zA-Z0-9])>[^<>]+>(?![>a-zA-Z0-9])"  # >fast>
-        r"|__[^_]+__"  # __x-low__
-        r"|\^\^[^^]+\^\^"  # ^^x-high^^
-        r"|(?<![a-zA-Z0-9^])\^[^^]+\^(?![a-zA-Z0-9^])"  # ^high^
         r")"
     )
 
@@ -508,7 +471,7 @@ def _segment_from_markup(markup: str, extensions: dict | None) -> Segment | None
     if markup.startswith("["):
         return _parse_annotation(markup, extensions)
 
-    return _parse_prosody_shorthand(markup)
+    return None
 
 
 def _apply_pending(
@@ -565,7 +528,7 @@ def _parse_break(modifier: str) -> BreakAttrs:
 
 
 def _parse_annotation(markup: str, extensions: dict | None = None) -> Segment | None:
-    """Parse [text](annotation) markup."""
+    """Parse [text]{key="value"} markup."""
     match = ANNOTATION_PATTERN.match(markup)
     if not match:
         return None
@@ -574,156 +537,201 @@ def _parse_annotation(markup: str, extensions: dict | None = None) -> Segment | 
     params = match.group(2).strip()
 
     seg = Segment(text=text)
+    params_map = _parse_annotation_params(params)
 
-    # Try to identify annotation type
-    # Audio (URL or file extension)
-    if _is_audio_annotation(params):
-        seg.audio = _parse_audio_params(params)
+    if not params_map:
         return seg
 
-    # Extension: ext: name
-    ext_match = re.match(r"^ext:\s*(\w+)$", params)
-    if ext_match:
-        seg.extension = ext_match.group(1)
+    if "src" in params_map:
+        seg.audio = _parse_audio_annotation_params(params_map)
         return seg
 
-    # Voice: voice: name or voice: lang, gender: X
-    if params.startswith("voice:"):
-        seg.voice = _parse_voice_annotation(params[6:].strip())
-        return seg
+    if "lang" in params_map:
+        seg.language = params_map["lang"]
+    elif "language" in params_map:
+        seg.language = params_map["language"]
 
-    # Say-as: as: type or say-as: type
-    sayas_match = re.match(
-        r"^(?:say-as|as):\s*(\w+)"
-        r'(?:\s*,\s*format:\s*["\']?([^"\']+)["\']?)?'
-        r"(?:\s*,\s*detail:\s*(\d+))?$",
-        params,
-    )
-    if sayas_match:
-        seg.say_as = SayAsAttrs(
-            interpret_as=sayas_match.group(1),
-            format=sayas_match.group(2),
-            detail=sayas_match.group(3),
-        )
-        return seg
+    voice = _parse_voice_annotation_params(params_map)
+    if voice:
+        seg.voice = voice
 
-    # Phoneme: ph: or ipa: or sampa:
-    # Stop at comma to allow combined annotations like "ph: value, alphabet: ipa"
-    ph_match = re.match(r"^(ph|ipa|sampa):\s*([^,]+)", params)
-    if ph_match:
-        alphabet_type = ph_match.group(1)
-        phonemes = ph_match.group(2).strip()
+    say_as = _parse_say_as_params(params_map)
+    if say_as:
+        seg.say_as = say_as
 
-        # Map shorthand alphabet names
-        if alphabet_type == "sampa":
-            alphabet_type = "x-sampa"
-        elif alphabet_type == "ph":
-            # Default to ipa when using generic "ph:"
-            alphabet_type = "ipa"
+    phoneme = _parse_phoneme_params(params_map)
+    if phoneme:
+        seg.phoneme = phoneme
 
-        # Check for explicit alphabet specification in remaining params
-        remaining = params[ph_match.end() :].strip()
-        if remaining.startswith(","):
-            remaining = remaining[1:].strip()
-            alph_match = re.match(r"^alphabet:\s*([^,]+)", remaining)
-            if alph_match:
-                specified_alphabet = alph_match.group(1).strip().lower()
-                if specified_alphabet in ("ipa", "x-sampa", "sampa"):
-                    # Normalize sampa to x-sampa
-                    alphabet_type = (
-                        "x-sampa"
-                        if specified_alphabet == "sampa"
-                        else specified_alphabet
-                    )
+    if "sub" in params_map:
+        seg.substitution = params_map["sub"]
 
-        # Store phonemes as-is - conversion to IPA happens at SSML render time
-        seg.phoneme = PhonemeAttrs(ph=phonemes, alphabet=alphabet_type)
-        return seg
+    if "emphasis" in params_map:
+        level = params_map["emphasis"].lower()
+        if level in ("none", "reduced", "moderate", "strong"):
+            seg.emphasis = level if level != "moderate" else True
 
-    # Substitution: sub: alias
-    sub_match = re.match(r"^sub:\s*(.+)$", params)
-    if sub_match:
-        seg.substitution = sub_match.group(1).strip()
-        return seg
+    if "ext" in params_map:
+        seg.extension = params_map["ext"]
 
-    # Emphasis: emphasis: level
-    emph_match = re.match(
-        r"^emphasis:\s*(none|reduced|moderate|strong)$", params, re.IGNORECASE
-    )
-    if emph_match:
-        level = emph_match.group(1).lower()
-        seg.emphasis = level if level != "moderate" else True
-        return seg
-
-    # Prosody: vrp:, v:, r:, p:, volume:, rate:, pitch:
-    if _is_prosody_annotation(params):
-        seg.prosody = _parse_prosody_annotation(params)
-        return seg
-
-    # Language code: en, en-US, fr-FR, etc.
-    lang_match = re.match(r"^(?:lang:\s*)?([a-z]{2}(?:-[A-Z]{2})?)$", params)
-    if lang_match:
-        seg.language = lang_match.group(1)
-        return seg
-
-    # Combined annotations (comma-separated)
-    if "," in params:
-        _parse_combined_annotations(seg, params, extensions)
+    prosody = _parse_prosody_params(params_map)
+    if prosody:
+        seg.prosody = prosody
 
     return seg
 
 
-def _is_audio_annotation(params: str) -> bool:
-    """Check if params represent an audio annotation."""
-    audio_extensions = (".mp3", ".ogg", ".wav", ".m4a", ".aac", ".flac")
-    first_part = params.split()[0] if params else ""
-    return first_part.startswith(("http://", "https://", "file://")) or any(
-        first_part.lower().endswith(ext) for ext in audio_extensions
-    )
+def _parse_annotation_params(params: str) -> dict[str, str]:
+    """Parse key="value" pairs from annotation params."""
+    if not params:
+        return {}
+
+    pattern = re.compile(r"([a-zA-Z][\w-]*)\s*=\s*(?:\"([^\"]*)\"|'([^']*)')")
+    values: dict[str, str] = {}
+
+    for match in pattern.finditer(params):
+        key = match.group(1).lower()
+        value = match.group(2) if match.group(2) is not None else match.group(3) or ""
+        values[key] = value
+
+    return values
 
 
-def _parse_audio_params(params: str) -> AudioAttrs:
-    """Parse audio annotation parameters."""
-    parts = params.split()
-    url = parts[0]
+def _parse_audio_annotation_params(params_map: dict[str, str]) -> AudioAttrs:
+    """Parse audio parameters from annotation map."""
+    audio = AudioAttrs(src=params_map["src"])
 
-    audio = AudioAttrs(src=url)
+    clip = params_map.get("clip")
+    if clip and "-" in clip:
+        clip_begin, clip_end = clip.split("-", 1)
+        audio.clip_begin = clip_begin.strip()
+        audio.clip_end = clip_end.strip()
 
-    remaining = " ".join(parts[1:]) if len(parts) > 1 else ""
+    if params_map.get("speed"):
+        audio.speed = params_map["speed"]
 
-    # Parse clip: start-end
-    clip_match = re.search(
-        r"clip:\s*(\d+(?:\.\d+)?[ms]+)-(\d+(?:\.\d+)?[ms]+)", remaining
-    )
-    if clip_match:
-        audio.clip_begin = clip_match.group(1)
-        audio.clip_end = clip_match.group(2)
-        remaining = remaining[: clip_match.start()] + remaining[clip_match.end() :]
+    repeat = params_map.get("repeat")
+    if repeat:
+        try:
+            audio.repeat_count = int(repeat)
+        except ValueError:
+            pass
 
-    # Parse speed: percent
-    speed_match = re.search(r"speed:\s*(\d+(?:\.\d+)?%)", remaining)
-    if speed_match:
-        audio.speed = speed_match.group(1)
-        remaining = remaining[: speed_match.start()] + remaining[speed_match.end() :]
+    if params_map.get("repeatdur"):
+        audio.repeat_dur = params_map["repeatdur"]
 
-    # Parse repeat: count
-    repeat_match = re.search(r"repeat:\s*(\d+)", remaining)
-    if repeat_match:
-        audio.repeat_count = int(repeat_match.group(1))
-        remaining = remaining[: repeat_match.start()] + remaining[repeat_match.end() :]
+    if params_map.get("level"):
+        audio.sound_level = params_map["level"]
 
-    # Parse level: dB
-    level_match = re.search(r"level:\s*([+-]?\d+(?:\.\d+)?dB)", remaining)
-    if level_match:
-        audio.sound_level = level_match.group(1)
-        remaining = remaining[: level_match.start()] + remaining[level_match.end() :]
-
-    # Remaining text is alt text
-    remaining = re.sub(r"[,\s]+", " ", remaining).strip()
-    if remaining:
-        audio.alt_text = remaining
+    if params_map.get("alt"):
+        audio.alt_text = params_map["alt"]
 
     return audio
+
+
+def _parse_voice_annotation_params(params_map: dict[str, str]) -> VoiceAttrs | None:
+    """Parse voice params from annotation map."""
+    if not any(
+        key in params_map
+        for key in ("voice", "voice-lang", "voice_lang", "gender", "variant")
+    ):
+        return None
+
+    voice = VoiceAttrs()
+    voice_name = params_map.get("voice")
+    voice_lang = params_map.get("voice-lang") or params_map.get("voice_lang")
+
+    if voice_name:
+        if (
+            _is_language_code(voice_name)
+            and voice_lang is None
+            and ("gender" in params_map or "variant" in params_map)
+        ):
+            voice.language = voice_name
+        else:
+            voice.name = voice_name
+
+    if voice_lang:
+        voice.language = voice_lang
+
+    if "gender" in params_map:
+        voice.gender = params_map["gender"].lower()  # type: ignore
+
+    if "variant" in params_map:
+        try:
+            voice.variant = int(params_map["variant"])
+        except ValueError:
+            pass
+
+    return voice
+
+
+def _parse_say_as_params(params_map: dict[str, str]) -> SayAsAttrs | None:
+    """Parse say-as params from annotation map."""
+    interpret_as = params_map.get("as") or params_map.get("say-as")
+    if not interpret_as:
+        return None
+
+    return SayAsAttrs(
+        interpret_as=interpret_as,
+        format=params_map.get("format"),
+        detail=params_map.get("detail"),
+    )
+
+
+def _parse_phoneme_params(params_map: dict[str, str]) -> PhonemeAttrs | None:
+    """Parse phoneme params from annotation map."""
+    if "ipa" in params_map:
+        return PhonemeAttrs(ph=params_map["ipa"], alphabet="ipa")
+
+    if "sampa" in params_map:
+        return PhonemeAttrs(ph=params_map["sampa"], alphabet="x-sampa")
+
+    if "ph" in params_map:
+        alphabet = params_map.get("alphabet", "ipa").lower()
+        if alphabet == "sampa":
+            alphabet = "x-sampa"
+        return PhonemeAttrs(ph=params_map["ph"], alphabet=alphabet)
+
+    return None
+
+
+def _parse_prosody_params(params_map: dict[str, str]) -> ProsodyAttrs | None:
+    """Parse prosody params from annotation map."""
+    volume = params_map.get("volume") or params_map.get("v")
+    rate = params_map.get("rate") or params_map.get("r")
+    pitch = params_map.get("pitch") or params_map.get("p")
+
+    if not any([volume, rate, pitch]):
+        return None
+
+    prosody = ProsodyAttrs()
+
+    if volume:
+        prosody.volume = _normalize_prosody_value(volume, PROSODY_VOLUME_MAP)
+    if rate:
+        prosody.rate = _normalize_prosody_value(rate, PROSODY_RATE_MAP)
+    if pitch:
+        prosody.pitch = _normalize_prosody_value(pitch, PROSODY_PITCH_MAP)
+
+    return prosody
+
+
+def _normalize_prosody_value(value: str, mapping: dict[str, str]) -> str:
+    """Normalize prosody values to named levels where possible."""
+    stripped = value.strip()
+    if stripped.isdigit() and stripped in mapping:
+        return mapping[stripped]
+
+    lowered = stripped.lower()
+    if lowered in mapping.values():
+        return lowered
+
+    return stripped
+
+
+def _is_language_code(value: str) -> bool:
+    return bool(re.match(r"^[a-z]{2}(-[A-Z]{2})?$", value))
 
 
 def _parse_voice_annotation(params: str) -> VoiceAttrs:
@@ -755,223 +763,6 @@ def _parse_voice_annotation(params: str) -> VoiceAttrs:
             voice.name = params
 
     return voice
-
-
-def _is_prosody_annotation(params: str) -> bool:
-    """Check if params represent a prosody annotation."""
-    return bool(re.match(r"^(?:vrp:|[vrp]:|volume:|rate:|pitch:)", params))
-
-
-def _parse_prosody_annotation(params: str) -> ProsodyAttrs:
-    """Parse prosody annotation parameters."""
-    prosody = ProsodyAttrs()
-
-    volume_map = PROSODY_VOLUME_MAP
-    rate_map = PROSODY_RATE_MAP
-    pitch_map = PROSODY_PITCH_MAP
-
-    # VRP shorthand: vrp: 555
-    vrp_match = re.match(r"^vrp:\s*(\d{1,3})$", params)
-    if vrp_match:
-        vrp = vrp_match.group(1)
-        if len(vrp) >= 1:
-            prosody.volume = volume_map.get(vrp[0])
-        if len(vrp) >= 2:
-            prosody.rate = rate_map.get(vrp[1])
-        if len(vrp) >= 3:
-            prosody.pitch = pitch_map.get(vrp[2])
-        return prosody
-
-    # Individual parameters
-    for part in params.split(","):
-        part = part.strip()
-        if ":" not in part:
-            continue
-
-        key, value = part.split(":", 1)
-        key = key.strip().lower()
-        value = value.strip()
-
-        # Normalize key names
-        if key in ("v", "volume"):
-            if value.startswith(("+", "-")) or value.endswith(("dB", "%")):
-                prosody.volume = value
-            else:
-                prosody.volume = volume_map.get(value, value)
-        elif key in ("r", "rate"):
-            if value.endswith("%"):
-                prosody.rate = value
-            else:
-                prosody.rate = rate_map.get(value, value)
-        elif key in ("p", "pitch"):
-            if value.startswith(("+", "-")) or value.endswith("%"):
-                prosody.pitch = value
-            else:
-                prosody.pitch = pitch_map.get(value, value)
-
-    return prosody
-
-
-def _parse_prosody_shorthand(markup: str) -> Segment | None:
-    """Parse prosody shorthand markup like ++loud++ or <<slow<<.
-
-    Also handles nested emphasis inside prosody, e.g., +**WARNING**+
-    """
-    # Volume: ~~silent~~, --x-soft--, -soft-, +loud+, ++x-loud++
-    # Order by length (longest first) to ensure ++ matches before +
-    volume_patterns = [
-        ("++", "x-loud"),
-        ("~~", "silent"),
-        ("--", "x-soft"),
-        ("+", "loud"),
-        ("-", "soft"),
-    ]
-
-    # Rate: <<x-slow<<, <slow<, >fast>, >>x-fast>>
-    rate_patterns = [
-        ("<<", "x-slow"),
-        (">>", "x-fast"),
-        ("<", "slow"),
-        (">", "fast"),
-    ]
-
-    # Pitch: __x-low__, _low_ (single _ handled by emphasis), ^high^, ^^x-high^^
-    pitch_patterns = [
-        ("^^", "x-high"),
-        ("__", "x-low"),
-        ("^", "high"),
-    ]
-
-    # Try to match each pattern type
-    for marker, value in volume_patterns:
-        pattern = re.compile(rf"^{re.escape(marker)}(.+?){re.escape(marker)}$")
-        match = pattern.match(markup)
-        if match:
-            inner_text = match.group(1)
-            emphasis = _check_inner_emphasis(inner_text)
-            if emphasis:
-                return Segment(
-                    text=emphasis[0],
-                    emphasis=emphasis[1],
-                    prosody=ProsodyAttrs(volume=value),
-                )
-            return Segment(text=inner_text, prosody=ProsodyAttrs(volume=value))
-
-    for marker, value in rate_patterns:
-        pattern = re.compile(rf"^{re.escape(marker)}(.+?){re.escape(marker)}$")
-        match = pattern.match(markup)
-        if match:
-            inner_text = match.group(1)
-            emphasis = _check_inner_emphasis(inner_text)
-            if emphasis:
-                return Segment(
-                    text=emphasis[0],
-                    emphasis=emphasis[1],
-                    prosody=ProsodyAttrs(rate=value),
-                )
-            return Segment(text=inner_text, prosody=ProsodyAttrs(rate=value))
-
-    for marker, value in pitch_patterns:
-        pattern = re.compile(rf"^{re.escape(marker)}(.+?){re.escape(marker)}$")
-        match = pattern.match(markup)
-        if match:
-            inner_text = match.group(1)
-            emphasis = _check_inner_emphasis(inner_text)
-            if emphasis:
-                return Segment(
-                    text=emphasis[0],
-                    emphasis=emphasis[1],
-                    prosody=ProsodyAttrs(pitch=value),
-                )
-            return Segment(text=inner_text, prosody=ProsodyAttrs(pitch=value))
-
-    return None
-
-
-def _check_inner_emphasis(text: str) -> tuple[str, str | bool] | None:
-    """Check if text is wrapped in emphasis markers.
-
-    Returns (inner_text, emphasis_level) or None if no emphasis found.
-    """
-    # Strong emphasis: **text**
-    strong_match = STRONG_EMPHASIS_PATTERN.fullmatch(text)
-    if strong_match:
-        return (strong_match.group(1), "strong")
-
-    # Moderate emphasis: *text*
-    moderate_match = MODERATE_EMPHASIS_PATTERN.fullmatch(text)
-    if moderate_match:
-        return (moderate_match.group(1), True)
-
-    # Reduced emphasis: _text_
-    reduced_match = REDUCED_EMPHASIS_PATTERN.fullmatch(text)
-    if reduced_match:
-        return (reduced_match.group(1), "reduced")
-
-    return None
-
-
-def _parse_combined_annotations(
-    seg: Segment,
-    params: str,
-    extensions: dict | None = None,
-) -> None:
-    """Parse combined comma-separated annotations."""
-    # Split by comma, but be careful with quoted values
-    parts = _smart_split(params, ",")
-
-    for part in parts:
-        part = part.strip()
-        if not part:
-            continue
-
-        # Language code
-        if re.match(r"^[a-z]{2}(-[A-Z]{2})?$", part):
-            if not seg.language:
-                seg.language = part
-            continue
-
-        # Prosody
-        if re.match(r"^[vrp]:\s*", part) or re.match(r"^(volume|rate|pitch):", part):
-            prosody = _parse_prosody_annotation(part)
-            if seg.prosody:
-                # Merge
-                if prosody.volume and not seg.prosody.volume:
-                    seg.prosody.volume = prosody.volume
-                if prosody.rate and not seg.prosody.rate:
-                    seg.prosody.rate = prosody.rate
-                if prosody.pitch and not seg.prosody.pitch:
-                    seg.prosody.pitch = prosody.pitch
-            else:
-                seg.prosody = prosody
-
-
-def _smart_split(s: str, delimiter: str) -> list[str]:
-    """Split string by delimiter, respecting quoted strings."""
-    parts = []
-    current = ""
-    in_quotes = False
-    quote_char = None
-
-    for char in s:
-        if char in ('"', "'") and not in_quotes:
-            in_quotes = True
-            quote_char = char
-            current += char
-        elif char == quote_char and in_quotes:
-            in_quotes = False
-            quote_char = None
-            current += char
-        elif char == delimiter and not in_quotes:
-            parts.append(current)
-            current = ""
-        else:
-            current += char
-
-    if current:
-        parts.append(current)
-
-    return parts
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
