@@ -141,8 +141,8 @@ class Sentence:
                 content = f"<voice {' '.join(attrs)}>{content}</voice>"
 
         if self.language and (not capabilities or capabilities.language):
-            lang = _escape_xml_attr(self.language)
-            content = f'<lang xml:lang="{lang}">{content}</lang>'
+            lang_escaped = _escape_xml_attr(self.language)
+            content = f'<lang xml:lang="{lang_escaped}">{content}</lang>'
 
         if self.prosody and (not capabilities or capabilities.prosody):
             prosody_attrs = []

@@ -312,7 +312,8 @@ class Segment:
         if self.language:
             if not capabilities or capabilities.language:
                 lang = expand_language_code(self.language)
-                content = f'<lang xml:lang="{lang}">{content}</lang>'
+                lang_escaped = _escape_xml_attr(lang)
+                content = f'<lang xml:lang="{lang_escaped}">{content}</lang>'
 
         # Apply voice (inline) - note: TTSCapabilities doesn't have voice attr
         # Voice is always enabled as it's fundamental to TTS

@@ -267,6 +267,8 @@ class SSMLParser:
         Returns:
             SSMD language syntax
         """
+        from ssmd.segment import _escape_xml_attr
+
         content = self._process_children(element)
         lang = element.get("{http://www.w3.org/XML/1998/namespace}lang") or element.get(
             "lang"
@@ -276,14 +278,15 @@ class SSMLParser:
             return content
 
         simplified = self.STANDARD_LOCALES.get(lang, lang)
+        escaped_lang = _escape_xml_attr(simplified)
         is_multiline = "\n" in content.strip() or len(content.strip()) > 80
         if is_multiline:
             return (
-                f'<div lang="{simplified}">{{DIRECTIVE_NEWLINE}}'
+                f'<div lang="{escaped_lang}">{{DIRECTIVE_NEWLINE}}'
                 f"{content.strip()}{{DIRECTIVE_NEWLINE}}</div>"
             )
 
-        return f'[{content}]{{lang="{simplified}"}}'
+        return f'[{content}]{{lang="{escaped_lang}"}}'
 
     def _process_voice(self, element: ET.Element) -> str:
         """Convert <voice> to directive or annotation syntax.
