@@ -140,6 +140,10 @@ Ich sah [Guardians of the Galaxy]{lang="en"} im Kino.
 Ich sah [Guardians of the Galaxy]{lang="en-GB"} im Kino.
 I saw ["Die Häschenschule"]{lang="de"} in the cinema.
 [Bonjour]{lang="fr"} tout le monde!
+
+:::{lang="en"}
+Hello There!
+:::
 ```
 
 SSML:
@@ -149,6 +153,8 @@ Ich sah <lang xml:lang="en-US">Guardians of the Galaxy</lang> im Kino.
 Ich sah <lang xml:lang="en-GB">Guardians of the Galaxy</lang> im Kino.
 I saw <lang xml:lang="de-DE">"Die Häschenschule"</lang> in the cinema.
 <lang xml:lang="fr-FR">Bonjour</lang> tout le monde!
+
+<lang xml:lang="en-US">Hello There!</lang>
 ```
 
 **Language Code Expansion:**
@@ -167,11 +173,13 @@ I saw <lang xml:lang="de-DE">"Die Häschenschule"</lang> in the cinema.
 For multi language documents:
 
 ```
-@lang: en-us
+<div lang="en-us">
 Welcome to the show! I'm Sarah.
+</div>
 
-@lang: en-gb
+<div lang=en-gb">
 Thanks Sarah! Great to be here.
+</div>
 ```
 
 SSML:
@@ -188,7 +196,7 @@ SSML:
 
 **Directive Syntax Options:**
 
-- `@lang: language-code`
+- `<div lang="language-code">`
 
 Voice directives apply to all text until the next directive or paragraph break.
 
@@ -196,14 +204,14 @@ Voice directives apply to all text until the next directive or paragraph break.
 
 ### Voice
 
-SSMD supports two voice syntax styles: inline annotations for short phrases and block
+SSMD skjupports two voice syntax styles: inline annotations for short phrases and block
 directives for dialogue and multi-speaker scripts.
 
 #### Inline Voice Annotations
 
 For short phrases within a sentence:
 
-SSMD:
+SSMD:""
 
 ```
 [Hello]{voice="Joanna"}
@@ -235,20 +243,25 @@ For dialogue and multi-speaker scripts:
 SSMD:
 
 ```
-@voice: sarah
+<div voice="sarah">
 Welcome to the show! I'm Sarah.
+</div>
 
-@voice: michael
+<div voice="michael">
 Thanks Sarah! Great to be here.
+</div>
 
-@voice: narrator, voice-lang: en-GB
+<div voice="narrator" voice-lang="en-GB">
 This story takes place in London.
+</div>
 
-@voice-lang: fr-FR, gender: female
+<div voice-lang="fr-FR" gender="female">
 Bonjour tout le monde!
+</div>
 
-@gender: female
+<div gender="female">
 Hello World.
+</div>
 ```
 
 SSML:
@@ -278,11 +291,8 @@ SSML:
 
 **Directive Syntax Options:**
 
-- `@voice: name`
-- `@voice: name, voice-lang: code`
-- `@voice: name, voice-lang: code, gender: value`
-- `@voice-lang: language-code, gender: value`
-- `@gender: value`
+- `<div key=value>...</div>`
+- key: `voice`, `voice-lang`, `gender` and `variant`
 
 Voice directives apply to all text until the next directive or paragraph break.
 
@@ -307,9 +317,6 @@ SSML:
 I always wanted a <mark name="animal"/> cat as a pet.
 Click <mark name="here"/> to continue.
 ```
-
-**Note:** The `@text:` directive is reserved and will not be interpreted as a marker.
-Where text is any word.
 
 ---
 
@@ -395,14 +402,15 @@ Third paragraph.
 Voice directives appear on their own line with a blank line after:
 
 ```ssmd
-@voice: sarah
+<div voice="sarah">
 
 Hello! How are you today?
 I'm doing great.
+</div>
 
-@voice: michael
-
+<div voice="michael">
 Thanks for asking!
+</div>
 ```
 
 #### Headings
@@ -450,12 +458,24 @@ SSML (with default configuration):
 
 **Configurable Heading Levels:**
 
-Heading effects can be customized via heading_level directive:
+Heading effects can be customized in the YAML-Header:
 
 ```python
-@heading_level: 1, pause_before: 300ms, emphasis: strong, pause: 300ms
-@heading_level: 2, pause_before: 75ms, emphasis: moderate, pause: 75ms
-@heading_level: 3, pause_before: 50ms, rate: slow, pause: 50ms
+---
+heading:
+   - level_1
+      pause_before: 300ms
+      emphasis: strong
+      pause: 300ms
+   - level_2
+      pause_before: 75ms
+      emphasis: moderate
+      pause: 75ms
+   - level_3
+      pause_before: 50ms
+      rate: slow
+      pause: 50ms
+...
 ```
 
 Available effect types:
@@ -625,14 +645,17 @@ SSML:
 SSMD:
 
 ```
-@volume: x-loud, rate: x-fast, pitch=x-high
+<div volume="x-loud" rate="x-fast" pitch="x-high">
 extra loud, fast, and high
+</div>
 
-@volume: 5, rate: 5, pitch 5
+<div volume="5" rate="5" pitch="5">
 extra loud, fast, and high
+</div>
 
-@volume: 4, rate: 2
+<div volume="4" rate="2">
 loud and slow
+</div>
 
 ```
 
@@ -828,12 +851,18 @@ SSML:
 
 #### Google Cloud TTS Extensions
 
-Speaking styles for Google Cloud TTS can be configured:
+Speaking styles for Google Cloud TTS can be configured in the YAML-Header:
 
 ```python
-@extensions: cheerful, value: lambda text: f'<google:style name="cheerful">{text}</google:style>'
-@extensions: calm, value: lambda text: f'<google:style name="calm">{text}</google:style>'
-@extensions: empathetic: lambda text: f'<google:style name="empathetic">{text}</google:style>'
+---
+extensions:
+   - cheerful
+      value: lambda text: f'<google:style name="cheerful">{text}</google:style>'
+   - calm
+      value: lambda text: f'<google:style name="calm">{text}</google:style>'
+   - empathetic
+      value: lambda text: f'<google:style name="empathetic">{text}</google:style>'
+...
 ```
 
 SSMD:
@@ -862,11 +891,16 @@ SSML:
 
 #### Custom Extensions
 
-Extensions can be registered via configuration:
+Extensions can be registered via YAML configuration:
 
 ```python
-@extensions: whisper, value: lambda text: f'<amazon:effect name="whispered">{text}</amazon:effect>'
-@extensions: robotic, value: lambda text: f'<voice-transformation type="robot">{text}</voice-transformation>'
+---
+extensions:
+   - whisper
+      value: lambda text: f'<amazon:effect name="whispered">{text}</amazon:effect>'
+   - robotic
+      value: lambda text: f'<voice-transformation type="robot">{text}</voice-transformation>'
+...
 ```
 
 ---
@@ -1067,20 +1101,19 @@ for sent in sentences:
 The converter applies processors in this order:
 
 1. **XML Escaping** - Escape special characters
-2. **Voice Directives** - Process `@voice:` blocks
+2. **Directives** - Process `<div>` blocks
 3. **Emphasis** - Process `*`, `**`, `_` markers
-4. **Annotations** - Process `[text](annotation)` patterns
+4. **Annotations** - Process `[text]{key=value}` patterns
 5. **Marks** - Process `@marker` patterns
-6. **Prosody Shorthand** - Process `++loud++`, `>>fast>>`, `^^high^^`
-7. **Headings** - Process `#` markers
-8. **Paragraphs** - Process blank line separators
-9. **Sentences** - Optionally wrap in `<s>` tags
-10. **Breaks** - Process `...` patterns
-11. **Output Formatting** - Wrap in `<speak>`, optional pretty-print
+6. **Headings** - Process `#` markers
+7. **Paragraphs** - Process blank line separators
+8. **Sentences** - Optionally wrap in `<s>` tags
+9. **Breaks** - Process `...` patterns
+10. **Output Formatting** - Wrap in `<speak>`, optional pretty-print
 
 ### Annotation Priority
 
-When processing `[text](annotation)` patterns, annotations are detected in this priority
+When processing `[text]{key=value}` patterns, annotations are detected in this priority
 order:
 
 1. Audio (URL patterns)
@@ -1105,10 +1138,6 @@ All user input is automatically sanitized to prevent XML injection:
 
 ## Differences from Standard Markdown
 
-1. **No Lists** - SSMD doesn't support bullet/numbered lists (not relevant for speech)
-2. **No Code Blocks** - Uses different syntax for TTS-specific features
-3. **Special Break Syntax** - `...500ms` instead of `---` horizontal rules
-4. **Voice Directives** - `@voice:` is unique to SSMD
 5. **Markers** - `@marker` syntax for event synchronization
 
 ---
