@@ -46,6 +46,7 @@ class Sentence:
         capabilities: "TTSCapabilities | None" = None,
         extensions: dict | None = None,
         wrap_sentence: bool = False,
+        warnings: list[str] | None = None,
     ) -> str:
         """Convert sentence to SSML.
 
@@ -53,6 +54,7 @@ class Sentence:
             capabilities: TTS engine capabilities for filtering
             extensions: Custom extension handlers
             wrap_sentence: If True, wrap content in <s> tag
+            warnings: Optional list to collect warnings
 
         Returns:
             SSML string
@@ -60,7 +62,13 @@ class Sentence:
         # Build segment content
         content_parts = []
         for segment in self.segments:
-            content_parts.append(segment.to_ssml(capabilities, extensions))
+            content_parts.append(
+                segment.to_ssml(
+                    capabilities,
+                    extensions,
+                    warnings=warnings,
+                )
+            )
 
         # Join segments with spaces, but handle punctuation intelligently
         content = self._join_segments(content_parts)
@@ -70,7 +78,7 @@ class Sentence:
             content = f"<s>{content}</s>"
 
         # Apply directive wrappers (voice/language/prosody)
-        content = self._wrap_directives(content, capabilities)
+        content = self._wrap_directives(content, capabilities, warnings)
 
         # Add breaks after sentence
         if not capabilities or capabilities.break_tags:
@@ -117,6 +125,7 @@ class Sentence:
         self,
         content: str,
         capabilities: "TTSCapabilities | None",
+        warnings: list[str] | None,
     ) -> str:
         """Apply voice, language, and prosody directives."""
         from ssmd.segment import _escape_xml_attr
@@ -144,18 +153,20 @@ class Sentence:
             if not capabilities or capabilities.language_scopes.get("sentence", True):
                 lang_escaped = _escape_xml_attr(self.language)
                 content = f'<lang xml:lang="{lang_escaped}">{content}</lang>'
+            elif warnings is not None:
+                warnings.append(
+                    f"Language scope 'sentence' not supported, dropping lang={self.language}"
+                )
 
         if self.prosody and (not capabilities or capabilities.prosody):
             prosody_attrs = []
-            if self.prosody.volume and (
-                not capabilities or capabilities.prosody_volume
-            ):
+            if self.prosody.volume and (not capabilities or capabilities.volume):
                 vol = _escape_xml_attr(self.prosody.volume)
                 prosody_attrs.append(f'volume="{vol}"')
-            if self.prosody.rate and (not capabilities or capabilities.prosody_rate):
+            if self.prosody.rate and (not capabilities or capabilities.rate):
                 rate = _escape_xml_attr(self.prosody.rate)
                 prosody_attrs.append(f'rate="{rate}"')
-            if self.prosody.pitch and (not capabilities or capabilities.prosody_pitch):
+            if self.prosody.pitch and (not capabilities or capabilities.pitch):
                 pitch = _escape_xml_attr(self.prosody.pitch)
                 prosody_attrs.append(f'pitch="{pitch}"')
 

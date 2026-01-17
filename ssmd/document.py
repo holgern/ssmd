@@ -67,6 +67,7 @@ class Document:
         escape_syntax: bool = False,
         escape_patterns: list[str] | None = None,
         parse_yaml_header: bool = False,
+        strict: bool = False,
     ) -> None:
         """Initialize a new SSMD document.
 
@@ -97,6 +98,8 @@ class Document:
                 'headings', 'directives'
             parse_yaml_header: If True, parse YAML front matter and store it
                 on doc.header while stripping it from the SSMD body.
+            strict: If True, emit warnings and apply ssml-green validation
+                rules where possible.
 
         Example:
             >>> doc = ssmd.Document("Hello *world*!")
@@ -124,7 +127,9 @@ class Document:
         self._cached_sentences: list[str] | None = None
         self._escape_syntax = escape_syntax
         self._escape_patterns = escape_patterns
+        self._strict = strict
         self.header: dict[str, Any] | None = None
+        self.warnings: list[str] = []
 
         # Add initial content if provided
         if content:
@@ -177,6 +182,7 @@ class Document:
         config: dict[str, Any] | None = None,
         capabilities: "TTSCapabilities | str | None" = None,
         parse_yaml_header: bool = False,
+        strict: bool = False,
     ) -> "Document":
         """Create a Document from plain text.
 
@@ -196,7 +202,13 @@ class Document:
             >>> doc.ssmd
             'Hello world'
         """
-        return cls(text, config, capabilities, parse_yaml_header=parse_yaml_header)
+        return cls(
+            text,
+            config,
+            capabilities,
+            parse_yaml_header=parse_yaml_header,
+            strict=strict,
+        )
 
     # ═══════════════════════════════════════════════════════════
     # BUILDING METHODS
@@ -357,6 +369,7 @@ class Document:
                     capabilities=capabilities,
                     extensions=extensions,
                     wrap_sentence=auto_sentence_tags,
+                    warnings=self.warnings if self._strict else None,
                 )
                 if paragraph_enabled:
                     paragraph_parts.append(sentence_ssml)

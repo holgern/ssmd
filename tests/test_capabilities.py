@@ -175,9 +175,9 @@ def test_prosody_partial_support():
     """Test partial prosody support (only some attributes)."""
     caps = TTSCapabilities(
         prosody=True,
-        prosody_volume=True,  # Supports volume
-        prosody_rate=False,  # Doesn't support rate
-        prosody_pitch=False,  # Doesn't support pitch
+        volume=True,  # Supports volume
+        rate=False,  # Doesn't support rate
+        pitch=False,  # Doesn't support pitch
     )
 
     # Volume should work

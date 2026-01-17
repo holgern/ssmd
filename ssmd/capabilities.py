@@ -41,9 +41,9 @@ class TTSCapabilities:
         substitution: bool = True,
         # Prosody (volume, rate, pitch)
         prosody: bool = True,
-        prosody_volume: bool = True,
-        prosody_rate: bool = True,
-        prosody_pitch: bool = True,
+        volume: bool = True,
+        rate: bool = True,
+        pitch: bool = True,
         # Advanced features
         say_as: bool = True,
         audio: bool = True,
@@ -67,9 +67,9 @@ class TTSCapabilities:
             phoneme: Support for <phoneme> tags
             substitution: Support for <sub> tags
             prosody: Support for <prosody> tags (general)
-            prosody_volume: Support for volume attribute
-            prosody_rate: Support for rate attribute
-            prosody_pitch: Support for pitch attribute
+            volume: Support for volume attribute
+            rate: Support for rate attribute
+            pitch: Support for pitch attribute
             say_as: Support for <say-as> tags
             audio: Support for <audio> tags
             mark: Support for <mark> tags
@@ -86,9 +86,9 @@ class TTSCapabilities:
         self.phoneme = phoneme
         self.substitution = substitution
         self.prosody = prosody
-        self.prosody_volume = prosody_volume and prosody
-        self.prosody_rate = prosody_rate and prosody
-        self.prosody_pitch = prosody_pitch and prosody
+        self.volume = volume and prosody
+        self.rate = rate and prosody
+        self.pitch = pitch and prosody
         self.say_as = say_as
         self.audio = audio
         self.mark = mark
@@ -162,14 +162,14 @@ ESPEAK_CAPABILITIES = TTSCapabilities(
     phoneme=True,  # eSpeak has good phoneme support
     substitution=False,
     prosody=True,
-    prosody_volume=True,
-    prosody_rate=True,
-    prosody_pitch=True,
-    say_as=False,
-    audio=False,  # No audio file support
-    mark=False,
-    sentence_tags=False,
-    heading_emphasis=False,
+    volume=True,
+    rate=True,
+    pitch=True,
+    say_as=True,
+    audio=True,
+    mark=True,
+    sentence_tags=True,
+    heading_emphasis=True,
 )
 
 PYTTSX3_CAPABILITIES = TTSCapabilities(
@@ -180,9 +180,9 @@ PYTTSX3_CAPABILITIES = TTSCapabilities(
     phoneme=False,
     substitution=False,
     prosody=True,  # Via properties, not SSML
-    prosody_volume=True,
-    prosody_rate=True,
-    prosody_pitch=False,
+    volume=True,
+    rate=True,
+    pitch=False,
     say_as=False,
     audio=False,
     mark=False,
@@ -198,9 +198,9 @@ GOOGLE_TTS_CAPABILITIES = TTSCapabilities(
     phoneme=True,
     substitution=True,
     prosody=True,
-    prosody_volume=True,
-    prosody_rate=True,
-    prosody_pitch=True,
+    volume=True,
+    rate=True,
+    pitch=True,
     say_as=True,
     audio=True,
     mark=True,
@@ -216,9 +216,9 @@ AMAZON_POLLY_CAPABILITIES = TTSCapabilities(
     phoneme=True,
     substitution=True,
     prosody=True,
-    prosody_volume=True,
-    prosody_rate=True,
-    prosody_pitch=True,
+    volume=True,
+    rate=True,
+    pitch=True,
     say_as=True,
     audio=False,  # Limited audio support
     mark=True,
@@ -235,9 +235,9 @@ AZURE_TTS_CAPABILITIES = TTSCapabilities(
     phoneme=True,
     substitution=True,
     prosody=True,
-    prosody_volume=True,
-    prosody_rate=True,
-    prosody_pitch=True,
+    volume=True,
+    rate=True,
+    pitch=True,
     say_as=True,
     audio=True,
     mark=True,
@@ -320,6 +320,9 @@ def load_ssml_green_platform(path: str | Path) -> TTSCapabilities:
         phoneme=phoneme,
         substitution=substitution,
         prosody=prosody,
+        volume=flat.get("elements››volume (optional)", True),
+        rate=flat.get("elements››rate (optional)", True),
+        pitch=flat.get("elements››pitch (optional)", True),
         say_as=say_as,
         ssml_green=flat,
         language_scopes={
@@ -344,6 +347,29 @@ PRESETS: dict[str, TTSCapabilities] = {
     "full": FULL_CAPABILITIES,
 }
 
+SSML_GREEN_FILES = {
+    "alexa": "amazon-alexa.json",
+    "amazon": "amazon-polly.json",
+    "polly": "amazon-polly.json",
+    "google": "google-home.json",
+    "ibm": "ibm-watson.json",
+    "watson": "ibm-watson.json",
+    "azure": "microsoft-azure.json",
+    "microsoft": "microsoft-azure.json",
+    "cortana": "microsoft-cortana.json",
+}
+
+
+def _load_ssml_green_preset(name: str) -> TTSCapabilities | None:
+    file_name = SSML_GREEN_FILES.get(name)
+    if not file_name:
+        return None
+    data_dir = Path(__file__).parent / "data"
+    file_path = data_dir / file_name
+    if not file_path.exists():
+        return None
+    return load_ssml_green_platform(file_path)
+
 
 def get_preset(name: str) -> TTSCapabilities:
     """Get a preset capability configuration.
@@ -357,8 +383,13 @@ def get_preset(name: str) -> TTSCapabilities:
     Raises:
         ValueError: If preset not found
     """
-    if name.lower() not in PRESETS:
-        available = ", ".join(PRESETS.keys())
+    preset_name = name.lower()
+    ssml_green_caps = _load_ssml_green_preset(preset_name)
+    if ssml_green_caps is not None:
+        return ssml_green_caps
+
+    if preset_name not in PRESETS:
+        available = ", ".join(sorted(PRESETS.keys()))
         raise ValueError(f"Unknown preset '{name}'. Available: {available}")
 
-    return PRESETS[name.lower()]
+    return PRESETS[preset_name]

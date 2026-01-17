@@ -89,6 +89,7 @@ def parse_ssmd(
     use_spacy: bool | None = None,
     model_size: str | None = None,
     parse_yaml_header: bool = False,
+    strict_parse: bool = False,
 ) -> list[Sentence]:
     """Parse SSMD text into a list of Sentences.
 
@@ -108,6 +109,7 @@ def parse_ssmd(
         model_size: spaCy model size ("sm", "md", "lg")
         parse_yaml_header: If True, parse YAML front matter and apply
             heading/extensions config while stripping it from the body.
+        strict_parse: If True, strip unsupported features based on capabilities.
 
     Returns:
         List of Sentence objects
@@ -134,7 +136,7 @@ def parse_ssmd(
     # Split text into directive blocks
     directive_blocks = _split_directive_blocks(text)
 
-    sentences = []
+    sentences: list[Sentence] = []
 
     for directive, block_text in directive_blocks:
         # Split block into paragraphs
@@ -182,6 +184,9 @@ def parse_ssmd(
                         is_paragraph_end=is_last_sent_in_para and not is_last_paragraph,
                     )
                     sentences.append(sentence)
+
+    if strict_parse and caps:
+        _filter_sentences(sentences, caps)
 
     return sentences
 
@@ -809,6 +814,7 @@ def parse_sentences(
     heading_levels: dict | None = None,
     extensions: dict | None = None,
     parse_yaml_header: bool = False,
+    strict_parse: bool = False,
 ) -> list[Sentence]:
     """Parse SSMD text into sentences (backward compatible API).
 
@@ -827,20 +833,25 @@ def parse_sentences(
         extensions: Custom extension handlers
         parse_yaml_header: If True, parse YAML front matter and apply
             heading/extensions config while stripping it from the body.
+        strict_parse: If True, strip unsupported features based on capabilities.
 
     Returns:
         List of Sentence objects
     """
+    model_size_value = model_size or (
+        spacy_model.split("_")[-1] if spacy_model else None
+    )
     sentences = parse_ssmd(
         ssmd_text,
         capabilities=capabilities,
         sentence_detection=sentence_detection,
         language=language,
-        model_size=model_size or (spacy_model.split("_")[-1] if spacy_model else None),
+        model_size=model_size_value,
         use_spacy=use_spacy,
         heading_levels=heading_levels,
         extensions=extensions,
         parse_yaml_header=parse_yaml_header,
+        strict_parse=strict_parse,
     )
 
     # Filter out sentences without voice if requested
@@ -869,3 +880,68 @@ def parse_voice_blocks(ssmd_text: str) -> list[tuple[DirectiveAttrs, str]]:
     Returns list of (DirectiveAttrs, text) tuples.
     """
     return _split_directive_blocks(ssmd_text)
+
+
+def _filter_sentences(sentences: list[Sentence], caps: "TTSCapabilities") -> None:
+    for sentence in sentences:
+        if sentence.language and not caps.language_scopes.get("sentence", True):
+            sentence.language = None
+
+        if sentence.prosody:
+            if not caps.prosody:
+                sentence.prosody = None
+            else:
+                if not caps.volume:
+                    sentence.prosody.volume = None
+                if not caps.rate:
+                    sentence.prosody.rate = None
+                if not caps.pitch:
+                    sentence.prosody.pitch = None
+                if not any(
+                    [
+                        sentence.prosody.volume,
+                        sentence.prosody.rate,
+                        sentence.prosody.pitch,
+                    ]
+                ):
+                    sentence.prosody = None
+
+        for segment in sentence.segments:
+            if segment.audio and not caps.audio:
+                segment.audio = None
+            if segment.say_as and not caps.say_as:
+                segment.say_as = None
+            if segment.emphasis and not caps.emphasis:
+                segment.emphasis = None
+            if segment.language and not caps.language_scopes.get("sentence", True):
+                segment.language = None
+            if segment.phoneme and not caps.phoneme:
+                segment.phoneme = None
+            if segment.substitution and not caps.substitution:
+                segment.substitution = None
+            if segment.extension and not caps.supports_extension(segment.extension):
+                segment.extension = None
+            if segment.prosody:
+                if not caps.prosody:
+                    segment.prosody = None
+                else:
+                    if not caps.volume:
+                        segment.prosody.volume = None
+                    if not caps.rate:
+                        segment.prosody.rate = None
+                    if not caps.pitch:
+                        segment.prosody.pitch = None
+                    if not any(
+                        [
+                            segment.prosody.volume,
+                            segment.prosody.rate,
+                            segment.prosody.pitch,
+                        ]
+                    ):
+                        segment.prosody = None
+            if not caps.break_tags:
+                segment.breaks_before = []
+                segment.breaks_after = []
+            if not caps.mark:
+                segment.marks_before = []
+                segment.marks_after = []

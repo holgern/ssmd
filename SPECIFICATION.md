@@ -29,6 +29,16 @@ SSMD is mapped to SSML using the following rules.
 - [Audio](#audio)
 - [Extensions](#extensions)
 
+### Short Taxonomy
+
+| Category   | Meaning                                          |
+| ---------- | ------------------------------------------------ |
+| Semantic   | Meaning-based hints (say-as, lang, phoneme, sub) |
+| Structural | p, s, headings                                   |
+| Rendering  | prosody, voice, style                            |
+| Control    | breaks, marks                                    |
+| Extension  | vendor-specific                                  |
+
 ---
 
 ### Text
@@ -199,6 +209,13 @@ SSML:
 - `<div lang="language-code">`
 
 Voice directives apply to all text until the next directive or paragraph break.
+
+NOTE: The processor MUST emit a <lang> tag when language is explicitly specified. The
+processor MAY omit the tag when targeting engines that do not support language
+switching.
+
+Google Cloud TTS ignores nested <lang> changes within a sentence. Processors targeting
+Google Cloud SHOULD flatten language scopes.
 
 ---
 

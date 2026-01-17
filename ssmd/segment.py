@@ -214,6 +214,7 @@ class Segment:
         self,
         capabilities: "TTSCapabilities | None" = None,
         extensions: dict | None = None,
+        warnings: list[str] | None = None,
     ) -> str:
         """Convert segment to SSML.
 
@@ -238,7 +239,7 @@ class Segment:
                 result += self._break_to_ssml(brk)
 
         # Build content with wrappers
-        content = self._build_content_ssml(capabilities, extensions)
+        content = self._build_content_ssml(capabilities, extensions, warnings)
         result += content
 
         # Add breaks after
@@ -258,6 +259,7 @@ class Segment:
         self,
         capabilities: "TTSCapabilities | None",
         extensions: dict | None,
+        warnings: list[str] | None,
     ) -> str:
         """Build the main content SSML with all wrappers.
 
@@ -301,6 +303,10 @@ class Segment:
                 else:
                     if self._supports_say_as(capabilities):
                         content = self._say_as_to_ssml(self.say_as, content)
+                    elif warnings is not None:
+                        warnings.append(
+                            f"say-as '{self.say_as.interpret_as}' not supported, dropping"
+                        )
 
         # Apply emphasis
         if self.emphasis:
@@ -311,6 +317,8 @@ class Segment:
                     level = self._emphasis_level_key()
                     if not level or capabilities.supports_key(level, default=True):
                         content = self._emphasis_to_ssml(content)
+                    elif warnings is not None:
+                        warnings.append("emphasis level not supported, dropping")
 
         # Apply prosody
         if self.prosody:
@@ -389,18 +397,18 @@ class Segment:
         """Convert prosody to SSML."""
         attrs = []
 
-        if prosody.volume and (not capabilities or capabilities.prosody_volume):
+        if prosody.volume and (not capabilities or capabilities.volume):
             # Map numeric to named if needed
             vol = VOLUME_MAP.get(prosody.volume, prosody.volume)
             vol = _escape_xml_attr(vol)
             attrs.append(f'volume="{vol}"')
 
-        if prosody.rate and (not capabilities or capabilities.prosody_rate):
+        if prosody.rate and (not capabilities or capabilities.rate):
             rate = RATE_MAP.get(prosody.rate, prosody.rate)
             rate = _escape_xml_attr(rate)
             attrs.append(f'rate="{rate}"')
 
-        if prosody.pitch and (not capabilities or capabilities.prosody_pitch):
+        if prosody.pitch and (not capabilities or capabilities.pitch):
             pitch = PITCH_MAP.get(prosody.pitch, prosody.pitch)
             pitch = _escape_xml_attr(pitch)
             attrs.append(f'pitch="{pitch}"')
