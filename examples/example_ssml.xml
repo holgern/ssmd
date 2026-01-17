@@ -1,0 +1,143 @@
+<speak>
+text &amp; more
+<emphasis>moderate emphasis</emphasis>
+<emphasis level="strong">strong emphasis</emphasis>
+<emphasis level="reduced">reduced emphasis</emphasis>
+<emphasis level="moderate">moderate emphasis</emphasis>
+<emphasis level="strong">strong emphasis</emphasis>
+<emphasis level="reduced">reduced emphasis</emphasis>
+<emphasis level="none">no emphasis</emphasis>
+Hello <break strength="none" />     world    (none - no break)
+Hello <break strength="x-weak" />     world    (weak/x-weak break)
+Hello <break strength="medium" />     world    (medium break like after a comma)
+Hello <break strength="strong" />     world    (strong break like after a sentence)
+Hello <break
+    strength="x-strong"
+  />     world    (extra strong break like after a paragraph)
+Hello <break time="5s" />    world    (5 second break)
+Hello <break time="100ms" /> world    (100 millisecond break)
+Hello ...      world    (literal ellipsis, no break)
+Ich sah <lang xml:lang="en-US">Guardians of the Galaxy</lang> im Kino.
+Ich sah <lang xml:lang="en-GB">Guardians of the Galaxy</lang> im Kino.
+I saw <lang xml:lang="de-DE">"Die Häschenschule"</lang> in the cinema.
+<lang xml:lang="fr-FR">Bonjour</lang> tout le monde!
+<lang xml:lang="en-US">
+<p>Welcome to the show! I'm Sarah.</p>
+</lang>
+<lang xml:lang="en-GB">
+<p>Thanks Sarah! Great to be here.</p>
+</lang>
+<voice name="Joanna">Hello</voice>
+<voice name="en-US-Wavenet-A">Hello</voice>
+<voice language="fr-FR" gender="female">Bonjour</voice>
+<voice language="en-GB" gender="male" variant="1">Text</voice>
+<voice name="sarah">
+<p>Welcome to the show! I'm Sarah.</p>
+</voice>
+<voice name="michael">
+<p>Thanks Sarah! Great to be here.</p>
+</voice>
+<voice name="narrator" language="en-GB">
+<p>This story takes place in London.</p>
+</voice>
+<voice language="fr-FR" gender="female">
+<p>Bonjour tout le monde!</p>
+</voice>
+<voice gender="female">
+<p>Hello world.</p>
+</voice>
+I always wanted a <mark name="animal" /> cat as a pet.
+Click <mark name="here" /> to continue.
+<p>First prepare the ingredients.
+Don't forget to wash them first.</p>
+<p>Lastly mix them all together.</p>
+<break time="300ms" /><emphasis level="strong">Main Heading</emphasis><break
+    time="300ms"
+  />
+<break time="75ms" /><emphasis>Subheading</emphasis><break time="75ms" />
+<break time="50ms" />Sub-subheading<break time="50ms" />
+<phoneme alphabet="ipa" ph="təˈmeɪtoʊ">tomato</phoneme>
+<phoneme alphabet="ipa" ph="təˈmeɪtoʊ">tomato</phoneme>
+The German word <phoneme
+    alphabet="ipa"
+    ph="dɪç"
+  >"dich"</phoneme> does not sound like dick.
+ Volume:
+<prosody volume="silent">silent</prosody>
+<prosody volume="x-soft">extra soft</prosody>
+<prosody volume="soft">soft</prosody>
+<prosody volume="medium">medium</prosody>
+medium
+<prosody volume="loud">loud</prosody>
+<prosody volume="x-loud">extra loud</prosody>
+ Rate:
+<prosody rate="x-slow">extra slow</prosody>
+<prosody rate="slow">slow</prosody>
+<prosody rate="medium">medium</prosody>
+<prosody rate="fast">fast</prosody>
+<prosody rate="x-fast">extra fast</prosody>
+ Pitch:
+<prosody pitch="x-low">extra low</prosody>
+<prosody pitch="low">low</prosody>
+medium
+<prosody pitch="medium">medium</prosody>
+<prosody pitch="high">high</prosody>
+<prosody pitch="x-high">extra high</prosody>
+<prosody
+    volume="x-loud"
+    rate="x-fast"
+    pitch="x-high"
+  >extra loud, fast, and high</prosody>
+<prosody
+    volume="x-loud"
+    rate="x-fast"
+    pitch="x-high"
+  >extra loud, fast, and high</prosody>
+<prosody volume="loud" rate="slow">loud and slow</prosody>
+<prosody volume="+10dB">louder</prosody>
+<prosody volume="-3dB">quieter</prosody>
+<prosody rate="+20%">faster</prosody>
+<prosody rate="-10%">slower</prosody>
+<prosody pitch="+15%">higher</prosody>
+<prosody pitch="-4%">lower</prosody>
+<prosody
+    volume="x-loud"
+    rate="x-fast"
+    pitch="x-high"
+  >extra loud, fast, and high</prosody>
+<prosody
+    volume="x-loud"
+    rate="x-fast"
+    pitch="x-high"
+  >extra loud, fast, and high</prosody>
+<prosody volume="loud" rate="slow">loud and slow</prosody>
+Today on <say-as interpret-as="date" format="dd.mm.yyyy">31.12.2024</say-as> my
+telephone number is <say-as interpret-as="telephone">+1-555-0123</say-as>.
+You can't say <say-as interpret-as="expletive">damn</say-as> on television.
+<say-as
+    interpret-as="character"
+  >NASA</say-as> stands for National Aeronautics and Space Administration.
+The <say-as interpret-as="ordinal">1st</say-as> place winner gets a prize.
+Call me at <say-as interpret-as="digits">123</say-as> for more info.
+<say-as interpret-as="cardinal" detail="2">123</say-as>
+<say-as interpret-as="date" format="mdy" detail="1">12/31/2024</say-as>
+I'd like to drink some <sub alias="water">H2O</sub> now.
+<sub alias="Amazon Web Services">AWS</sub> provides cloud computing.
+<sub alias="North Atlantic Treaty Organization">NATO</sub> was founded in 1949.
+<audio src="https://example.com/sounds/bell.mp3"><desc>doorbell</desc></audio>
+<audio src="beep.mp3" />
+<audio src="cat.ogg"><desc>cat purring</desc>Sound file not loaded</audio>
+<audio src="song.mp3" clipBegin="5s" clipEnd="30s"><desc>music</desc></audio>
+<audio src="speech.mp3" speed="150%"><desc>announcement</desc></audio>
+<audio src="ad.mp3" repeatCount="3"><desc>jingle</desc></audio>
+<audio src="alert.mp3" soundLevel="+6dB"><desc>alarm</desc></audio>
+<audio src="music.mp3" clipBegin="0s" clipEnd="10s" speed="120%" soundLevel="-3dB"><desc
+    >bg music</desc>Fallback text</audio>
+<lang xml:lang="fr-FR"><prosody volume="x-loud" rate="slow">Bonjour</prosody></lang>
+<prosody volume="x-loud"><say-as interpret-as="character">important</say-as></prosody>
+<voice name="Joanna"><prosody volume="loud" rate="medium">Hello</prosody></voice>
+Der Film <lang xml:lang="en-GB">Guardians of the <emphasis
+    >Galaxy</emphasis></lang> ist ganz <lang xml:lang="en-US">okay</lang>.
+<prosody volume="x-loud"><emphasis>very</emphasis> <emphasis
+      level="strong"
+    >important</emphasis></prosody></speak>
