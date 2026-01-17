@@ -2,6 +2,8 @@
 
 import html
 import re
+from collections.abc import Callable
+from typing import Any
 
 
 def escape_xml(text: str) -> str:
@@ -49,6 +51,125 @@ def format_xml(xml_text: str, pretty: bool = True) -> str:
     except Exception:
         # Fallback: return as-is if parsing fails
         return xml_text
+
+
+def parse_yaml_header(text: str) -> tuple[dict[str, Any] | None, str]:
+    """Parse YAML front matter from SSMD text.
+
+    Supports YAML headers wrapped in --- ... --- or --- ... ... .
+
+    Returns:
+        Tuple of (header_dict, body_text)
+    """
+    if not text.startswith("---"):
+        return None, text
+
+    lines = text.splitlines()
+    if not lines or lines[0].strip() != "---":
+        return None, text
+
+    end_index = None
+    for i in range(1, len(lines)):
+        if lines[i].strip() in {"---", "..."}:
+            end_index = i
+            break
+
+    if end_index is None:
+        return None, text
+
+    header_text = "\n".join(lines[1:end_index])
+    body_text = "\n".join(lines[end_index + 1 :]).lstrip("\n")
+
+    try:
+        import yaml
+    except ImportError as exc:
+        raise RuntimeError("pyyaml is required for YAML header parsing") from exc
+
+    header = yaml.safe_load(header_text) or {}
+    if not isinstance(header, dict):
+        return None, body_text
+
+    return header, body_text
+
+
+def _normalize_heading_levels(
+    levels: list[dict[str, Any]],
+) -> dict[int, list[tuple[str, str | dict[str, str]]]]:
+    heading_levels: dict[int, list[tuple[str, str | dict[str, str]]]] = {}
+    for entry in levels:
+        if not isinstance(entry, dict):
+            continue
+        for level_key, config in entry.items():
+            if not isinstance(level_key, str) or not level_key.startswith("level_"):
+                continue
+            try:
+                level = int(level_key.split("_", 1)[1])
+            except (IndexError, ValueError):
+                continue
+            if not isinstance(config, dict):
+                continue
+
+            effects: list[tuple[str, str | dict[str, str]]] = []
+            if "pause_before" in config:
+                effects.append(("pause_before", str(config["pause_before"])))
+            if "emphasis" in config:
+                effects.append(("emphasis", str(config["emphasis"])))
+            if "pause" in config:
+                effects.append(("pause", str(config["pause"])))
+
+            prosody: dict[str, str] = {}
+            for key in ("volume", "rate", "pitch"):
+                if key in config:
+                    prosody[key] = str(config[key])
+            if prosody:
+                effects.append(("prosody", prosody))
+
+            if effects:
+                heading_levels[level] = effects
+
+    return heading_levels
+
+
+def _normalize_extensions(
+    entries: list[dict[str, Any]],
+) -> dict[str, Callable[[str], str]]:
+    extensions: dict[str, Callable[[str], str]] = {}
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        for name, config in entry.items():
+            if not name:
+                continue
+            if isinstance(config, dict):
+                value = config.get("value")
+            else:
+                value = config
+            if not isinstance(value, str):
+                continue
+
+            def _handler(text: str, template: str = value) -> str:
+                return template.replace("{text}", text)
+
+            extensions[str(name)] = _handler
+
+    return extensions
+
+
+def build_config_from_header(header: dict[str, Any]) -> dict[str, Any]:
+    config: dict[str, Any] = {}
+    heading_entries = header.get("heading")
+    if isinstance(heading_entries, list):
+        heading_levels = _normalize_heading_levels(heading_entries)
+        if heading_levels:
+            config["heading_levels"] = heading_levels
+
+    extension_entries = header.get("extensions")
+    if isinstance(extension_entries, list):
+        extensions = _normalize_extensions(extension_entries)
+        if extensions:
+            config["extensions"] = extensions
+
+    return config
 
 
 def extract_sentences(ssml: str) -> list[str]:

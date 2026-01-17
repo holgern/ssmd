@@ -88,7 +88,7 @@ except ImportError:
 # ═══════════════════════════════════════════════════════════
 
 
-def to_ssml(ssmd_text: str, **config: Any) -> str:
+def to_ssml(ssmd_text: str, *, parse_yaml_header: bool = False, **config: Any) -> str:
     """Convert SSMD to SSML (convenience function).
 
     Creates a temporary Document and converts to SSML.
@@ -105,10 +105,10 @@ def to_ssml(ssmd_text: str, **config: Any) -> str:
         >>> ssmd.to_ssml("Hello *world*!")
         '<speak>Hello <emphasis>world</emphasis>!</speak>'
     """
-    return Document(ssmd_text, config).to_ssml()
+    return Document(ssmd_text, config, parse_yaml_header=parse_yaml_header).to_ssml()
 
 
-def to_text(ssmd_text: str, **config: Any) -> str:
+def to_text(ssmd_text: str, *, parse_yaml_header: bool = False, **config: Any) -> str:
     """Convert SSMD to plain text (convenience function).
 
     Strips all SSMD markup, returning plain text.
@@ -124,7 +124,7 @@ def to_text(ssmd_text: str, **config: Any) -> str:
         >>> ssmd.to_text("Hello *world* @marker!")
         'Hello world!'
     """
-    return Document(ssmd_text, config).to_text()
+    return Document(ssmd_text, config, parse_yaml_header=parse_yaml_header).to_text()
 
 
 def from_ssml(ssml_text: str, **config: Any) -> str:

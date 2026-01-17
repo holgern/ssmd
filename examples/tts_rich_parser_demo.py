@@ -82,7 +82,7 @@ def sentence_events(sentence) -> list[str]:
     return events
 
 
-def main() -> int:
+def main() -> int:  # noqa: C901
     console = Console()
     examples_dir = Path(__file__).parent
     ssmd_file = examples_dir / "example_ssmd.md"

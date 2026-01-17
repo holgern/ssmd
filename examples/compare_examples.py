@@ -19,6 +19,8 @@ def main() -> int:
     ssmd_out_file = examples_dir / "example_ssmd_from_ssml.md"
     ssmd_returned_file = examples_dir / "example_ssmd_returned.md"
     ssml_file = examples_dir / "example_ssml.xml"
+    google_ssml_file = examples_dir / "google_example_ssml.xml"
+    google_ssmd_file = examples_dir / "google_example_ssmd.md"
     ssml_out_file = examples_dir / "example_ssml_from_ssmd.xml"
     ssml_returned_file = examples_dir / "example_ssml_returned.xml"
 
@@ -70,6 +72,13 @@ def main() -> int:
     ssml_returned = ssmd.to_ssml(ssmd_gen_text)
     with open(ssml_returned_file, "w", encoding="utf-8") as f:
         f.write(ssml_returned)
+
+    print(f"2. Reading {google_ssml_file.name}...")
+    google_ssml = google_ssml_file.read_text(encoding="utf-8")
+    print(f"\n6. Converting SSML → SSMD {google_ssmd_file.name}...")
+    google_ssmd = ssmd.from_ssml(google_ssml)
+    with open(google_ssmd_file, "w", encoding="utf-8") as f:
+        f.write(google_ssmd)
 
     return 0
 

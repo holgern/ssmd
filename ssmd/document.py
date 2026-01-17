@@ -5,7 +5,14 @@ from typing import TYPE_CHECKING, Any, overload
 
 from ssmd.formatter import format_ssmd
 from ssmd.parser import parse_sentences
-from ssmd.utils import extract_sentences, format_xml
+from ssmd.utils import (
+    build_config_from_header,
+    extract_sentences,
+    format_xml,
+)
+from ssmd.utils import (
+    parse_yaml_header as parse_yaml_front_matter,
+)
 
 if TYPE_CHECKING:
     from ssmd.capabilities import TTSCapabilities
@@ -59,6 +66,7 @@ class Document:
         capabilities: "TTSCapabilities | str | None" = None,
         escape_syntax: bool = False,
         escape_patterns: list[str] | None = None,
+        parse_yaml_header: bool = False,
     ) -> None:
         """Initialize a new SSMD document.
 
@@ -87,6 +95,8 @@ class Document:
                 escape_syntax=True. If None, escapes all patterns.
                 Valid values: 'emphasis', 'annotations', 'breaks', 'marks',
                 'headings', 'directives'
+            parse_yaml_header: If True, parse YAML front matter and store it
+                on doc.header while stripping it from the SSMD body.
 
         Example:
             >>> doc = ssmd.Document("Hello *world*!")
@@ -114,13 +124,21 @@ class Document:
         self._cached_sentences: list[str] | None = None
         self._escape_syntax = escape_syntax
         self._escape_patterns = escape_patterns
+        self.header: dict[str, Any] | None = None
 
         # Add initial content if provided
         if content:
+            header_config: dict[str, Any] = {}
+            header, content = parse_yaml_front_matter(content)
+            if header is not None and parse_yaml_header:
+                self.header = header
+                header_config = build_config_from_header(header)
+            content = content.lstrip("\n")
             if escape_syntax:
                 from ssmd.utils import escape_ssmd_syntax
 
                 content = escape_ssmd_syntax(content, patterns=escape_patterns)
+            self._config.update(header_config)
             self._fragments.append(content)
 
     @classmethod
@@ -150,7 +168,7 @@ class Document:
 
         parser = SSMLParser(config or {})
         ssmd_content = parser.to_ssmd(ssml)
-        return cls(ssmd_content, config, capabilities)
+        return cls(ssmd_content, config, capabilities, parse_yaml_header=False)
 
     @classmethod
     def from_text(
@@ -158,6 +176,7 @@ class Document:
         text: str,
         config: dict[str, Any] | None = None,
         capabilities: "TTSCapabilities | str | None" = None,
+        parse_yaml_header: bool = False,
     ) -> "Document":
         """Create a Document from plain text.
 
@@ -177,7 +196,7 @@ class Document:
             >>> doc.ssmd
             'Hello world'
         """
-        return cls(text, config, capabilities)
+        return cls(text, config, capabilities, parse_yaml_header=parse_yaml_header)
 
     # ═══════════════════════════════════════════════════════════
     # BUILDING METHODS

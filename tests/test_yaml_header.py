@@ -1,0 +1,77 @@
+"""Tests for YAML header parsing in SSMD."""
+
+import ssmd
+
+
+def test_yaml_header_parsed_and_removed():
+    text = """---
+voice:
+  languageCode: en-us
+  name: en-US-Standard-B
+  ssmlGender: MALE
+audioConfig:
+  audioEncoding: MP3
+author: Jane Doe
+chapter: 3
+---
+Hello world.
+"""
+    doc = ssmd.Document(text, parse_yaml_header=True)
+    assert doc.header is not None
+    assert doc.header["voice"]["languageCode"] == "en-us"
+    assert doc.header["audioConfig"]["audioEncoding"] == "MP3"
+    assert doc.header["author"] == "Jane Doe"
+    assert "---" not in doc.ssmd
+    assert doc.ssmd.strip() == "Hello world."
+
+
+def test_yaml_header_ignored_when_disabled():
+    text = """---
+voice:
+  languageCode: en-us
+---
+Hello world.
+"""
+    doc = ssmd.Document(text, parse_yaml_header=False)
+    assert doc.header is None
+    assert "---" not in doc.ssmd
+    assert doc.ssmd.strip() == "Hello world."
+
+
+def test_yaml_header_supports_dots_end_marker():
+    text = """---
+voice:
+  languageCode: en-us
+...
+Hello world.
+"""
+    doc = ssmd.Document(text, parse_yaml_header=True)
+    assert doc.header is not None
+    assert doc.header["voice"]["languageCode"] == "en-us"
+    assert doc.ssmd.strip() == "Hello world."
+
+
+def test_yaml_header_heading_and_extensions_config():
+    text = """---
+heading:
+  - level_1:
+      pause_before: 300ms
+      emphasis: strong
+      pause: 300ms
+  - level_2:
+      pause_before: 75ms
+      emphasis: moderate
+      pause: 75ms
+extensions:
+  - cheerful:
+      value: '<google:style name="cheerful">{text}</google:style>'
+
+---
+# Heading One
+"""
+    doc = ssmd.Document(text, parse_yaml_header=True)
+    assert doc.header is not None
+    assert "heading" in doc.header
+    assert "extensions" in doc.header
+    ssml = doc.to_ssml()
+    assert "Heading One" in ssml

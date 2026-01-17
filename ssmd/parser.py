@@ -88,6 +88,7 @@ def parse_ssmd(
     language: str = "en",
     use_spacy: bool | None = None,
     model_size: str | None = None,
+    parse_yaml_header: bool = False,
 ) -> list[Sentence]:
     """Parse SSMD text into a list of Sentences.
 
@@ -105,12 +106,27 @@ def parse_ssmd(
         language: Default language for sentence detection
         use_spacy: If True, use spaCy for sentence detection
         model_size: spaCy model size ("sm", "md", "lg")
+        parse_yaml_header: If True, parse YAML front matter and apply
+            heading/extensions config while stripping it from the body.
 
     Returns:
         List of Sentence objects
     """
     if not text or not text.strip():
         return []
+
+    from ssmd.utils import (
+        build_config_from_header,
+    )
+    from ssmd.utils import (
+        parse_yaml_header as parse_yaml_front_matter,
+    )
+
+    header, text = parse_yaml_front_matter(text)
+    if header and parse_yaml_header:
+        header_config = build_config_from_header(header)
+        heading_levels = header_config.get("heading_levels", heading_levels)
+        extensions = header_config.get("extensions", extensions)
 
     # Resolve capabilities
     caps = _resolve_capabilities(capabilities)
@@ -337,8 +353,6 @@ def _split_sentences(
             restored_sentences.append(restored)
 
         return restored_sentences
-
-        return sentences if sentences else [text]
 
     except ImportError:
         # Fallback: simple sentence splitting
@@ -663,7 +677,7 @@ def _parse_voice_annotation_params(params_map: dict[str, str]) -> VoiceAttrs | N
         voice.language = voice_lang
 
     if "gender" in params_map:
-        voice.gender = params_map["gender"].lower()  # type: ignore
+        voice.gender = params_map["gender"].lower()  # type: ignore[assignment]
 
     if "variant" in params_map:
         try:
@@ -760,7 +774,7 @@ def _parse_voice_annotation(params: str) -> VoiceAttrs:
         # Parse remaining parts
         for part in parts[1:]:
             if part.startswith("gender:"):
-                voice.gender = part[7:].strip().lower()  # type: ignore
+                voice.gender = part[7:].strip().lower()  # type: ignore[assignment]
             elif part.startswith("variant:"):
                 voice.variant = int(part[8:].strip())
     else:
@@ -794,6 +808,7 @@ def parse_sentences(
     use_spacy: bool | None = None,
     heading_levels: dict | None = None,
     extensions: dict | None = None,
+    parse_yaml_header: bool = False,
 ) -> list[Sentence]:
     """Parse SSMD text into sentences (backward compatible API).
 
@@ -810,6 +825,8 @@ def parse_sentences(
         use_spacy: Force use of spacy for sentence detection
         heading_levels: Custom heading configurations
         extensions: Custom extension handlers
+        parse_yaml_header: If True, parse YAML front matter and apply
+            heading/extensions config while stripping it from the body.
 
     Returns:
         List of Sentence objects
@@ -823,6 +840,7 @@ def parse_sentences(
         use_spacy=use_spacy,
         heading_levels=heading_levels,
         extensions=extensions,
+        parse_yaml_header=parse_yaml_header,
     )
 
     # Filter out sentences without voice if requested
