@@ -8,18 +8,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from ssmd.ssml_conversions import (
-    PROSODY_PITCH_MAP as PITCH_MAP,
-)
-from ssmd.ssml_conversions import (
-    PROSODY_RATE_MAP as RATE_MAP,
-)
-from ssmd.ssml_conversions import (
-    PROSODY_VOLUME_MAP as VOLUME_MAP,
-)
-from ssmd.ssml_conversions import (
-    SSMD_BREAK_STRENGTH_MAP,
-)
+from ssmd.ssml_conversions import PROSODY_PITCH_MAP as PITCH_MAP
+from ssmd.ssml_conversions import PROSODY_RATE_MAP as RATE_MAP
+from ssmd.ssml_conversions import PROSODY_VOLUME_MAP as VOLUME_MAP
+from ssmd.ssml_conversions import SSMD_BREAK_STRENGTH_MAP
 from ssmd.types import (
     AudioAttrs,
     BreakAttrs,
@@ -255,7 +247,7 @@ class Segment:
 
         return result
 
-    def _build_content_ssml(
+    def _build_content_ssml(  # noqa: C901
         self,
         capabilities: "TTSCapabilities | None",
         extensions: dict | None,
@@ -305,7 +297,8 @@ class Segment:
                         content = self._say_as_to_ssml(self.say_as, content)
                     elif warnings is not None:
                         warnings.append(
-                            f"say-as '{self.say_as.interpret_as}' not supported, dropping"
+                            f"say-as '{self.say_as.interpret_as}' not "
+                            "supported, dropping"
                         )
 
         # Apply emphasis
@@ -380,11 +373,17 @@ class Segment:
         if not capabilities.supports_key(base_key, default=capabilities.say_as):
             format_value = self.say_as.format
             if format_value:
-                format_key = f'attribute values››interpret-as="{interpret}" format="{format_value}"'
+                format_key = (
+                    f'attribute values››interpret-as="{interpret}" '
+                    f'format="{format_value}"'
+                )
                 return capabilities.supports_key(format_key, default=False)
             return False
         if self.say_as.format:
-            format_key = f'attribute values››interpret-as="{interpret}" format="{self.say_as.format}"'
+            format_key = (
+                f'attribute values››interpret-as="{interpret}"'
+                f'format="{self.say_as.format}"'
+            )
             return capabilities.supports_key(format_key, default=True)
         return True
 

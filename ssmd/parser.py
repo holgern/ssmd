@@ -882,7 +882,7 @@ def parse_voice_blocks(ssmd_text: str) -> list[tuple[DirectiveAttrs, str]]:
     return _split_directive_blocks(ssmd_text)
 
 
-def _filter_sentences(sentences: list[Sentence], caps: "TTSCapabilities") -> None:
+def _filter_sentences(sentences: list[Sentence], caps: "TTSCapabilities") -> None:  # noqa: C901
     for sentence in sentences:
         if sentence.language and not caps.language_scopes.get("sentence", True):
             sentence.language = None
