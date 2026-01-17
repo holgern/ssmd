@@ -319,17 +319,40 @@ class Document:
             )
 
             # Build SSML from sentences
-            ssml_parts = []
-            for sentence in sentences:
-                ssml_parts.append(
-                    sentence.to_ssml(
-                        capabilities=capabilities,
-                        extensions=extensions,
-                        wrap_sentence=auto_sentence_tags,
-                    )
-                )
+            ssml_parts: list[str] = []
+            paragraph_parts: list[str] = []
+            paragraph_enabled = not capabilities or capabilities.paragraph
 
-            ssml = "".join(ssml_parts)
+            def flush_paragraph() -> None:
+                if not paragraph_parts:
+                    return
+                paragraph_content = " ".join(paragraph_parts).strip()
+                if paragraph_enabled:
+                    ssml_parts.append(f"<p>{paragraph_content}</p>")
+                else:
+                    ssml_parts.append(paragraph_content)
+                paragraph_parts.clear()
+
+            for sentence in sentences:
+                sentence_ssml = sentence.to_ssml(
+                    capabilities=capabilities,
+                    extensions=extensions,
+                    wrap_sentence=auto_sentence_tags,
+                )
+                if paragraph_enabled:
+                    paragraph_parts.append(sentence_ssml)
+                    if sentence.is_paragraph_end:
+                        flush_paragraph()
+                else:
+                    ssml_parts.append(sentence_ssml)
+
+            if paragraph_enabled:
+                flush_paragraph()
+
+            if paragraph_enabled:
+                ssml = "".join(ssml_parts)
+            else:
+                ssml = " ".join(ssml_parts)
 
             # Wrap in <speak> tags if configured
             if output_speak_tag:

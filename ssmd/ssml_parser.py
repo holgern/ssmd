@@ -105,7 +105,7 @@ class SSMLParser:
         elif tag == "p":
             content = self._process_children(element)
             # Paragraphs are separated by double newlines
-            return f"\n\n{content}\n\n"
+            return f"{content}\n\n"
         elif tag == "s":
             # Sentences - just process children
             return self._process_children(element)
@@ -157,7 +157,8 @@ class SSMLParser:
             if child.tail:
                 result.append(child.tail)
 
-        return "".join(result)
+        result_text = "".join(result)
+        return re.sub(r"\s+\n\n\s+", "\n\n", result_text)
 
     def _process_emphasis(self, element: ET.Element) -> str:
         """Convert <emphasis> to *text*, **text**, or _text_.
@@ -280,6 +281,8 @@ class SSMLParser:
         simplified = self.STANDARD_LOCALES.get(lang, lang)
         escaped_lang = _escape_xml_attr(simplified)
         is_multiline = "\n" in content.strip() or len(content.strip()) > 80
+        if element.findall("p"):
+            is_multiline = True
         if is_multiline:
             return (
                 f'<div lang="{escaped_lang}">{{DIRECTIVE_NEWLINE}}'
@@ -311,6 +314,8 @@ class SSMLParser:
         # Check if content is multi-line (use directive syntax)
         # or single-line (use annotation)
         is_multiline = "\n" in content.strip() or len(content.strip()) > 80
+        if element.findall("p"):
+            is_multiline = True
 
         # Directive syntax can be used for both simple names and complex attrs
         use_directive = is_multiline
@@ -540,6 +545,7 @@ class SSMLParser:
         """
         # Preserve paragraph breaks (double newlines)
         text = text.replace("{DIRECTIVE_NEWLINE}", "\n")
+        text = text.strip("\n")
         parts = re.split(r"\n\n+", text)
 
         cleaned_parts = []

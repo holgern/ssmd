@@ -61,6 +61,15 @@ class TestSSMLToSSMD:
         # Paragraphs should be separated by double newlines
         assert "\n\n" in result
 
+    def test_roundtrip_paragraphs(self):
+        """Paragraph breaks are preserved in roundtrip."""
+        original = "First paragraph.\n\nSecond paragraph."
+        ssml_out = ssmd.to_ssml(original)
+        assert "<p>" in ssml_out
+        ssmd_back = ssmd.from_ssml(ssml_out)
+        assert "\n\n" in ssmd_back.strip()
+        assert ssmd_back.strip() == original
+
     def test_language(self):
         """Test language tag conversion."""
         ssml = '<speak><lang xml:lang="en-US">Hello</lang></speak>'
@@ -301,6 +310,30 @@ class TestSSMLToSSMD:
         result = ssmd.from_ssml(ssml)
         assert result.startswith('<div voice="sarah">')
         assert "This is a long sentence" in result
+
+    def test_voice_paragraphs_to_directive(self):
+        """Voice blocks with paragraphs use directive syntax."""
+        ssml = (
+            '<speak><voice name="sarah"><p>Hello there.</p>'
+            "<p>How are you?</p></voice></speak>"
+        )
+        result = ssmd.from_ssml(ssml)
+        assert result.startswith('<div voice="sarah">')
+        assert "Hello there." in result
+        assert "How are you?" in result
+        assert "\n\n" in result
+
+    def test_language_paragraphs_to_directive(self):
+        """Language blocks with paragraphs use directive syntax."""
+        ssml = (
+            '<speak><lang xml:lang="en-US"><p>Hello there.</p>'
+            "<p>How are you?</p></lang></speak>"
+        )
+        result = ssmd.from_ssml(ssml)
+        assert result.startswith('<div lang="en">')
+        assert "Hello there." in result
+        assert "How are you?" in result
+        assert "\n\n" in result
 
     def test_voice_directive_roundtrip(self):
         """Test roundtrip with directive syntax."""

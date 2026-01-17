@@ -1,36 +1,41 @@
 <speak>
-text &amp; more
-<emphasis>moderate emphasis</emphasis>
-<emphasis level="strong">strong emphasis</emphasis>
-<emphasis level="reduced">reduced emphasis</emphasis>
-<emphasis level="moderate">moderate emphasis</emphasis>
-<emphasis level="strong">strong emphasis</emphasis>
-<emphasis level="reduced">reduced emphasis</emphasis>
-<emphasis level="none">no emphasis</emphasis>
-Hello <break strength="none" />     world    (none - no break)
-Hello <break strength="x-weak" />     world    (weak/x-weak break)
-Hello <break strength="medium" />     world    (medium break like after a comma)
-Hello <break strength="strong" />     world    (strong break like after a sentence)
-Hello <break
-    strength="x-strong"
-  />     world    (extra strong break like after a paragraph)
-Hello <break time="5s" />    world    (5 second break)
-Hello <break time="100ms" /> world    (100 millisecond break)
-Hello ...      world    (literal ellipsis, no break)
+    <p>text &amp; more</p>
+    <p>
+        <s><emphasis>moderate emphasis</emphasis></s>
+        <s><emphasis level="strong">strong emphasis</emphasis></s>
+        <s><emphasis level="reduced">reduced emphasis</emphasis></s>
+        <s><emphasis level="moderate">moderate emphasis</emphasis></s>
+        <s><emphasis level="strong">strong emphasis</emphasis></s>
+        <s><emphasis level="reduced">reduced emphasis</emphasis></s>
+        <s><emphasis level="none">no emphasis</emphasis></s>
+    </p>
+    <p>
+<s>Hello <break strength="none" />       world    (none - no break)</s>
+<s>Hello <break strength="x-weak" />     world    (weak/x-weak break)</s>
+<s>Hello <break strength="medium" />     world    (medium break like after a comma)</s>
+<s>Hello <break strength="strong" />     world    (strong break like after a sentence)</s>
+<s>Hello <break strength="x-strong"/>     world    (extra strong break like after a paragraph)</s>
+<s>Hello <break time="5s" />    world    (5 second break)</s>
+<s>Hello <break time="100ms" /> world    (100 millisecond break)</s>
+<s>Hello ...      world    (literal ellipsis, no break)</s>
+    </p><p>
 Ich sah <lang xml:lang="en-US">Guardians of the Galaxy</lang> im Kino.
 Ich sah <lang xml:lang="en-GB">Guardians of the Galaxy</lang> im Kino.
 I saw <lang xml:lang="de-DE">"Die Häschenschule"</lang> in the cinema.
 <lang xml:lang="fr-FR">Bonjour</lang> tout le monde!
+        </p>
 <lang xml:lang="en-US">
 <p>Welcome to the show! I'm Sarah.</p>
 </lang>
 <lang xml:lang="en-GB">
 <p>Thanks Sarah! Great to be here.</p>
-</lang>
+    </lang>
+    <p>
 <voice name="Joanna">Hello</voice>
 <voice name="en-US-Wavenet-A">Hello</voice>
 <voice language="fr-FR" gender="female">Bonjour</voice>
 <voice language="en-GB" gender="male" variant="1">Text</voice>
+</p>
 <voice name="sarah">
 <p>Welcome to the show! I'm Sarah.</p>
 </voice>
