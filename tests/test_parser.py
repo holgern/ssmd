@@ -232,6 +232,14 @@ Hello from Michael
         # Should treat as single sentence when detection disabled
         assert len(sentences) == 1
 
+    def test_sentence_split_ignores_annotations_with_spacy(self):
+        text = (
+            'Der Film [Guardians of the *Galaxy*]{lang="en-GB"} ist ganz '
+            '[okay]{lang="en-US"}.'
+        )
+        sentences = parse_sentences(text)
+        assert len(sentences) == 1
+
     def test_include_default_voice(self):
         """Test including text before first directive."""
         text = """Intro text

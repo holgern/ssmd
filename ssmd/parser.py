@@ -279,8 +279,19 @@ def _split_sentences(
         else:
             model = f"{lang_code}_core_news_{size}"
 
+        should_escape = use_spacy is not False
+        escaped_text = text
+        annotation_placeholders: list[str] = []
+        if should_escape:
+
+            def _replace_annotation(match: re.Match[str]) -> str:
+                annotation_placeholders.append(match.group(0))
+                return f"__SSMD_ANNOTATION_{len(annotation_placeholders) - 1}__"
+
+            escaped_text = re.sub(r"\[[^\]]*\]\{[^}]*\}", _replace_annotation, text)
+
         segments = split_text(
-            text,
+            escaped_text,
             mode="sentence",
             language_model=model,
             apply_corrections=True,
@@ -303,6 +314,25 @@ def _split_sentences(
 
         if current.strip():
             sentences.append(current)
+
+        if not should_escape:
+            return sentences if sentences else [text]
+
+        if not sentences:
+            return [text]
+
+        restored_sentences: list[str] = []
+        for idx, sentence in enumerate(sentences):
+            restored = sentence
+            for placeholder_index, annotation in enumerate(annotation_placeholders):
+                restored = restored.replace(
+                    f"__SSMD_ANNOTATION_{placeholder_index}__", annotation
+                )
+            if idx < len(sentences) - 1:
+                restored = restored.rstrip() + "\n"
+            restored_sentences.append(restored)
+
+        return restored_sentences
 
         return sentences if sentences else [text]
 
