@@ -47,16 +47,27 @@ def main() -> int:
     ssml_generated = ssmd.to_ssml(ssmd_text)
     with open(ssml_out_file, "w", encoding="utf-8") as f:
         f.write(ssml_generated)
-    ssmd_returned = ssmd.from_ssml(ssml_generated)
+    
+    print(f"\n4. Reading {ssml_out_file.name}...")
+    ssml_gen_text = ssml_out_file.read_text(encoding="utf-8")
+    
+    print(f"\n5. Converting SSML back to SSMD and writing to {ssmd_returned_file.name}...")
+    ssmd_returned = ssmd.from_ssml(ssml_gen_text)
     with open(ssmd_returned_file, "w", encoding="utf-8") as f:
         f.write(ssmd_returned)
 
     # Test 2: SSML → SSMD
-    print(f"\n5. Converting SSML → SSMD and writing to {ssmd_out_file.name}...")
+    print(f"\n6. Converting SSML → SSMD and writing to {ssmd_out_file.name}...")
     ssmd_generated = ssmd.from_ssml(ssml_expected)
     with open(ssmd_out_file, "w", encoding="utf-8") as f:
         f.write(ssmd_generated)
-    ssml_returned = ssmd.from_ssml(ssmd_generated)
+
+    print(f"\n7. Reading {ssmd_out_file.name}...")
+    ssmd_gen_text = ssmd_out_file.read_text(encoding="utf-8")
+    
+    print(f"\n8. Converting SSMD back to SSML and writing to {ssml_returned_file.name}...")
+        
+    ssml_returned = ssmd.from_ssml(ssmd_gen_text)
     with open(ssml_returned_file, "w", encoding="utf-8") as f:
         f.write(ssml_returned)
 

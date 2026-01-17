@@ -333,7 +333,12 @@ class Document:
 
             # Wrap in <speak> tags if configured
             if output_speak_tag:
-                ssml = f"<speak>{ssml}</speak>"
+                if "amazon:" in ssml and "xmlns:amazon" not in ssml:
+                    ssml = (
+                        f'<speak xmlns:amazon="https://amazon.com/ssml">{ssml}</speak>'
+                    )
+                else:
+                    ssml = f"<speak>{ssml}</speak>"
 
             # Unescape placeholders AFTER generating SSML
             # (restore original characters in output)
