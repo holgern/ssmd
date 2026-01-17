@@ -184,12 +184,8 @@ class Sentence:
         result = ""
 
         # Build segment content
-        content_parts = []
-        for segment in self.segments:
-            content_parts.append(segment.to_ssmd())
-
-        content = "".join(content_parts)
-        result += content
+        content_parts = [segment.to_ssmd() for segment in self.segments]
+        result += self._join_text_parts(content_parts)
 
         # Add breaks after sentence
         for brk in self.breaks_after:

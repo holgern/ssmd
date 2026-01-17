@@ -240,6 +240,12 @@ Hello from Michael
         sentences = parse_sentences(text)
         assert len(sentences) == 1
 
+    def test_sentence_split_keeps_annotations_intact(self):
+        text = 'Ich sah [Guardians of the Galaxy]{lang="en-GB"} im Kino.'
+        sentences = parse_sentences(text)
+        assert len(sentences) == 1
+        assert sentences[0].to_ssmd().strip() == text
+
     def test_include_default_voice(self):
         """Test including text before first directive."""
         text = """Intro text

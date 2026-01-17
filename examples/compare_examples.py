@@ -67,7 +67,7 @@ def main() -> int:
 
     print(f"\n8. Converting SSMD back to SSML {ssml_returned_file.name}...")
 
-    ssml_returned = ssmd.from_ssml(ssmd_gen_text)
+    ssml_returned = ssmd.to_ssml(ssmd_gen_text)
     with open(ssml_returned_file, "w", encoding="utf-8") as f:
         f.write(ssml_returned)
 

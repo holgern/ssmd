@@ -282,11 +282,15 @@ def _split_sentences(
         should_escape = use_spacy is not False
         escaped_text = text
         annotation_placeholders: list[str] = []
+        placeholder_tokens: list[str] = []
         if should_escape:
+            placeholder_base = 0xF100
 
             def _replace_annotation(match: re.Match[str]) -> str:
                 annotation_placeholders.append(match.group(0))
-                return f"__SSMD_ANNOTATION_{len(annotation_placeholders) - 1}__"
+                placeholder = chr(placeholder_base + len(annotation_placeholders) - 1)
+                placeholder_tokens.append(placeholder)
+                return placeholder
 
             escaped_text = re.sub(r"\[[^\]]*\]\{[^}]*\}", _replace_annotation, text)
 
@@ -326,7 +330,7 @@ def _split_sentences(
             restored = sentence
             for placeholder_index, annotation in enumerate(annotation_placeholders):
                 restored = restored.replace(
-                    f"__SSMD_ANNOTATION_{placeholder_index}__", annotation
+                    placeholder_tokens[placeholder_index], annotation
                 )
             if idx < len(sentences) - 1:
                 restored = restored.rstrip() + "\n"
