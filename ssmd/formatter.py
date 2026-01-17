@@ -83,6 +83,7 @@ def format_ssmd(sentences: list[Sentence]) -> str:
         if directive_key != previous_directive:
             if previous_directive != (None, None, None):
                 output_lines.append("</div>")
+                output_lines.append("")
 
             if any(directive_key):
                 directive = _format_div_directive(sentence)
@@ -114,6 +115,7 @@ def format_ssmd(sentences: list[Sentence]) -> str:
         if output_lines and output_lines[-1] != "":
             output_lines.append("")
         output_lines.append("</div>")
+        output_lines.append("")
 
     # Join lines and ensure trailing newline
     result = "\n".join(output_lines)

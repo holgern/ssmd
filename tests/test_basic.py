@@ -8,13 +8,13 @@ import ssmd
 def test_simple_text():
     """Test plain text conversion."""
     result = ssmd.to_ssml("hello world")
-    assert result == "<speak>hello world</speak>"
+    assert result == "<speak><p>hello world</p></speak>"
 
 
 def test_emphasis():
     """Test emphasis conversion."""
     result = ssmd.to_ssml("hello *world*!")
-    assert result == "<speak>hello <emphasis>world</emphasis>!</speak>"
+    assert result == "<speak><p>hello <emphasis>world</emphasis>!</p></speak>"
 
 
 def test_strip_emphasis():

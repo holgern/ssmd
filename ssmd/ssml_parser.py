@@ -81,8 +81,12 @@ class SSMLParser:
         # Clean up whitespace
         result = self._clean_whitespace(result)
 
-        # Restore directive newlines (protected during whitespace cleaning)
-        result = result.replace("{DIRECTIVE_NEWLINE}", "\n").strip()
+        # Restore directive and sentence newlines (protected during whitespace cleaning)
+        result = (
+            result.replace("{DIRECTIVE_NEWLINE}", "\n")
+            .replace("{SENTENCE_NEWLINE}", "\n")
+            .strip()
+        )
 
         # Parse into sentences and format with proper line breaks
         sentences = parse_sentences(result.strip())
@@ -107,8 +111,8 @@ class SSMLParser:
             # Paragraphs are separated by double newlines
             return f"{content}\n\n"
         elif tag == "s":
-            # Sentences - just process children
-            return self._process_children(element)
+            # Sentences - preserve explicit line breaks
+            return f"{self._process_children(element)}{{SENTENCE_NEWLINE}}"
         elif tag == "emphasis":
             return self._process_emphasis(element)
         elif tag == "break":
@@ -544,7 +548,6 @@ class SSMLParser:
             Cleaned text
         """
         # Preserve paragraph breaks (double newlines)
-        text = text.replace("{DIRECTIVE_NEWLINE}", "\n")
         text = text.strip("\n")
         parts = re.split(r"\n\n+", text)
 

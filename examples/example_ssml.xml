@@ -13,8 +13,12 @@
 <s>Hello <break strength="none" />       world    (none - no break)</s>
 <s>Hello <break strength="x-weak" />     world    (weak/x-weak break)</s>
 <s>Hello <break strength="medium" />     world    (medium break like after a comma)</s>
-<s>Hello <break strength="strong" />     world    (strong break like after a sentence)</s>
-<s>Hello <break strength="x-strong"/>     world    (extra strong break like after a paragraph)</s>
+<s>Hello <break
+        strength="strong"
+      />     world    (strong break like after a sentence)</s>
+<s>Hello <break
+        strength="x-strong"
+      />     world    (extra strong break like after a paragraph)</s>
 <s>Hello <break time="5s" />    world    (5 second break)</s>
 <s>Hello <break time="100ms" /> world    (100 millisecond break)</s>
 <s>Hello ...      world    (literal ellipsis, no break)</s>
