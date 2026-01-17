@@ -296,12 +296,21 @@ class Segment:
         # Apply say-as
         elif self.say_as:
             if not capabilities or capabilities.say_as:
-                content = self._say_as_to_ssml(self.say_as, content)
+                if not capabilities:
+                    content = self._say_as_to_ssml(self.say_as, content)
+                else:
+                    if self._supports_say_as(capabilities):
+                        content = self._say_as_to_ssml(self.say_as, content)
 
         # Apply emphasis
         if self.emphasis:
             if not capabilities or capabilities.emphasis:
-                content = self._emphasis_to_ssml(content)
+                if not capabilities:
+                    content = self._emphasis_to_ssml(content)
+                else:
+                    level = self._emphasis_level_key()
+                    if not level or capabilities.supports_key(level, default=True):
+                        content = self._emphasis_to_ssml(content)
 
         # Apply prosody
         if self.prosody:
@@ -311,9 +320,12 @@ class Segment:
         # Apply language
         if self.language:
             if not capabilities or capabilities.language:
-                lang = expand_language_code(self.language)
-                lang_escaped = _escape_xml_attr(lang)
-                content = f'<lang xml:lang="{lang_escaped}">{content}</lang>'
+                if not capabilities or capabilities.language_scopes.get(
+                    "sentence", True
+                ):
+                    lang = expand_language_code(self.language)
+                    lang_escaped = _escape_xml_attr(lang)
+                    content = f'<lang xml:lang="{lang_escaped}">{content}</lang>'
 
         # Apply voice (inline) - note: TTSCapabilities doesn't have voice attr
         # Voice is always enabled as it's fundamental to TTS
@@ -340,6 +352,33 @@ class Segment:
         elif self.emphasis == "none":
             return f'<emphasis level="none">{content}</emphasis>'
         return content
+
+    def _emphasis_level_key(self) -> str | None:
+        if self.emphasis is True or self.emphasis == "moderate":
+            return 'attribute values››level="moderate" (default)'
+        if self.emphasis == "strong":
+            return 'attribute values››level="strong"'
+        if self.emphasis == "reduced":
+            return 'attribute values››level="reduced"'
+        if self.emphasis == "none":
+            return 'attribute values››level="none"'
+        return None
+
+    def _supports_say_as(self, capabilities: "TTSCapabilities") -> bool:
+        if not self.say_as:
+            return True
+        interpret = self.say_as.interpret_as
+        base_key = f'elements››interpret-as="{interpret}"'
+        if not capabilities.supports_key(base_key, default=capabilities.say_as):
+            format_value = self.say_as.format
+            if format_value:
+                format_key = f'attribute values››interpret-as="{interpret}" format="{format_value}"'
+                return capabilities.supports_key(format_key, default=False)
+            return False
+        if self.say_as.format:
+            format_key = f'attribute values››interpret-as="{interpret}" format="{self.say_as.format}"'
+            return capabilities.supports_key(format_key, default=True)
+        return True
 
     def _prosody_to_ssml(
         self,

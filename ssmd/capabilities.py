@@ -4,6 +4,8 @@ This module defines which SSML features are supported by various TTS engines
 and provides capability-based filtering for SSMD processing.
 """
 
+import json
+from pathlib import Path
 from typing import Any
 
 
@@ -51,6 +53,9 @@ class TTSCapabilities:
         # Sentence and heading support
         sentence_tags: bool = True,
         heading_emphasis: bool = True,
+        # ssml-green raw capabilities
+        ssml_green: dict[str, bool] | None = None,
+        language_scopes: dict[str, bool] | None = None,
     ):
         """Initialize TTS capabilities.
 
@@ -71,6 +76,8 @@ class TTSCapabilities:
             extensions: Dict of extension names and their support
             sentence_tags: Support for <s> tags
             heading_emphasis: Support for heading emphasis
+            ssml_green: Raw ssml-green capabilities map (flattened)
+            language_scopes: Optional language scope support map
         """
         self.emphasis = emphasis
         self.break_tags = break_tags
@@ -88,6 +95,8 @@ class TTSCapabilities:
         self.extensions = extensions or {}
         self.sentence_tags = sentence_tags
         self.heading_emphasis = heading_emphasis
+        self.ssml_green = ssml_green or {}
+        self.language_scopes = language_scopes or {}
 
     def to_config(self) -> dict[str, Any]:
         """Convert capabilities to SSMD config.
@@ -130,6 +139,18 @@ class TTSCapabilities:
             True if supported
         """
         return self.extensions.get(extension_name, False)
+
+    def supports_key(self, key: str, default: bool = True) -> bool:
+        """Check raw ssml-green capability key.
+
+        Args:
+            key: ssml-green key to check
+            default: Default if key is missing
+
+        Returns:
+            True if supported
+        """
+        return self.ssml_green.get(key, default)
 
 
 # Preset capability definitions for common TTS engines
@@ -242,6 +263,72 @@ MINIMAL_CAPABILITIES = TTSCapabilities(
 
 # Full SSML support (reference)
 FULL_CAPABILITIES = TTSCapabilities()
+
+
+def _flatten_ssml_green(data: dict[str, Any]) -> dict[str, bool]:
+    flat: dict[str, bool] = {}
+    for section in data.values():
+        if not isinstance(section, dict):
+            continue
+        for key, value in section.items():
+            if isinstance(value, bool):
+                flat[key] = value
+    return flat
+
+
+def load_ssml_green_platform(path: str | Path) -> TTSCapabilities:
+    data = json.loads(Path(path).read_text(encoding="utf-8"))
+    flat = _flatten_ssml_green(data)
+
+    emphasis = flat.get("elements››level (optional)", True)
+    if emphasis:
+        level_values = [
+            'attribute values››level="strong"',
+            'attribute values››level="moderate" (default)',
+            'attribute values››level="none"',
+            'attribute values››level="reduced"',
+        ]
+        if any(k in flat for k in level_values) and not any(
+            flat.get(k, False) for k in level_values
+        ):
+            emphasis = False
+
+    break_tags = flat.get("elements››strength (optional)", True) or flat.get(
+        "elements››time (optional)", True
+    )
+
+    phoneme = flat.get("elements››ph (required)", True)
+    substitution = flat.get("elements››alias (required)", True)
+    prosody = (
+        flat.get("elements››rate (optional)", True)
+        or flat.get("elements››pitch (optional)", True)
+        or flat.get("elements››volume (optional)", True)
+    )
+
+    language_root = flat.get("elements››xml:lang (required)", True)
+    language_sentence = flat.get("elements›~~(sentence)›xml:lang (optional)", True)
+    language_paragraph = flat.get("elements› (paragraph)›xml:lang (optional)", True)
+    language = language_root or language_sentence or language_paragraph
+
+    say_as = flat.get("elements››interpret-as (required)", True)
+
+    caps = TTSCapabilities(
+        emphasis=emphasis,
+        break_tags=break_tags,
+        paragraph=True,
+        language=language,
+        phoneme=phoneme,
+        substitution=substitution,
+        prosody=prosody,
+        say_as=say_as,
+        ssml_green=flat,
+        language_scopes={
+            "root": language_root,
+            "sentence": language_sentence,
+            "paragraph": language_paragraph,
+        },
+    )
+    return caps
 
 
 # Preset lookup
