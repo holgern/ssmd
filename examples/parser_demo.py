@@ -96,11 +96,14 @@ Let's begin!
     print(f"\nInput script: {script.strip()}")
     print(f"\nExtracted {len(blocks)} voice blocks:\n")
 
-    for i, (voice, text) in enumerate(blocks, 1):
-        if voice:
-            print(f"  Block {i}: {voice.name} says: {text.strip()!r}")
-        else:
-            print(f"  Block {i}: (default voice) says: {text.strip()!r}")
+    for i, (directive, text) in enumerate(blocks, 1):
+        voice_label = "(default voice)"
+        if directive.voice:
+            if directive.voice.name:
+                voice_label = directive.voice.name
+            elif directive.voice.language:
+                voice_label = directive.voice.language
+        print(f"  Block {i}: {voice_label} says: {text.strip()!r}")
 
 
 def example_4_complete_workflow():
