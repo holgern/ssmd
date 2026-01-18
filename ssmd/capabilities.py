@@ -5,8 +5,18 @@ and provides capability-based filtering for SSMD processing.
 """
 
 import json
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+
+
+@dataclass
+class CapabilityProfile:
+    name: str
+    inline_tags: set[str] = field(default_factory=set)
+    block_tags: set[str] = field(default_factory=set)
+    attributes: dict[str, set[str]] = field(default_factory=dict)
+    values: dict[str, set[str]] = field(default_factory=dict)
 
 
 class TTSCapabilities:
@@ -263,6 +273,99 @@ MINIMAL_CAPABILITIES = TTSCapabilities(
 
 # Full SSML support (reference)
 FULL_CAPABILITIES = TTSCapabilities()
+
+SSMD_CORE_PROFILE = CapabilityProfile(
+    name="ssmd-core",
+    inline_tags={
+        "emphasis",
+        "break",
+        "lang",
+        "voice",
+        "mark",
+        "phoneme",
+        "prosody",
+        "say-as",
+        "sub",
+        "audio",
+        "extension",
+    },
+    block_tags={
+        "div",
+        "heading",
+        "paragraph",
+    },
+    attributes={
+        "audio": {
+            "src",
+            "clip",
+            "speed",
+            "repeat",
+            "repeatDur",
+            "level",
+            "alt",
+        },
+        "emphasis": {"level"},
+        "lang": {"lang"},
+        "phoneme": {"ph", "ipa", "sampa", "alphabet"},
+        "prosody": {"volume", "rate", "pitch", "v", "r", "p"},
+        "say-as": {"as", "format", "detail"},
+        "sub": {"sub"},
+        "voice": {"voice", "voice-lang", "gender", "variant"},
+        "div": {
+            "lang",
+            "voice",
+            "voice-lang",
+            "gender",
+            "variant",
+            "volume",
+            "rate",
+            "pitch",
+        },
+        "heading": {"level"},
+        "break": {"time", "strength"},
+        "mark": {"name"},
+        "extension": {"ext"},
+    },
+)
+
+KOKORO_PROFILE = CapabilityProfile(
+    name="kokoro",
+    inline_tags={tag for tag in SSMD_CORE_PROFILE.inline_tags if tag != "extension"},
+    block_tags=SSMD_CORE_PROFILE.block_tags.copy(),
+    attributes={
+        key: value.copy()
+        for key, value in SSMD_CORE_PROFILE.attributes.items()
+        if key != "extension"
+    },
+)
+
+
+GOOGLE_SSML_PROFILE = CapabilityProfile(
+    name="google-ssml",
+    inline_tags=SSMD_CORE_PROFILE.inline_tags.copy(),
+    block_tags=SSMD_CORE_PROFILE.block_tags.copy(),
+    attributes={
+        key: value.copy() for key, value in SSMD_CORE_PROFILE.attributes.items()
+    },
+)
+
+PROFILES: dict[str, CapabilityProfile] = {
+    "ssmd-core": SSMD_CORE_PROFILE,
+    "kokoro": KOKORO_PROFILE,
+    "google-ssml": GOOGLE_SSML_PROFILE,
+}
+
+
+def get_profile(name: str) -> CapabilityProfile:
+    profile = PROFILES.get(name)
+    if profile is None:
+        available = ", ".join(sorted(PROFILES.keys()))
+        raise ValueError(f"Unknown profile '{name}'. Available: {available}")
+    return profile
+
+
+def list_profiles() -> list[str]:
+    return sorted(PROFILES.keys())
 
 
 def _flatten_ssml_green(data: dict[str, Any]) -> dict[str, bool]:

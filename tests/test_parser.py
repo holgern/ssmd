@@ -231,8 +231,6 @@ class TestParseSegments:
 
     def test_annotation_attribute_unterminated_quote_warning(self):
         """Test annotation parser warnings on unterminated quotes."""
-        from ssmd.parser import parse_spans
-
         result = parse_spans('[Hello]{voice="Joanna}')
         assert result.warnings
 

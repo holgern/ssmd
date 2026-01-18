@@ -922,6 +922,15 @@ extensions:
 
 ---
 
+### Annotation Attributes
+
+Attribute values can be wrapped in single or double quotes. Multiple attributes are
+space-separated inside `{}` blocks. Keys may contain letters, digits, underscores,
+hyphens, and colons.
+
+Offsets returned by `parse_spans()` are computed against the final clean text with
+markup removed.
+
 ### Combining Annotations
 
 Multiple annotations can be comma-separated to combine effects:

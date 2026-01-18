@@ -1,6 +1,14 @@
-"""Span data types for SSMD parsing."""
+"""Span data types for SSMD parsing and linting."""
 
 from dataclasses import dataclass, field
+
+
+@dataclass
+class LintIssue:
+    severity: str
+    message: str
+    char_start: int | None = None
+    char_end: int | None = None
 
 
 @dataclass
@@ -19,4 +27,4 @@ class ParseSpansResult:
     warnings: list[str] = field(default_factory=list)
 
 
-__all__ = ["AnnotationSpan", "ParseSpansResult"]
+__all__ = ["AnnotationSpan", "ParseSpansResult", "LintIssue"]

@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any
 
 from ssmd.segment import Segment
 from ssmd.sentence import Sentence
-from ssmd.spans import AnnotationSpan, ParseSpansResult
+from ssmd.spans import AnnotationSpan, LintIssue, ParseSpansResult
 from ssmd.ssml_conversions import (
     PROSODY_PITCH_MAP,
     PROSODY_RATE_MAP,
@@ -726,6 +726,33 @@ def _append_segment_spans_normalized(
     return clean_text
 
 
+def _annotated_attrs_to_tagged(attrs: dict[str, str]) -> dict[str, str]:
+    tag: str | None = None
+    if "ext" in attrs:
+        tag = "extension"
+    elif "src" in attrs:
+        tag = "audio"
+    elif "sub" in attrs:
+        tag = "sub"
+    elif "ph" in attrs or "ipa" in attrs or "sampa" in attrs:
+        tag = "phoneme"
+    elif "as" in attrs:
+        tag = "say-as"
+    elif "voice" in attrs or "voice-lang" in attrs or "gender" in attrs:
+        tag = "voice"
+    elif "lang" in attrs:
+        tag = "lang"
+    elif any(k in attrs for k in ("volume", "rate", "pitch", "v", "r", "p")):
+        tag = "prosody"
+    elif "emphasis" in attrs:
+        tag = "emphasis"
+
+    if tag:
+        return {**attrs, "tag": tag}
+
+    return attrs
+
+
 def _segment_attrs_to_map(segment: Segment) -> dict[str, str]:
     attrs: dict[str, str] = {}
 
@@ -788,7 +815,7 @@ def _segment_attrs_to_map(segment: Segment) -> dict[str, str]:
         if segment.audio.alt_text:
             attrs["alt"] = segment.audio.alt_text
 
-    return attrs
+    return _annotated_attrs_to_tagged(attrs)
 
 
 def _parse_segments_with_warnings(
@@ -856,6 +883,9 @@ def _parse_segments_for_spans(
                     attrs_override = {
                         k: v for k, v in attrs_override.items() if v != ""
                     }
+                if attrs_override is None:
+                    attrs_override = {}
+                attrs_override = _annotated_attrs_to_tagged(attrs_override)
 
         current_segments = [segment for segment, _ in segments]
         pending_breaks, pending_marks, markup_seg = _handle_markup(
@@ -1437,6 +1467,61 @@ def iter_sentences_spans(
         cursor = end
 
     return spans
+
+
+def lint(text: str, profile: str = "ssmd-core") -> list[LintIssue]:
+    """Lint SSMD text against a capability profile.
+
+    Offsets in lint issues refer to the clean text coordinate system.
+    """
+    from ssmd.capabilities import get_profile
+
+    issues: list[LintIssue] = []
+    spans = parse_spans(text)
+    profile_data = get_profile(profile)
+
+    for warning in spans.warnings:
+        issues.append(LintIssue(severity="warn", message=warning))
+
+    for annotation in spans.annotations:
+        attrs = annotation.attrs
+        tag = attrs.get("tag") or annotation.kind
+
+        if (
+            tag
+            and tag not in profile_data.inline_tags
+            and tag not in profile_data.block_tags
+        ):
+            issues.append(
+                LintIssue(
+                    severity="error",
+                    message=f"Tag '{tag}' is not supported by profile '{profile}'.",
+                    char_start=annotation.char_start,
+                    char_end=annotation.char_end,
+                )
+            )
+            continue
+
+        if tag:
+            allowed_attrs = profile_data.attributes.get(tag, set())
+            if allowed_attrs:
+                for key in attrs:
+                    if key in {"tag", "name"}:
+                        continue
+                    if key not in allowed_attrs:
+                        issues.append(
+                            LintIssue(
+                                severity="warn",
+                                message=(
+                                    f"Attribute '{key}' is not supported for '{tag}' "
+                                    f"in profile '{profile}'."
+                                ),
+                                char_start=annotation.char_start,
+                                char_end=annotation.char_end,
+                            )
+                        )
+
+    return issues
 
 
 def _filter_sentences(sentences: list[Sentence], caps: "TTSCapabilities") -> None:  # noqa: C901

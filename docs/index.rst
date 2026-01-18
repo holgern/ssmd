@@ -73,6 +73,7 @@ Table of Contents
    quickstart
    syntax
    capabilities
+   spans
    parser
    ssml_conversion
    examples

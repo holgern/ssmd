@@ -52,6 +52,9 @@ from ssmd.capabilities import (
     AZURE_TTS_CAPABILITIES,
     MINIMAL_CAPABILITIES,
     FULL_CAPABILITIES,
+    CapabilityProfile,
+    get_profile,
+    list_profiles,
 )
 from ssmd.parser import (
     parse_sentences,
@@ -59,7 +62,9 @@ from ssmd.parser import (
     parse_voice_blocks,
     parse_spans,
     iter_sentences_spans,
+    lint,
 )
+from ssmd.spans import LintIssue
 from ssmd.parser_types import (
     SSMDSegment,
     SSMDSentence,
@@ -170,6 +175,7 @@ __all__ = [
     "parse_voice_blocks",
     "parse_spans",
     "iter_sentences_spans",
+    "lint",
     "format_ssmd",
     # Utility functions
     "escape_ssmd_syntax",
@@ -186,6 +192,10 @@ __all__ = [
     "PhonemeAttrs",
     "HeadingConfig",
     "DEFAULT_HEADING_LEVELS",
+    "CapabilityProfile",
+    "get_profile",
+    "list_profiles",
+    "LintIssue",
     # Backward compatibility aliases
     "SSMDSegment",
     "SSMDSentence",

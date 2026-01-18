@@ -97,6 +97,9 @@ Extract structured data from SSMD text.
 .. autofunction:: ssmd.parse_sentences
 .. autofunction:: ssmd.parse_segments
 .. autofunction:: ssmd.parse_voice_blocks
+.. autofunction:: ssmd.parse_spans
+.. autofunction:: ssmd.iter_sentences_spans
+.. autofunction:: ssmd.lint
 
 Conversion Functions
 ~~~~~~~~~~~~~~~~~~~~

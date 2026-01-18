@@ -156,6 +156,22 @@ All features enabled (no filtering):
 
 Use this when you know your engine supports everything or want to test.
 
+Capability Profiles and Linting
+-------------------------------
+
+Profiles describe which SSMD tags and attributes are supported without mutating
+output. Use them to validate input before conversion:
+
+.. code-block:: python
+
+   from ssmd import get_profile, list_profiles, lint
+
+   profiles = list_profiles()
+   profile = get_profile("ssmd-core")
+   issues = lint("[Hello]{ext='whisper'}", profile="kokoro")
+
+Profiles are separate from runtime `TTSCapabilities` presets.
+
 Custom Capabilities
 -------------------
 
@@ -185,7 +201,7 @@ Basic Example
    doc = Document(capabilities=caps)
 
 Partial Prosody Support
-~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~
 
 Some engines support only certain prosody attributes:
 
