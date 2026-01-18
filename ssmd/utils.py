@@ -231,6 +231,10 @@ def escape_ssmd_syntax(
 ) -> str:
     """Escape SSMD syntax patterns to prevent interpretation as markup.
 
+    Note:
+        Escaping is reversible but not length-preserving. Any offsets derived from
+        escaped text should be mapped against the unescaped clean text instead.
+
     This is useful when processing plain text or markdown that may contain
     characters that coincidentally match SSMD syntax patterns. Uses placeholder
     replacement which is reversed after SSML processing.

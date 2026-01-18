@@ -57,6 +57,8 @@ from ssmd.parser import (
     parse_sentences,
     parse_segments,
     parse_voice_blocks,
+    parse_spans,
+    iter_sentences_spans,
 )
 from ssmd.parser_types import (
     SSMDSegment,
@@ -166,6 +168,8 @@ __all__ = [
     "parse_sentences",
     "parse_segments",
     "parse_voice_blocks",
+    "parse_spans",
+    "iter_sentences_spans",
     "format_ssmd",
     # Utility functions
     "escape_ssmd_syntax",

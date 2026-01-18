@@ -5,10 +5,11 @@ that can be used for TTS processing or conversion to SSML.
 """
 
 import re
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from ssmd.segment import Segment
 from ssmd.sentence import Sentence
+from ssmd.spans import AnnotationSpan, ParseSpansResult
 from ssmd.ssml_conversions import (
     PROSODY_PITCH_MAP,
     PROSODY_RATE_MAP,
@@ -25,6 +26,7 @@ from ssmd.types import (
     SayAsAttrs,
     VoiceAttrs,
 )
+from ssmd.utils import unescape_ssmd_syntax
 
 if TYPE_CHECKING:
     from ssmd.capabilities import TTSCapabilities
@@ -244,6 +246,53 @@ def _split_directive_blocks(text: str) -> list[tuple[DirectiveAttrs, str]]:
     return blocks
 
 
+def _split_directive_blocks_with_warnings(
+    text: str,
+) -> tuple[list[tuple[DirectiveAttrs, str]], list[str]]:
+    """Split directive blocks and collect parse warnings."""
+    blocks: list[tuple[DirectiveAttrs, str]] = []
+    warnings: list[str] = []
+    stack: list[DirectiveAttrs] = [DirectiveAttrs()]
+    current_lines: list[str] = []
+
+    def flush_block() -> None:
+        if not current_lines:
+            return
+        block_text = "\n".join(current_lines)
+        if block_text.strip():
+            blocks.append((stack[-1], block_text))
+        current_lines.clear()
+
+    for line in text.split("\n"):
+        start_match = DIV_DIRECTIVE_START.match(line)
+        if start_match:
+            flush_block()
+            attrs = _parse_div_attrs(start_match.group(1))
+            stack.append(_merge_directives(stack[-1], attrs))
+            continue
+
+        if DIV_DIRECTIVE_END.match(line):
+            if len(stack) > 1:
+                flush_block()
+                stack.pop()
+                continue
+            warnings.append("Unexpected </div> without matching <div>.")
+            current_lines.append(line)
+            continue
+
+        current_lines.append(line)
+
+    flush_block()
+
+    if len(stack) > 1:
+        warnings.append("Unclosed <div> directive block.")
+
+    if not blocks and text.strip():
+        blocks.append((DirectiveAttrs(), text.strip()))
+
+    return blocks, warnings
+
+
 def _parse_div_attrs(params: str) -> DirectiveAttrs:
     """Parse <div ...> attribute params into directive attrs."""
     params_map = _parse_annotation_params(params)
@@ -281,6 +330,8 @@ def _split_sentences(
     language: str = "en",
     use_spacy: bool | None = None,
     model_size: str | None = None,
+    *,
+    escape_annotations: bool = True,
 ) -> list[str]:
     """Split text into sentences using phrasplit."""
     try:
@@ -300,7 +351,7 @@ def _split_sentences(
         else:
             model = f"{lang_code}_core_news_{size}"
 
-        should_escape = use_spacy is not False
+        should_escape = use_spacy is not False and escape_annotations
         escaped_text = text
         annotation_placeholders: list[str] = []
         placeholder_tokens: list[str] = []
@@ -546,6 +597,331 @@ def _parse_heading(
     return [seg]
 
 
+def _parse_block_to_spans(
+    clean_text: str,
+    block_text: str,
+    annotations: list[AnnotationSpan],
+    warnings: list[str],
+    preserve_whitespace: bool,
+) -> str:
+    if preserve_whitespace:
+        segments, seg_warnings = _parse_segments_for_spans(
+            block_text,
+            normalize_text=False,
+        )
+        warnings.extend(seg_warnings)
+        for segment, attrs_override in segments:
+            clean_text = _append_segment_spans(
+                clean_text,
+                segment,
+                annotations,
+                "inline",
+                attrs_override=attrs_override,
+            )
+        return clean_text
+
+    paragraphs = PARAGRAPH_PATTERN.split(block_text)
+    for para_index, paragraph in enumerate(paragraphs):
+        if not paragraph.strip():
+            continue
+
+        if clean_text and (para_index > 0 or clean_text.endswith("\n")):
+            clean_text += "\n\n"
+
+        clean_text = _parse_paragraph_normalized(
+            clean_text,
+            paragraph,
+            annotations,
+            warnings,
+        )
+
+    return clean_text
+
+
+def _parse_paragraph_normalized(
+    clean_text: str,
+    paragraph: str,
+    annotations: list[AnnotationSpan],
+    warnings: list[str],
+) -> str:
+    segments, seg_warnings = _parse_segments_for_spans(paragraph)
+    warnings.extend(seg_warnings)
+
+    for segment, attrs_override in segments:
+        clean_text = _append_segment_spans_normalized(
+            clean_text,
+            segment,
+            annotations,
+            "inline",
+            attrs_override=attrs_override,
+        )
+
+    return clean_text
+
+
+def _append_segment_spans(
+    clean_text: str,
+    segment: Segment,
+    annotations: list[AnnotationSpan],
+    kind: str,
+    attrs_override: dict[str, str] | None = None,
+) -> str:
+    text = segment.to_text()
+    if not text:
+        return clean_text
+
+    char_start = len(clean_text)
+    clean_text += text
+    char_end = len(clean_text)
+
+    attrs = (
+        attrs_override if attrs_override is not None else _segment_attrs_to_map(segment)
+    )
+    if attrs:
+        annotations.append(
+            AnnotationSpan(
+                char_start=char_start,
+                char_end=char_end,
+                attrs=attrs,
+                kind=kind,
+            )
+        )
+
+    return clean_text
+
+
+def _append_segment_spans_normalized(
+    clean_text: str,
+    segment: Segment,
+    annotations: list[AnnotationSpan],
+    kind: str,
+    attrs_override: dict[str, str] | None = None,
+) -> str:
+    text = segment.to_text()
+    if not text:
+        return clean_text
+
+    prefix = ""
+    if clean_text and not clean_text.endswith("\n"):
+        if text and not text.startswith(tuple(".!?,:;")):
+            prefix = " "
+
+    char_start = len(clean_text) + len(prefix)
+    clean_text = f"{clean_text}{prefix}{text}"
+    char_end = len(clean_text)
+
+    attrs = (
+        attrs_override if attrs_override is not None else _segment_attrs_to_map(segment)
+    )
+    if attrs:
+        annotations.append(
+            AnnotationSpan(
+                char_start=char_start,
+                char_end=char_end,
+                attrs=attrs,
+                kind=kind,
+            )
+        )
+
+    return clean_text
+
+
+def _segment_attrs_to_map(segment: Segment) -> dict[str, str]:
+    attrs: dict[str, str] = {}
+
+    if segment.language:
+        attrs["lang"] = segment.language
+
+    if segment.voice:
+        if segment.voice.name:
+            attrs["voice"] = segment.voice.name
+        if segment.voice.language:
+            attrs["voice-lang"] = segment.voice.language
+        if segment.voice.gender:
+            attrs["gender"] = segment.voice.gender
+        if segment.voice.variant is not None:
+            attrs["variant"] = str(segment.voice.variant)
+
+    if segment.say_as:
+        attrs["as"] = segment.say_as.interpret_as
+        if segment.say_as.format:
+            attrs["format"] = segment.say_as.format
+        if segment.say_as.detail:
+            attrs["detail"] = str(segment.say_as.detail)
+
+    if segment.substitution:
+        attrs["sub"] = segment.substitution
+
+    if segment.phoneme:
+        attrs["ph"] = segment.phoneme.ph
+        attrs["alphabet"] = segment.phoneme.alphabet
+
+    if segment.extension:
+        attrs["ext"] = segment.extension
+
+    if segment.prosody:
+        if segment.prosody.volume:
+            attrs["volume"] = segment.prosody.volume
+        if segment.prosody.rate:
+            attrs["rate"] = segment.prosody.rate
+        if segment.prosody.pitch:
+            attrs["pitch"] = segment.prosody.pitch
+
+    if segment.emphasis:
+        if segment.emphasis is True or segment.emphasis == "moderate":
+            attrs["emphasis"] = "moderate"
+        else:
+            attrs["emphasis"] = str(segment.emphasis)
+
+    if segment.audio:
+        attrs["src"] = segment.audio.src
+        if segment.audio.clip_begin and segment.audio.clip_end:
+            attrs["clip"] = f"{segment.audio.clip_begin}-{segment.audio.clip_end}"
+        if segment.audio.speed:
+            attrs["speed"] = segment.audio.speed
+        if segment.audio.repeat_count is not None:
+            attrs["repeat"] = str(segment.audio.repeat_count)
+        if segment.audio.repeat_dur:
+            attrs["repeatDur"] = segment.audio.repeat_dur
+        if segment.audio.sound_level:
+            attrs["level"] = segment.audio.sound_level
+        if segment.audio.alt_text:
+            attrs["alt"] = segment.audio.alt_text
+
+    return attrs
+
+
+def _parse_segments_with_warnings(
+    text: str,
+    *,
+    normalize_text: bool = True,
+) -> tuple[list[Segment], list[str]]:
+    segments, warnings = _parse_segments_for_spans(text, normalize_text=normalize_text)
+    return [segment for segment, _ in segments], warnings
+
+
+def _parse_segments_for_spans(
+    text: str,
+    *,
+    normalize_text: bool = True,
+) -> tuple[list[tuple[Segment, dict[str, str] | None]], list[str]]:
+    segments: list[tuple[Segment, dict[str, str] | None]] = []
+    warnings: list[str] = []
+    position = 0
+
+    heading_match = HEADING_PATTERN.match(text)
+    if heading_match:
+        parsed = _parse_heading(heading_match, DEFAULT_HEADING_LEVELS)
+        segments.extend((segment, _segment_attrs_to_map(segment)) for segment in parsed)
+        return segments, warnings
+
+    combined = re.compile(
+        r"("
+        r"\*\*[^\*]+\*\*"
+        r"|\*[^\*]+\*"
+        r"|(?<![_a-zA-Z0-9])_(?!_)[^_]+?(?<!_)_(?![_a-zA-Z0-9])"
+        r"|\[[^\]]*\]\{[^}]+\}"
+        r"|\.\.\.(?:\d+(?:s|ms)|[nwcsp])"
+        r"|@(?!voice[:(])\w+"
+        r")"
+    )
+
+    pending_breaks: list[BreakAttrs] = []
+    pending_marks: list[str] = []
+
+    for match in combined.finditer(text):
+        if match.start() > position:
+            plain_text = text[position : match.start()]
+            plain = _normalize_text(plain_text) if normalize_text else plain_text
+            if plain:
+                seg = Segment(text=plain)
+                if pending_breaks:
+                    seg.breaks_before = pending_breaks
+                    pending_breaks = []
+                if pending_marks:
+                    seg.marks_before = pending_marks
+                    pending_marks = []
+                segments.append((seg, _segment_attrs_to_map(seg)))
+
+        markup = match.group(0)
+        attrs_override: dict[str, str] | None = None
+        if markup.startswith("["):
+            annotation_match = ANNOTATION_PATTERN.match(markup)
+            if annotation_match:
+                attrs_override, attr_warnings = _parse_annotation_params_with_warnings(
+                    annotation_match.group(2).strip()
+                )
+                warnings.extend(attr_warnings)
+                if attrs_override is not None:
+                    attrs_override = {
+                        k: v for k, v in attrs_override.items() if v != ""
+                    }
+
+        current_segments = [segment for segment, _ in segments]
+        pending_breaks, pending_marks, markup_seg = _handle_markup(
+            markup,
+            current_segments,
+            pending_breaks,
+            pending_marks,
+            extensions=None,
+        )
+        if markup_seg:
+            if attrs_override is None or not attrs_override:
+                attrs_override = _segment_attrs_to_map(markup_seg)
+            segments.append((markup_seg, attrs_override))
+
+        position = match.end()
+
+    if position < len(text):
+        plain_text = text[position:]
+        plain = _normalize_text(plain_text) if normalize_text else plain_text
+        if plain:
+            seg = Segment(text=plain)
+            _apply_pending(seg, pending_breaks, pending_marks)
+            segments.append((seg, _segment_attrs_to_map(seg)))
+
+    if not segments and text.strip():
+        content = _normalize_text(text) if normalize_text else text
+        if content:
+            seg = Segment(text=content)
+            _apply_pending(seg, pending_breaks, pending_marks)
+            segments.append((seg, _segment_attrs_to_map(seg)))
+
+    if text.count("[") != text.count("]"):
+        warnings.append("Unbalanced annotation brackets in input.")
+    if text.count("{") != text.count("}"):
+        warnings.append("Unbalanced annotation braces in input.")
+
+    return segments, warnings
+
+
+def _directive_attrs_to_map(directive: DirectiveAttrs) -> dict[str, str]:
+    attrs: dict[str, str] = {}
+
+    if directive.language:
+        attrs["lang"] = directive.language
+
+    if directive.voice:
+        if directive.voice.name:
+            attrs["voice"] = directive.voice.name
+        if directive.voice.language:
+            attrs["voice-lang"] = directive.voice.language
+        if directive.voice.gender:
+            attrs["gender"] = directive.voice.gender
+        if directive.voice.variant is not None:
+            attrs["variant"] = str(directive.voice.variant)
+
+    if directive.prosody:
+        if directive.prosody.volume:
+            attrs["volume"] = directive.prosody.volume
+        if directive.prosody.rate:
+            attrs["rate"] = directive.prosody.rate
+        if directive.prosody.pitch:
+            attrs["pitch"] = directive.prosody.pitch
+
+    return attrs
+
+
 def _parse_break(modifier: str) -> BreakAttrs:
     """Parse break modifier into BreakAttrs."""
     if modifier in SSMD_BREAK_MARKER_TO_STRENGTH:
@@ -567,6 +943,8 @@ def _parse_annotation(markup: str, extensions: dict | None = None) -> Segment | 
 
     seg = Segment(text=text)
     params_map = _parse_annotation_params(params)
+    if not params_map and params:
+        return seg
 
     if not params_map:
         return seg
@@ -612,23 +990,92 @@ def _parse_annotation(markup: str, extensions: dict | None = None) -> Segment | 
 
 def _parse_annotation_params(params: str) -> dict[str, str]:
     """Parse key="value" pairs from annotation params."""
-    if not params:
-        return {}
-
-    pattern = re.compile(r"([a-zA-Z][\w-]*)\s*=\s*(?:\"([^\"]*)\"|'([^']*)'|(\S+))")
-    values: dict[str, str] = {}
-
-    for match in pattern.finditer(params):
-        key = match.group(1).lower()
-        if match.group(2) is not None:
-            value = match.group(2)
-        elif match.group(3) is not None:
-            value = match.group(3)
-        else:
-            value = match.group(4) or ""
-        values[key] = value
-
+    values, _ = _parse_annotation_params_with_warnings(params)
     return values
+
+
+def _parse_annotation_params_with_warnings(
+    params: str,
+) -> tuple[dict[str, str], list[str]]:
+    values: dict[str, str] = {}
+    warnings: list[str] = []
+
+    if not params:
+        return values, warnings
+
+    key = ""
+    value = ""
+    state = "key"
+    quote: str | None = None
+    escape = False
+
+    def _commit() -> None:
+        nonlocal key, value
+        if key:
+            values[key.lower()] = value
+        key = ""
+        value = ""
+
+    for ch in params:
+        if escape:
+            if state == "key":
+                key += ch
+            else:
+                value += ch
+            escape = False
+            continue
+
+        if ch == "\\":
+            escape = True
+            continue
+
+        if state == "key":
+            if ch.isspace():
+                continue
+            if ch == "=":
+                if key:
+                    state = "value"
+                continue
+            if ch.isalnum() or ch in "_-:":
+                key += ch
+                continue
+            warnings.append(f"Unexpected character '{ch}' in attribute key.")
+            continue
+
+        if state == "value":
+            if quote:
+                if ch == quote:
+                    _commit()
+                    state = "key"
+                    quote = None
+                else:
+                    value += ch
+                continue
+
+            if ch in ('"', "'"):
+                quote = ch
+                continue
+
+            if ch.isspace():
+                _commit()
+                state = "key"
+                continue
+
+            value += ch
+
+    if quote is not None:
+        warnings.append("Unterminated quote in annotation attributes.")
+        if key:
+            values[key.lower()] = value
+        return values, warnings
+
+    if key:
+        if state == "value" and quote is None:
+            _commit()
+        elif state == "key":
+            values[key.lower()] = ""
+
+    return values, warnings
 
 
 def _parse_audio_annotation_params(params_map: dict[str, str]) -> AudioAttrs:
@@ -882,6 +1329,116 @@ def parse_voice_blocks(ssmd_text: str) -> list[tuple[DirectiveAttrs, str]]:
     return _split_directive_blocks(ssmd_text)
 
 
+def parse_spans(
+    text: str,
+    *,
+    default_lang: str | None = None,
+    preserve_whitespace: bool = False,
+) -> ParseSpansResult:
+    """Parse SSMD text into clean text and annotation spans.
+
+    Args:
+        text: SSMD markdown text
+        default_lang: Optional language to apply to the entire output
+        preserve_whitespace: Preserve input whitespace when True
+
+    Returns:
+        ParseSpansResult with clean text, annotations, and warnings. Offsets in
+        annotations are relative to the returned clean_text.
+    """
+    if not text:
+        return ParseSpansResult(clean_text="", annotations=[], warnings=[])
+
+    warnings: list[str] = []
+    annotations: list[AnnotationSpan] = []
+
+    blocks, directive_warnings = _split_directive_blocks_with_warnings(text)
+    warnings.extend(directive_warnings)
+
+    clean_text = ""
+    for directive, block_text in blocks:
+        block_start = len(clean_text)
+        clean_text = _parse_block_to_spans(
+            clean_text,
+            block_text,
+            annotations,
+            warnings,
+            preserve_whitespace,
+        )
+        block_end = len(clean_text)
+
+        directive_attrs = _directive_attrs_to_map(directive)
+        if directive_attrs and block_end > block_start:
+            annotations.append(
+                AnnotationSpan(
+                    char_start=block_start,
+                    char_end=block_end,
+                    attrs=directive_attrs,
+                    kind="div",
+                )
+            )
+
+    clean_text = unescape_ssmd_syntax(clean_text)
+
+    if default_lang and clean_text:
+        annotations.insert(
+            0,
+            AnnotationSpan(
+                char_start=0,
+                char_end=len(clean_text),
+                attrs={"lang": default_lang},
+                kind="language",
+            ),
+        )
+
+    return ParseSpansResult(
+        clean_text=clean_text, annotations=annotations, warnings=warnings
+    )
+
+
+def iter_sentences_spans(
+    text_or_doc: str | Any,
+    *,
+    preserve_whitespace: bool = False,
+    language: str = "en",
+    use_spacy: bool | None = None,
+    model_size: str | None = None,
+) -> list[tuple[str, int, int]]:
+    """Iterate over sentence spans in clean text coordinates."""
+    if not text_or_doc:
+        return []
+
+    text = text_or_doc
+    if not isinstance(text_or_doc, str):
+        text = text_or_doc.ssmd
+
+    sent_texts = _split_sentences(
+        text,
+        language=language,
+        use_spacy=use_spacy,
+        model_size=model_size,
+    )
+    clean_text = parse_spans(text, preserve_whitespace=preserve_whitespace).clean_text
+
+    spans: list[tuple[str, int, int]] = []
+    cursor = 0
+    for sent_text in sent_texts:
+        sent_clean = parse_spans(
+            sent_text,
+            preserve_whitespace=preserve_whitespace,
+        ).clean_text
+        if not sent_clean:
+            continue
+        start = clean_text.find(sent_clean, cursor)
+        if start == -1:
+            continue
+        end = start + len(sent_clean)
+        spans.append((sent_clean, start, end))
+        cursor = end
+
+    return spans
+
+
 def _filter_sentences(sentences: list[Sentence], caps: "TTSCapabilities") -> None:  # noqa: C901
     for sentence in sentences:
         if sentence.language and not caps.language_scopes.get("sentence", True):
@@ -912,7 +1469,7 @@ def _filter_sentences(sentences: list[Sentence], caps: "TTSCapabilities") -> Non
             if segment.say_as and not caps.say_as:
                 segment.say_as = None
             if segment.emphasis and not caps.emphasis:
-                segment.emphasis = None
+                segment.emphasis = False
             if segment.language and not caps.language_scopes.get("sentence", True):
                 segment.language = None
             if segment.phoneme and not caps.phoneme:

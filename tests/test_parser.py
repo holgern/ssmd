@@ -3,8 +3,10 @@
 import pytest
 
 from ssmd import (
+    iter_sentences_spans,
     parse_segments,
     parse_sentences,
+    parse_spans,
     parse_voice_blocks,
 )
 
@@ -63,6 +65,15 @@ Hello from Michael
         assert voice.language == "fr-FR"
         assert voice.gender == "female"
         assert voice.name is None
+
+    def test_voice_directive_single_quotes(self):
+        """Test directive attributes with single quotes."""
+        text = "<div voice='sarah'>\nHello\n</div>"
+        blocks = parse_voice_blocks(text)
+
+        assert len(blocks) == 1
+        assert blocks[0][0].voice is not None
+        assert blocks[0][0].voice.name == "sarah"
 
     def test_voice_with_all_attributes(self):
         """Test voice directive block with all attributes."""
@@ -181,6 +192,50 @@ class TestParseSegments:
         assert lang_seg is not None
         assert lang_seg.language == "fr"
 
+    def test_language_annotation_single_quotes(self):
+        """Test parsing language annotation with single quotes."""
+        segments = parse_segments("[Bonjour]{lang='fr'}")
+
+        lang_seg = next((s for s in segments if s.language), None)
+        assert lang_seg is not None
+        assert lang_seg.language == "fr"
+
+    def test_multiple_annotation_attributes(self):
+        """Test parsing multiple annotation attributes."""
+        segments = parse_segments("[x]{key1=\"v1\" key2='v2'}")
+
+        segment = next((s for s in segments if s.text == "x"), None)
+        assert segment is not None
+        assert segment.extension is None
+        assert segment.voice is None
+        assert segment.language is None
+
+    def test_annotation_attribute_whitespace(self):
+        """Test annotation parser whitespace handling."""
+        segments = parse_segments('[Hello]{ lang = "fr"  voice = "Joanna" }')
+
+        segment = next((s for s in segments if s.text == "Hello"), None)
+        assert segment is not None
+        assert segment.language == "fr"
+        assert segment.voice is not None
+        assert segment.voice.name == "Joanna"
+
+    def test_annotation_attribute_escape(self):
+        """Test annotation parser escape handling."""
+        segments = parse_segments('[Hello]{voice="Jo\\"anna"}')
+
+        segment = next((s for s in segments if s.text == "Hello"), None)
+        assert segment is not None
+        assert segment.voice is not None
+        assert segment.voice.name == 'Jo"anna'
+
+    def test_annotation_attribute_unterminated_quote_warning(self):
+        """Test annotation parser warnings on unterminated quotes."""
+        from ssmd.parser import parse_spans
+
+        result = parse_spans('[Hello]{voice="Joanna}')
+        assert result.warnings
+
 
 class TestParseSentences:
     """Test sentence parsing."""
@@ -246,13 +301,25 @@ Hello from Michael
         assert len(sentences) == 1
         assert sentences[0].to_ssmd().strip() == text
 
+    def test_sentence_spans_offsets(self):
+        """Test sentence span offsets against clean text."""
+        text = "Hello *world*. Next sentence."
+        spans = iter_sentences_spans(text, use_spacy=False)
+        assert spans[0][0] == "Hello world."
+        assert spans[0][1] == 0
+        assert spans[0][2] == len("Hello world.")
+        assert spans[1][0] == "Next sentence."
+
+        clean_text = parse_spans(text).clean_text
+        assert clean_text == "Hello world. Next sentence."
+
     def test_include_default_voice(self):
         """Test including text before first directive."""
         text = """Intro text
 
-<div voice="sarah">
-Sarah speaks
-</div>"""
+ <div voice="sarah">
+ Sarah speaks
+ </div>"""
         sentences = parse_sentences(text, include_default_voice=True)
 
         # Should include intro text

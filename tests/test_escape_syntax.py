@@ -334,3 +334,9 @@ Line 3 with [link]{src="url"}"""
         text = "Plain text with * and [ and @"
         result = ssmd.unescape_ssmd_syntax(text)
         assert result == text
+
+    def test_escape_unescape_roundtrip(self):
+        """Escaping should be reversible."""
+        text = 'Mix *emphasis* [note]{lang="fr"} and @mark'
+        escaped = ssmd.escape_ssmd_syntax(text)
+        assert ssmd.unescape_ssmd_syntax(escaped) == text
