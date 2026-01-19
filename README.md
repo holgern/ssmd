@@ -130,7 +130,7 @@ doc.add_sentence("Welcome to the *amazing* world of SSMD!")
 doc.add_sentence("This makes TTS content much easier to write.")
 doc.add_paragraph("# Chapter 2: Features")
 doc.add_sentence("You can use all kinds of markup.")
-doc.add_sentence("Including ...500ms pauses and [special pronunciations](ph: speSl).")
+doc.add_sentence("Including ...500ms pauses and [special pronunciations]{ph=\"speSl\"}.")
 
 # Iterate through sentences for TTS
 for i, sentence in enumerate(doc.sentences(), 1):
@@ -179,7 +179,7 @@ This ensures compatibility by stripping unsupported tags to plain text.
 from ssmd import Document
 
 # Use a preset for your TTS engine
-doc = Document("*Hello* [world](en)!", capabilities='pyttsx3')
+doc = Document("*Hello* [world]{lang=\"en\"}!", capabilities='pyttsx3')
 ssml = doc.to_ssml()
 
 # pyttsx3 doesn't support emphasis or language tags, so they're stripped:
@@ -226,7 +226,7 @@ doc = Document(capabilities='espeak')
 # Build content with various features
 doc.add_paragraph("# Welcome")
 doc.add_sentence("*Hello* world!")
-doc.add_sentence("[Bonjour](fr) everyone!")
+doc.add_sentence("[Bonjour]{lang=\"fr\"} everyone!")
 
 # All sentences are filtered for eSpeak compatibility
 for sentence in doc.sentences():
@@ -236,7 +236,7 @@ for sentence in doc.sentences():
 
 **Comparison of Engine Outputs:**
 
-Same input: `*Hello* world... [this is loud](v: 5)!`
+Same input: `*Hello* world... [this is loud]{v="5"}!`
 
 | Engine  | Output                                                                                                                   |
 | ------- | ------------------------------------------------------------------------------------------------------------------------ |
@@ -263,11 +263,11 @@ ssmd.to_ssml("**very important**")
 # → <speak><emphasis level="strong">very important</emphasis></speak>
 
 # Reduced emphasis (subtle)
-ssmd.to_ssml("_less important_")
+ssmd.to_ssml("~~less important~~")
 # → <speak><emphasis level="reduced">less important</emphasis></speak>
 
 # No emphasis (explicit, rarely used)
-ssmd.to_ssml("[monotone](emphasis: none)")
+ssmd.to_ssml("[monotone]{emphasis=\"none\"}")
 # → <speak><emphasis level="none">monotone</emphasis></speak>
 ```
 
@@ -305,11 +305,11 @@ ssmd.to_ssml(text)
 
 ```python
 # Auto-complete language codes
-ssmd.to_ssml('[Bonjour](fr) world')
+ssmd.to_ssml('[Bonjour]{lang="fr"} world')
 # → <speak><lang xml:lang="fr-FR">Bonjour</lang> world</speak>
 
 # Explicit locale
-ssmd.to_ssml('[Cheerio](en-GB)')
+ssmd.to_ssml('[Cheerio]{lang="en-GB"}')
 # → <speak><lang xml:lang="en-GB">Cheerio</lang></speak>
 ```
 
@@ -324,19 +324,19 @@ Perfect for short voice changes within a sentence:
 
 ```python
 # Simple voice name
-ssmd.to_ssml('[Hello](voice: Joanna)')
+ssmd.to_ssml('[Hello]{voice="Joanna"}')
 # → <speak><voice name="Joanna">Hello</voice></speak>
 
 # Cloud TTS voice name (e.g., Google Wavenet, AWS Polly)
-ssmd.to_ssml('[Hello](voice: en-US-Wavenet-A)')
+ssmd.to_ssml('[Hello]{voice="en-US-Wavenet-A"}')
 # → <speak><voice name="en-US-Wavenet-A">Hello</voice></speak>
 
 # Language and gender
-ssmd.to_ssml('[Bonjour](voice: fr-FR, gender: female)')
+ssmd.to_ssml('[Bonjour]{voice-lang="fr-FR" gender="female"}')
 # → <speak><voice language="fr-FR" gender="female">Bonjour</voice></speak>
 
 # All attributes (language, gender, variant)
-ssmd.to_ssml('[Text](voice: en-GB, gender: male, variant: 1)')
+ssmd.to_ssml('[Text]{voice-lang="en-GB" gender="male" variant="1"}')
 # → <speak><voice language="en-GB" gender="male" variant="1">Text</voice></speak>
 ```
 
@@ -345,20 +345,22 @@ ssmd.to_ssml('[Text](voice: en-GB, gender: male, variant: 1)')
 Perfect for dialogue, podcasts, and scripts with multiple speakers:
 
 ```python
-# Use @voice: name or @voice(name) for clean dialogue formatting
 script = """
-@voice: af_sarah
+<div voice="af_sarah">
 Welcome to Tech Talk! I'm Sarah, and today we're diving into the fascinating
 world of text-to-speech technology.
+</div>
 ...s
 
-@voice: am_michael
+<div voice="am_michael">
 And I'm Michael! We've got an amazing episode lined up. The advances in neural
 TTS have been incredible lately.
+</div>
 ...s
 
-@voice: af_sarah
+<div voice="af_sarah">
 So what are we covering today?
+</div>
 """
 
 ssmd.to_ssml(script)
@@ -370,20 +372,22 @@ ssmd.to_ssml(script)
 ```python
 # Language and gender
 multilingual = """
-@voice: fr-FR, gender: female
+<div voice-lang="fr-FR" gender="female">
 Bonjour! Comment allez-vous aujourd'hui?
+</div>
 
-@voice: en-GB, gender: male
+<div voice-lang="en-GB" gender="male">
 Hello there! Lovely weather we're having.
+</div>
 
-@voice: es-ES, gender: female, variant: 1
+<div voice-lang="es-ES" gender="female" variant="1">
 ¡Hola! ¿Cómo estás?
+</div>
 """
 ```
 
 **Voice directive features:**
 
-- Use `@voice: name` or `@voice(name)` syntax
 - Supports all attributes: language, gender, variant
 - Applies to all text until the next directive or paragraph break
 - Automatically detected on SSML→SSMD conversion for long voice blocks
@@ -394,11 +398,13 @@ Hello there! Lovely weather we're having.
 ```python
 # Block directive for main speaker, inline for interruptions
 text = """
-@voice: sarah
-Hello everyone, [but wait!](voice: michael) Michael interrupts...
+<div voice="sarah">
+Hello everyone, [but wait!]{voice="michael"} Michael interrupts...
+</div>
 
-@voice: michael
+<div voice="michael">
 Sorry, I had to jump in there!
+</div>
 """
 ```
 
@@ -406,62 +412,37 @@ Sorry, I had to jump in there!
 
 ```python
 # X-SAMPA notation (converted to IPA automatically)
-ssmd.to_ssml('[tomato](ph: t@meItoU)')
+ssmd.to_ssml('[tomato]{sampa="t@meItoU"}')
 
 # Direct IPA
-ssmd.to_ssml('[tomato](ipa: təˈmeɪtoʊ)')
+ssmd.to_ssml('[tomato]{ipa="təˈmeɪtoʊ"}')
 
 # Output: <speak><phoneme alphabet="ipa" ph="təˈmeɪtoʊ">tomato</phoneme></speak>
 ```
 
 ### Prosody (Volume, Rate, Pitch)
 
-#### Shorthand Notation
-
-```python
-# Volume
-ssmd.to_ssml("~silent~")      # silent
-ssmd.to_ssml("--whisper--")   # x-soft
-ssmd.to_ssml("-soft-")        # soft
-ssmd.to_ssml("+loud+")        # loud
-ssmd.to_ssml("++very loud++") # x-loud
-
-# Rate
-ssmd.to_ssml("<<very slow<<")  # x-slow
-ssmd.to_ssml("<slow<")         # slow
-ssmd.to_ssml(">fast>")         # fast
-ssmd.to_ssml(">>very fast>>")  # x-fast
-
-# Pitch
-ssmd.to_ssml("__very low__")   # x-low
-ssmd.to_ssml("_low_")          # low
-ssmd.to_ssml("^high^")         # high
-ssmd.to_ssml("^^very high^^")  # x-high
-```
-
-#### Explicit Notation
-
 ```python
 # Combined (volume, rate, pitch)
-ssmd.to_ssml('[loud and fast](vrp: 555)')
+ssmd.to_ssml('[loud and fast]{vrp="555"}')
 # → <prosody volume="x-loud" rate="x-fast" pitch="x-high">loud and fast</prosody>
 
 # Individual attributes
-ssmd.to_ssml('[text](v: 5, r: 3, p: 1)')
+ssmd.to_ssml('[text]{v="5" r="3" p="1"}')
 # → <prosody volume="x-loud" rate="medium" pitch="x-low">text</prosody>
 
 # Relative values
-ssmd.to_ssml('[louder](v: +10dB)')
-ssmd.to_ssml('[higher](p: +20%)')
+ssmd.to_ssml('[louder]{v="+10dB"}')
+ssmd.to_ssml('[higher]{p="+20%"}')
 ```
 
 ### Substitution (Aliases)
 
 ```python
-ssmd.to_ssml('[H2O](sub: water)')
+ssmd.to_ssml('[H2O]{sub="water"}')
 # → <speak><sub alias="water">H2O</sub></speak>
 
-ssmd.to_ssml('[AWS](sub: Amazon Web Services)')
+ssmd.to_ssml('[AWS]{sub="Amazon Web Services"}')
 # → <speak><sub alias="Amazon Web Services">AWS</sub></speak>
 ```
 
@@ -469,63 +450,63 @@ ssmd.to_ssml('[AWS](sub: Amazon Web Services)')
 
 ```python
 # Telephone numbers
-ssmd.to_ssml('[+1-555-0123](as: telephone)')
+ssmd.to_ssml('[+1-555-0123]{as="telephone"}')
 
 # Dates with format
-ssmd.to_ssml('[31.12.2024](as: date, format: "dd.mm.yyyy")')
+ssmd.to_ssml('[31.12.2024]{as="date" format="dd.mm.yyyy"}')
 
 # Say-as with detail attribute (for verbosity control)
-ssmd.to_ssml('[123](as: cardinal, detail: 2)')
+ssmd.to_ssml('[123]{as="cardinal" detail="2"}')
 # → <speak><say-as interpret-as="cardinal" detail="2">123</say-as></speak>
 
-ssmd.to_ssml('[12/31/2024](as: date, format: "mdy", detail: 1)')
+ssmd.to_ssml('[12/31/2024]{as="date" format="mdy" detail="1"}')
 # → <speak><say-as interpret-as="date" format="mdy" detail="1">12/31/2024</say-as></speak>
 
 # Spell out
-ssmd.to_ssml('[NASA](as: character)')
+ssmd.to_ssml('[NASA]{as="character"}')
 
 # Numbers
-ssmd.to_ssml('[123](as: cardinal)')
-ssmd.to_ssml('[1st](as: ordinal)')
+ssmd.to_ssml('[123]{as="cardinal"}')
+ssmd.to_ssml('[1st]{as="ordinal"}')
 
 # Expletives (beeped)
-ssmd.to_ssml('[damn](as: expletive)')
+ssmd.to_ssml('[damn]{as="expletive"}')
 ```
 
 ### Audio Files
 
 ```python
 # Basic audio with description
-ssmd.to_ssml('[doorbell](https://example.com/sounds/bell.mp3)')
+ssmd.to_ssml('[doorbell]{src="https://example.com/sounds/bell.mp3"}')
 # → <audio src="https://example.com/sounds/bell.mp3"><desc>doorbell</desc></audio>
 
 # With fallback text
-ssmd.to_ssml('[cat purring](cat.ogg Sound file not loaded)')
+ssmd.to_ssml('[cat purring]{src="cat.ogg" desc="Sound file not loaded"}')
 # → <audio src="cat.ogg"><desc>cat purring</desc>Sound file not loaded</audio>
 
 # No description
-ssmd.to_ssml('[](beep.mp3)')
+ssmd.to_ssml('[]{src="beep.mp3"}')
 # → <audio src="beep.mp3"></audio>
 
 # Advanced audio attributes
 # Clip audio (play from 5s to 30s)
-ssmd.to_ssml('[music](song.mp3 clip: 5s-30s)')
+ssmd.to_ssml('[music]{src="song.mp3" clip="5s-30s"}')
 # → <audio src="song.mp3" clipBegin="5s" clipEnd="30s"><desc>music</desc></audio>
 
 # Speed control
-ssmd.to_ssml('[announcement](speech.mp3 speed: 150%)')
+ssmd.to_ssml('[announcement]{src="speech.mp3" speed="150%"}')
 # → <audio src="speech.mp3" speed="150%"><desc>announcement</desc></audio>
 
 # Repeat count
-ssmd.to_ssml('[jingle](ad.mp3 repeat: 3)')
+ssmd.to_ssml('[jingle]{src="ad.mp3" repeat="3"}')
 # → <audio src="ad.mp3" repeatCount="3"><desc>jingle</desc></audio>
 
 # Volume level
-ssmd.to_ssml('[alarm](alert.mp3 level: +6dB)')
+ssmd.to_ssml('[alarm]{src="alert.mp3" level="+6dB"}')
 # → <audio src="alert.mp3" soundLevel="+6dB"><desc>alarm</desc></audio>
 
 # Combine multiple attributes with fallback text
-ssmd.to_ssml('[background](music.mp3 clip: 0s-10s, speed: 120%, level: -3dB Fallback text)')
+ssmd.to_ssml('[background]{src="music.mp3" clip="0s-10s" speed="120%" level="-3dB" desc="Fallback text"}')
 # → <audio src="music.mp3" clipBegin="0s" clipEnd="10s" speed="120%" soundLevel="-3dB">
 #    <desc>background</desc>Fallback text</audio>
 ```
@@ -565,7 +546,7 @@ ssml = doc.to_ssml()
 
 ```python
 # Amazon Polly whisper effect
-ssmd.to_ssml('[whispered text](ext: whisper)')
+ssmd.to_ssml('[whispered text]{ext="whisper"}')
 # → <speak><amazon:effect name="whispered">whispered text</amazon:effect></speak>
 
 # Custom extensions
@@ -596,9 +577,9 @@ doc = Document(config={
 })
 
 # Use styles in your content
-doc.add_sentence("[Welcome to our service!](ext: cheerful)")
-doc.add_sentence("[We apologize for the inconvenience.](ext: apologetic)")
-doc.add_sentence("[Please remain calm.](ext: calm)")
+doc.add_sentence("[Welcome to our service!]{ext=\"cheerful\"}")
+doc.add_sentence("[We apologize for the inconvenience.]{ext=\"apologetic\"}")
+doc.add_sentence("[Please remain calm.]{ext=\"calm\"}")
 
 ssml = doc.to_ssml()
 # → <speak>
@@ -648,12 +629,14 @@ features or want to build custom TTS pipelines.
 from ssmd import parse_sentences
 
 script = """
-@voice: sarah
-Hello! Call [+1-555-0123](as: telephone) for info.
-[H2O](sub: water) is important.
+<div voice="sarah">
+Hello! Call [+1-555-0123]{as="telephone"} for info.
+[H2O]{sub="water"} is important.
+</div>
 
-@voice: michael
+<div voice="michael">
 Thanks *Sarah*!
+</div>
 """
 
 # Parse into structured sentences
@@ -697,7 +680,7 @@ Parse SSMD text into structured sentences with segments.
 
 - `text` (str): SSMD text to parse
 - `sentence_detection` (bool): Split text into sentences (default: True)
-- `include_default_voice` (bool): Include text before first @voice directive (default:
+- `include_default_voice` (bool): Include text before first voice directive (default:
   True)
 - `capabilities` (TTSCapabilities | str): Filter features based on TTS engine support
 - `language` (str): Language code for sentence detection (default: "en")
@@ -782,7 +765,7 @@ Parse SSMD text into segments without sentence grouping.
 ```python
 from ssmd import parse_segments
 
-segments = parse_segments("Call [+1-555-0123](as: telephone) now")
+segments = parse_segments("Call [+1-555-0123]{as=\"telephone\"} now")
 
 for seg in segments:
     if seg.say_as:
@@ -801,11 +784,13 @@ Split text by voice directives.
 from ssmd import parse_voice_blocks
 
 blocks = parse_voice_blocks("""
-@voice: sarah
+<div voice="sarah">
 Hello from Sarah
+</div>
 
-@voice: michael
+<div voice="michael">
 Hello from Michael
+</div>
 """)
 
 for voice, text in blocks:
@@ -966,7 +951,7 @@ div_span = next(s for s in result.annotations if s.kind == 'div')
 print(div_span.attrs)  # {"lang": "fr", "tag": "div"}
 
 # Preserve input whitespace
-result = parse_spans("Wait,[what]{ph='wʌt'}?!", normalize=False)
+result = parse_spans("Wait,[what]{ipa=\"wʌt\"}?!", normalize=False)
 print(result.clean_text)  # "Wait,what?!"
 ```
 
@@ -1145,7 +1130,7 @@ Today we'll discuss some exciting topics.
 
 # Topic 1
 First ...500ms let's talk about SSMD.
-It makes writing TTS content [much easier](v: 4, p: 4)!
+It makes writing TTS content [much easier]{v="4" p="4"}!
 
 # Conclusion
 Thank you for listening @end_marker!
@@ -1194,17 +1179,18 @@ features inspired by the
 
 ### Implemented Features
 
-✅ Text ✅ Emphasis (`*text*`, `**strong**`, `_reduced_`, `[text](emphasis: none)`) ✅
-Break (`...500ms`, `...2s`, `...n/w/c/s/p`) ✅ Language (`[text](en)`, `[text](en-GB)`)
-✅ Voice inline (`[text](voice: Joanna)`, `[text](voice: en-US, gender: female)`) ✅
-Voice directives (`@voice: name`) ✅ Mark (`@marker`) ✅ Paragraph (`\n\n`) ✅ Phoneme
-(`[text](ph: xsampa)`, `[text](ipa: ipa)`) ✅ Prosody shorthand (`++loud++`, `>>fast>>`,
-`^^high^^`) ✅ Prosody explicit (`[text](vrp: 555)`, `[text](v: 5)`) ✅ Substitution
-(`[text](sub: alias)`) ✅ Say-as (`[text](as: telephone)`,
-`[text](as: date, detail: 1)`) ✅ Audio (`[desc](url.mp3 alt)`,
-`[desc](url.mp3 clip: 5s-30s, speed: 120%)`) ✅ Headings (`# ## ###`) ✅ Extensions
-(`[text](ext: whisper)`, Google TTS styles) ✅ Auto-sentence tags (`<s>`) ✅ **SSML ↔
-SSMD bidirectional conversion**
+✅ Text ✅ Emphasis (`*text*`, `**strong**`, `~~reduced~~`, `[text]{emphasis="none"}`)
+✅ Break (`...500ms`, `...2s`, `...n/w/c/s/p`) ✅ Language (`[text]{lang="en"}`,
+`[text]{lang="en-GB"}`) ✅ Voice inline (`[text]{voice="Joanna"}`,
+`[text]{voice-lang="en-GB" gender="female"}`) ✅ Voice directives (`<div voice="name">`)
+✅ Mark (`@marker`) ✅ Paragraph (`\n\n`) ✅ Phoneme (`[text]{sampa="xsampa"}`,
+`[text]{ipa="ipa"}`) ✅ Prosody shorthand (`++loud++`, `>>fast>>`, `^^high^^`) ✅
+Prosody explicit (`[text]{vrp="555"}`, `[text]{v="5"}`) ✅ Substitution
+(`[text]{sub="alias"}`) ✅ Say-as (`[text]{as="telephone"}`,
+`[text]{as="date" detail="1"}`) ✅ Audio (`[desc]{src="url.mp3" desc="alt"}`,
+`[desc]{src="url.mp3" clip="5s-30s" speed="120%"}`) ✅ Headings (`# ## ###`) ✅
+Extensions (`[text]{ext="whisper"}`, Google TTS styles) ✅ Auto-sentence tags (`<s>`) ✅
+**SSML ↔ SSMD bidirectional conversion**
 
 ## Related Projects
 

@@ -230,32 +230,6 @@ Parse SSMD text into segments without sentence grouping.
        if seg.say_as:
            print(f"Say-as: {seg.text!r} as {seg.say_as.interpret_as}")
 
-parse_voice_blocks
-~~~~~~~~~~~~~~~~~~
-
-Split text by voice directives.
-
-.. autofunction:: ssmd.parse_voice_blocks
-
-**Returns:** List of ``(VoiceAttrs | None, str)`` tuples
-
-**Example:**
-
-.. code-block:: python
-
-   from ssmd import parse_voice_blocks
-
-   blocks = parse_voice_blocks("""
-   @voice: sarah
-   Hello from Sarah
-
-   @voice: michael
-   Hello from Michael
-   """)
-
-   for voice, text in blocks:
-       print(f"{voice.name}: {text.strip()}")
-
 Data Structures
 ---------------
 

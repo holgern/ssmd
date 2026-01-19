@@ -1192,7 +1192,6 @@ All user input is automatically sanitized to prevent XML injection:
 This specification describes the Python SSMD implementation and is based on the original
 Ruby SSMD specification with additional features including:
 
-- Voice directives (`@voice:`)
 - Heading support
 - Advanced audio attributes
 - TTS engine capability filtering

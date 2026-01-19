@@ -173,6 +173,22 @@ class TestParseSegments:
         assert phoneme_seg.text == "tomato"
         assert phoneme_seg.phoneme is not None  # X-SAMPA converted to IPA
 
+        segments = parse_segments('Say [tomato]{ipa="t@meItoU"} properly')
+
+        # Should find segment with phoneme
+        phoneme_seg = next((s for s in segments if s.phoneme), None)
+        assert phoneme_seg is not None
+        assert phoneme_seg.text == "tomato"
+        assert phoneme_seg.phoneme is not None  # X-SAMPA converted to IPA
+
+        segments = parse_segments('Say [tomato]{sampa="t@meItoU"} properly')
+
+        # Should find segment with phoneme
+        phoneme_seg = next((s for s in segments if s.phoneme), None)
+        assert phoneme_seg is not None
+        assert phoneme_seg.text == "tomato"
+        assert phoneme_seg.phoneme is not None  # X-SAMPA converted to IPA
+
     def test_prosody_annotation(self):
         """Test parsing prosody annotation."""
         segments = parse_segments('[loud text]{volume="5"}')
