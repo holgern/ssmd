@@ -1,7 +1,7 @@
 # Capabilities and linting
 
-SSMD exposes capability profiles so downstream tools can validate input against
-what a target engine supports.
+SSMD exposes capability profiles so downstream tools can validate input against what a
+target engine supports.
 
 ## Profiles
 

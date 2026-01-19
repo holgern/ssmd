@@ -1,16 +1,16 @@
 # Spans
 
-SSMD spans report offsets in the cleaned text returned by `parse_spans`. The
-coordinate system always matches `ParseSpansResult.clean_text` after markup is
-removed and placeholders are unescaped.
+SSMD spans report offsets in the cleaned text returned by `parse_spans`. The coordinate
+system always matches `ParseSpansResult.clean_text` after markup is removed and
+placeholders are unescaped.
 
 ## Coordinate system
 
 - Offsets refer to character indices in `clean_text` only.
 - Markup like `*`, `[text]{...}`, and `<div ...>` is removed before offsets are
   computed.
-- Escaping via `escape_ssmd_syntax()` is reversible but not length-preserving;
-  do not use offsets from escaped text.
+- Escaping via `escape_ssmd_syntax()` is reversible but not length-preserving; do not
+  use offsets from escaped text.
 
 ## Examples
 

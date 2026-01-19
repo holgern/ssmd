@@ -64,7 +64,7 @@ from ssmd.parser import (
     iter_sentences_spans,
     lint,
 )
-from ssmd.spans import LintIssue
+from ssmd.spans import LintIssue, AnnotationSpan, ParseSpansResult
 from ssmd.parser_types import (
     SSMDSegment,
     SSMDSentence,
@@ -196,6 +196,8 @@ __all__ = [
     "get_profile",
     "list_profiles",
     "LintIssue",
+    "AnnotationSpan",
+    "ParseSpansResult",
     # Backward compatibility aliases
     "SSMDSegment",
     "SSMDSentence",

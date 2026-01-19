@@ -903,6 +903,93 @@ Audio file attributes.
 - `repeat_dur` (str | None): Duration to repeat (e.g., "10s")
 - `sound_level` (str | None): Volume adjustment (e.g., "+6dB", "-3dB")
 
+#### `parse_spans(text, **options)` → `ParseSpansResult`
+
+Parse SSMD text into clean text with annotation spans. This is the recommended API for
+downstream integration when you need reliable character offsets for text processing.
+
+**Parameters:**
+
+- `text` (str): SSMD text to parse
+- `normalize` (bool): Normalize whitespace between segments (default: True)
+- `default_lang` (str | None): Optional language to apply to the entire output
+
+**Returns:** `ParseSpansResult` with the following attributes:
+
+- `clean_text` (str): Rendered text with all markup removed
+- `annotations` (list[AnnotationSpan]): List of annotation spans
+- `warnings` (list[str]): Parse warnings (if any)
+
+**AnnotationSpan attributes:**
+
+- `char_start` (int): Start offset in clean_text (0-based, inclusive)
+- `char_end` (int): End offset in clean_text (0-based, exclusive)
+- `attrs` (dict[str, str]): Annotation attributes (e.g.,
+  `{"lang": "fr", "tag": "lang"}`)
+- `kind` (str | None): Annotation kind (e.g., "inline", "div", "language")
+
+**Offset Convention:**
+
+All offsets are **0-based, half-open intervals** `[start, end)` referring to
+`clean_text`. This means `clean_text[span.char_start:span.char_end]` extracts the exact
+text for the span.
+
+**Example:**
+
+```python
+from ssmd import parse_spans
+
+# Basic usage
+result = parse_spans("Hello [world]{lang='fr'}!")
+print(result.clean_text)  # "Hello world!"
+print(result.annotations[0].attrs)  # {"lang": "fr", "tag": "lang"}
+
+# Verify offset invariants
+span = result.annotations[0]
+text = result.clean_text[span.char_start:span.char_end]
+print(text)  # "world"
+
+# Multiple attributes with mixed quotes
+result = parse_spans('[this]{lang="en" ph=\'ðɪs\' rate="0.9"}')
+print(result.clean_text)  # "this"
+print(result.annotations[0].attrs)
+# {"lang": "en", "ph": "ðɪs", "rate": "0.9", "tag": "phoneme"}
+
+# Div blocks
+result = parse_spans("""
+<div lang=fr>
+Bonjour le monde
+</div>
+""")
+print(result.clean_text)  # "Bonjour le monde"
+div_span = next(s for s in result.annotations if s.kind == 'div')
+print(div_span.attrs)  # {"lang": "fr", "tag": "div"}
+
+# Preserve input whitespace
+result = parse_spans("Wait,[what]{ph='wʌt'}?!", normalize=False)
+print(result.clean_text)  # "Wait,what?!"
+```
+
+**Supported Grammar:**
+
+- **Inline annotations:** `[text]{key="value"}` or `[text]{key='value'}`
+- **Multiple attributes:** `[text]{key1="val1" key2='val2'}`
+- **Unquoted values:** `<div lang=fr>...</div>` (simple tokens only)
+- **Escaping:** `{text="hello \"world\""}` (backslash escapes within quotes)
+
+**Warning Policy:**
+
+`parse_spans` prefers warnings over exceptions for user-input parse problems:
+
+- `UNTERMINATED_ANNOTATION` - Unbalanced brackets or braces
+- `ATTR_PARSE_FAILED` - Malformed attribute syntax
+- `UNTERMINATED_DIV` - Unclosed `<div>` blocks
+- `UNEXPECTED_DIV_CLOSE` - `</div>` without matching `<div>`
+- `UNSUPPORTED_NESTING` - Nested markup not supported in current context
+
+Warnings are returned in `result.warnings` and do not raise exceptions. Only programmer
+errors (e.g., internal invariants broken) raise exceptions.
+
 ### Complete Example
 
 See `examples/parser_demo.py` for a comprehensive demonstration of all parser features:

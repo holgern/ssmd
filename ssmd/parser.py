@@ -753,7 +753,7 @@ def _annotated_attrs_to_tagged(attrs: dict[str, str]) -> dict[str, str]:
     return attrs
 
 
-def _segment_attrs_to_map(segment: Segment) -> dict[str, str]:
+def _segment_attrs_to_map(segment: Segment) -> dict[str, str]:  # noqa: C901
     attrs: dict[str, str] = {}
 
     if segment.language:
@@ -1024,7 +1024,7 @@ def _parse_annotation_params(params: str) -> dict[str, str]:
     return values
 
 
-def _parse_annotation_params_with_warnings(
+def _parse_annotation_params_with_warnings(  # noqa: C901
     params: str,
 ) -> tuple[dict[str, str], list[str]]:
     values: dict[str, str] = {}
@@ -1047,18 +1047,6 @@ def _parse_annotation_params_with_warnings(
         value = ""
 
     for ch in params:
-        if escape:
-            if state == "key":
-                key += ch
-            else:
-                value += ch
-            escape = False
-            continue
-
-        if ch == "\\":
-            escape = True
-            continue
-
         if state == "key":
             if ch.isspace():
                 continue
@@ -1074,6 +1062,16 @@ def _parse_annotation_params_with_warnings(
 
         if state == "value":
             if quote:
+                # Handle escaping within quoted strings
+                if escape:
+                    value += ch
+                    escape = False
+                    continue
+
+                if ch == "\\":
+                    escape = True
+                    continue
+
                 if ch == quote:
                     _commit()
                     state = "key"
@@ -1086,9 +1084,11 @@ def _parse_annotation_params_with_warnings(
                 quote = ch
                 continue
 
-            if ch.isspace():
+            if ch.isspace() and value != "":
                 _commit()
                 state = "key"
+                continue
+            elif ch.isspace() and value == "":
                 continue
 
             value += ch
@@ -1362,22 +1362,31 @@ def parse_voice_blocks(ssmd_text: str) -> list[tuple[DirectiveAttrs, str]]:
 def parse_spans(
     text: str,
     *,
+    normalize: bool = True,
     default_lang: str | None = None,
-    preserve_whitespace: bool = False,
+    preserve_whitespace: bool | None = None,
 ) -> ParseSpansResult:
     """Parse SSMD text into clean text and annotation spans.
 
     Args:
         text: SSMD markdown text
+        normalize: If True (default), normalize whitespace between segments
         default_lang: Optional language to apply to the entire output
-        preserve_whitespace: Preserve input whitespace when True
+        preserve_whitespace: Deprecated. Use normalize=False instead.
 
     Returns:
         ParseSpansResult with clean text, annotations, and warnings. Offsets in
         annotations are relative to the returned clean_text.
+
+    Note:
+        Offsets are 0-based, half-open [start, end) intervals referring to clean_text.
     """
     if not text:
         return ParseSpansResult(clean_text="", annotations=[], warnings=[])
+
+    # Handle deprecated preserve_whitespace parameter
+    if preserve_whitespace is not None:
+        normalize = not preserve_whitespace
 
     warnings: list[str] = []
     annotations: list[AnnotationSpan] = []
@@ -1393,12 +1402,14 @@ def parse_spans(
             block_text,
             annotations,
             warnings,
-            preserve_whitespace,
+            preserve_whitespace=not normalize,
         )
         block_end = len(clean_text)
 
         directive_attrs = _directive_attrs_to_map(directive)
         if directive_attrs and block_end > block_start:
+            # Add "tag" attribute for consistency with inline annotations
+            directive_attrs["tag"] = "div"
             annotations.append(
                 AnnotationSpan(
                     char_start=block_start,

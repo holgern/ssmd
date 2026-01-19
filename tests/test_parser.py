@@ -212,13 +212,26 @@ class TestParseSegments:
 
     def test_annotation_attribute_whitespace(self):
         """Test annotation parser whitespace handling."""
-        segments = parse_segments('[Hello]{ lang = "fr"  voice = "Joanna" }')
+        segments = parse_segments('[Hello]{ lang = "fr" }')
+
+        segment = next((s for s in segments if s.text == "Hello"), None)
+        assert segment is not None
+        assert segment.language == "fr"
+
+        segments = parse_segments('[Hello]{ lang = "fr"  voice = "Joanna A" }')
 
         segment = next((s for s in segments if s.text == "Hello"), None)
         assert segment is not None
         assert segment.language == "fr"
         assert segment.voice is not None
-        assert segment.voice.name == "Joanna"
+        assert segment.voice.name == "Joanna A"
+        segments = parse_segments("[Hello]{ lang = 'fr'  voice = 'Joanna A' }")
+
+        segment = next((s for s in segments if s.text == "Hello"), None)
+        assert segment is not None
+        assert segment.language == "fr"
+        assert segment.voice is not None
+        assert segment.voice.name == "Joanna A"
 
     def test_annotation_attribute_escape(self):
         """Test annotation parser escape handling."""
