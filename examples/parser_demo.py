@@ -54,9 +54,9 @@ def example_2_text_transformations():
     print("=" * 60)
 
     text = """
-Call [+1-555-0123](as: telephone) for info.
-[H2O](sub: water) is important.
-Say [tomato](ph: təˈmeɪtoʊ) correctly.
+Call [+1-555-0123]{as="telephone"} for info.
+[H2O]{sub="water"} is important.
+Say [tomato]{ipa="təˈmeɪtoʊ"} correctly.
 """
 
     segments = parse_segments(text)
@@ -80,14 +80,17 @@ def example_3_voice_blocks():
     print("=" * 60)
 
     script = """
-@voice: sarah
+<div voice="sarah">
 Welcome to the show!
+</div>
 
-@voice: michael
+<div voice="michael">
 Thanks Sarah! Great to be here.
+</div>
 
-@voice: sarah
+<div voice="sarah">
 Let's begin!
+</div>
 """
 
     # Parse voice blocks
@@ -113,12 +116,14 @@ def example_4_complete_workflow():
     print("=" * 60)
 
     script = """
-@voice: sarah
-Hello! Call [+1-555-0123](as: telephone) for more info.
-[H2O](sub: water) is important.
+<div voice="sarah">
+Hello! Call [+1-555-0123]{as="telephone"} for more info.
+[H2O]{sub="water"} is important.
+</div>
 
-@voice: michael
+<div voice="michael">
 Thanks *Sarah*! That's very helpful.
+</div>
 """
 
     sentences = parse_sentences(script)
@@ -179,7 +184,7 @@ def example_5_prosody_and_language():
     print("Example 5: Prosody and Language")
     print("=" * 60)
 
-    text = "[loud announcement](v: 5) followed by [Bonjour](fr) everyone"
+    text = '[loud announcement]{v="5"} followed by [Bonjour]{lang="fr"} everyone'
 
     segments = parse_segments(text)
 
@@ -210,8 +215,9 @@ Welcome to the demo.
 
 This is a new paragraph. It has multiple sentences.
 
-@voice: sarah
+<div voice="sarah">
 Sarah speaks here.
+</div>
 """
 
     # Parse with sentence detection enabled
@@ -242,8 +248,8 @@ def example_7_capabilities_filtering():
     from ssmd import get_preset
 
     text = """
-Hello *everyone*! Call [+1-555-0123](as: telephone).
-Say [tomato](ph: təˈmeɪtoʊ) in [Français](fr).
+Hello *everyone*! Call [+1-555-0123]{as="telephone"}.
+Say [tomato]{ipa="təˈmeɪtoʊ"} in [Français]{lang="fr"}.
 """
 
     print(f"\nInput text: {text.strip()}")
@@ -325,11 +331,13 @@ def example_9_sentence_attributes():
     print("=" * 60)
 
     text = """
-@voice: sarah, language: en-US
+<div voice="sarah" voice-lang="en-US">
 Welcome to the show! This is *amazing*.
+</div>
 
-@voice: michael, gender: male
+<div voice="michael" gender="male">
 Thanks for having me.
+</div>
 
 Final thoughts here.
 """
@@ -372,8 +380,9 @@ def example_10_output_formats():
     print("=" * 60)
 
     text = """
-@voice: narrator
-*Hello* everyone! Call [+1-800-555-0123](as: telephone) for info.
+<div voice="narrator">
+*Hello* everyone! Call [+1-800-555-0123]{as="telephone"} for info.
+</div>
 """
 
     sentences = parse_sentences(text)
@@ -405,12 +414,14 @@ def mock_tts_integration():
     print("=" * 60)
 
     script = """
-@voice: sarah, language: en-US
-Hello! Today's date is [2024-01-15](as: date, format: mdy).
-Call [+1-555-0123](as: telephone) for support.
+<div voice="sarah" voice-lang="en-US">
+Hello! Today's date is [2024-01-15]{as="date" format="mdy"}.
+Call [+1-555-0123]{as="telephone"} for support.
+</div>
 
-@voice: michael, language: en-GB
+<div voice="michael" voice-lang="en-GB">
 *Thank you* for watching!
+</div>
 """
 
     sentences = parse_sentences(script)

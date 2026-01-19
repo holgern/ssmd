@@ -52,17 +52,17 @@ def main():
 
     # Build a demo script with various styles
     doc.add_paragraph("# Customer Service Demo")
-    doc.add_sentence("[Welcome to our support line!](ext: cheerful)")
-    doc.add_sentence("[I understand this must be frustrating.](ext: empathetic)")
-    doc.add_sentence("[Let me help you resolve this issue.](ext: calm)")
+    doc.add_sentence('[Welcome to our support line!]{ext="cheerful"}')
+    doc.add_sentence('[I understand this must be frustrating.]{ext="empathetic"}')
+    doc.add_sentence('[Let me help you resolve this issue.]{ext="calm"}')
 
     doc.add_paragraph("# News Broadcast Demo")
-    doc.add_sentence("[Good evening, I'm your news anchor.](ext: serious)")
-    doc.add_sentence("[Today's top story is truly *extraordinary*!](ext: lively)")
+    doc.add_sentence('[Good evening, I\'m your news anchor.]{ext="serious"}')
+    doc.add_sentence('[Today\'s top story is truly *extraordinary*!]{ext="lively"}')
 
     doc.add_paragraph("# Leadership Speech Demo")
-    doc.add_sentence("[We need to take action *now*.](ext: firm)")
-    doc.add_sentence("[Together, we can make a difference!](ext: cheerful)")
+    doc.add_sentence('[We need to take action *now*.]{ext="firm"}')
+    doc.add_sentence('[Together, we can make a difference!]{ext="cheerful"}')
 
     # Export to SSML
     ssml = doc.to_ssml()
@@ -84,12 +84,12 @@ def main():
     print("=" * 60)
 
     examples = [
-        "[Hello there!](ext: cheerful)",
-        "[Please remain calm.](ext: calm)",
-        "[I'm here to help.](ext: empathetic)",
-        "[Listen carefully.](ext: firm)",
-        "[This is amazing!](ext: lively)",
-        "[Breaking news.](ext: serious)",
+        '[Hello there!]{ext="cheerful"}',
+        '[Please remain calm.]{ext="calm"}',
+        '[I\'m here to help.]{ext="empathetic"}',
+        '[Listen carefully.]{ext="firm"}',
+        '[This is amazing!]{ext="lively"}',
+        '[Breaking news.]{ext="serious"}',
     ]
 
     for example in examples:
@@ -124,16 +124,19 @@ def main():
 
     multi_voice.add_paragraph(
         """
-@voice: en-US-Wavenet-F
-[Hello! How can I help you today?](ext: cheerful)
+<div voice="en-US-Wavenet-F">
+[Hello! How can I help you today?]{ext="cheerful"}
+</div>
 
-@voice: en-US-Wavenet-C
+<div voice="en-US-Wavenet-C">
 I'm having trouble with my order.
+</div>
 
-@voice: en-US-Wavenet-F
-[I completely understand your concern.](ext: empathetic)
+<div voice="en-US-Wavenet-F">
+[I completely understand your concern.]{ext="empathetic"}
 Let me look into that for you right away.
-"""
+</div>
+    """
     )
 
     print(multi_voice.to_ssml())
@@ -144,7 +147,7 @@ Let me look into that for you right away.
     print("=" * 60)
     print("""
 1. Register your Google styles in the Document config
-2. Use [text](ext: style_name) syntax in your SSMD
+2. Use [text]{ext="style_name"} syntax in your SSMD
 3. Combine with other SSMD features (voice, prosody, etc.)
 4. Check Google Cloud TTS docs for voice-specific style support
 5. Test with Google Cloud TTS API to hear the actual styles

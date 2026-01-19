@@ -396,9 +396,10 @@ def example_10_roundtrip():
 
     # Original SSMD
     original_ssmd = """
-@voice: narrator
-Hello *everyone*! Call [+1-555-0123](as: telephone) for info.
-Say [tomato](ph: təˈmeɪtoʊ) correctly.
+<div voice="narrator">
+Hello *everyone*! Call [+1-555-0123]{as="telephone"} for info.
+Say [tomato]{ipa="təˈmeɪtoʊ"} correctly.
+</div>
 """
 
     print("\n10a. Original SSMD:")
