@@ -24,17 +24,19 @@ each feature individually instead of generating a complete SSML document.
 
 .. code-block:: python
 
-   from ssmd import parse_sentences
+    from ssmd import parse_sentences
 
-   script = """
-   @voice: sarah
-   Hello! Call [+1-555-0123]{as="telephone"} for info.
+    script = """
+    <div voice="sarah">
+    Hello! Call [+1-555-0123]{as="telephone"} for info.
+    </div>
 
-   @voice: michael
-   Thanks *Sarah*!
-   """
+    <div voice="michael">
+    Thanks *Sarah*!
+    </div>
+    """
 
-   # Parse into structured sentences
+    # Parse into structured sentences
    for sentence in parse_sentences(script):
        # Get voice configuration
        voice_name = sentence.voice.name if sentence.voice else "default"
@@ -70,7 +72,7 @@ Parse SSMD text into structured sentences with segments.
 
 * ``ssmd_text`` (str): SSMD markdown text to parse
 * ``sentence_detection`` (bool): Split text into sentences (default: ``True``)
-* ``include_default_voice`` (bool): Include text before first ``@voice:`` directive (default: ``True``)
+* ``include_default_voice`` (bool): Include text before first voice directive (default: ``True``)
 * ``capabilities`` (TTSCapabilities | str): Filter features based on TTS engine support
 * ``language`` (str): Language code for sentence detection (default: ``"en"``)
 * ``model_size`` (str): spaCy model size - ``"sm"``, ``"md"``, ``"lg"``, ``"trf"`` (default: ``"sm"``)
@@ -163,13 +165,15 @@ The ``model_size`` parameter works across all spaCy-supported languages:
 
 .. code-block:: python
 
-   script = """
-   @voice: fr-FR
-   Bonjour tout le monde!
+    script = """
+    <div voice="fr-FR">
+    Bonjour tout le monde!
+    </div>
 
-   @voice: en-US
-   Hello everyone!
-   """
+    <div voice="en-US">
+    Hello everyone!
+    </div>
+    """
 
    # Uses fr_core_news_md for French, en_core_web_md for English
    sentences = parse_sentences(script, model_size="md")
@@ -400,11 +404,11 @@ Handle say-as, substitution, and phoneme features:
 
    from ssmd import parse_segments
 
-   text = """
-   Call [+1-555-0123]{as="telephone"} for info.
-   [H2O]{sub="water"} is important.
-   Say [tomato]{ph="təˈmeɪtoʊ"} correctly.
-   """
+    text = """
+    Call [+1-555-0123]{as="telephone"} for info.
+    [H2O]{sub="water"} is important.
+    Say [tomato]{ipa="təˈmeɪtoʊ"} correctly.
+    """
 
    segments = parse_segments(text)
 
@@ -425,19 +429,20 @@ Process voice blocks separately:
 
    from ssmd import parse_voice_blocks
 
-   script = """
-   @voice: sarah
-   Hello! Call [+1-555-0123]{as="telephone"} for info.
+    script = """
+    <div voice="sarah">
+    Hello! Call [+1-555-0123]{as="telephone"} for info.
+    </div>
 
-   @voice: michael
-   Thanks *Sarah*!
-   """
+    <div voice="michael">
+    Thanks *Sarah*!
+    </div>
+    """
 
 
 
 
-
-   blocks = parse_voice_blocks(script)
+    blocks = parse_voice_blocks(script)
 
    for voice, text in blocks:
        if voice:
@@ -450,19 +455,21 @@ Build sentences from segments for TTS processing:
 
 .. code-block:: python
 
-   from ssmd import parse_sentences
+    from ssmd import parse_sentences
 
-   script = """
-   @voice: sarah
-   Hello! Call [+1-555-0123]{as="telephone"} for info.
+    script = """
+    <div voice="sarah">
+    Hello! Call [+1-555-0123]{as="telephone"} for info.
+    </div>
 
-   @voice: michael
-   Thanks *Sarah*!
-   """
+    <div voice="michael">
+    Thanks *Sarah*!
+    </div>
+    """
 
-   for sentence in parse_sentences(script):
-       # Get voice
-       voice_name = sentence.voice.name if sentence.voice else "default"
+    for sentence in parse_sentences(script):
+        # Get voice
+        voice_name = sentence.voice.name if sentence.voice else "default"
 
        # Build complete text
        full_text = ""
@@ -505,20 +512,21 @@ Control sentence detection and voice filtering:
 
    from ssmd import parse_sentences
 
-   text = """
-   Welcome to the demo.
+    text = """
+    Welcome to the demo.
 
-   This is a new paragraph.
+    This is a new paragraph.
 
-   @voice: sarah
-   Sarah speaks here.
-   """
+    <div voice="sarah">
+    Sarah speaks here.
+    </div>
+    """
 
-   sentences = parse_sentences(
-       text,
-       sentence_detection=True,       # Split by sentences
-       include_default_voice=True,    # Include text before @voice
-   )
+    sentences = parse_sentences(
+        text,
+        sentence_detection=True,       # Split by sentences
+        include_default_voice=True,    # Include text before voice directive
+    )
 
    for i, sent in enumerate(sentences, 1):
        voice_name = sent.voice.name if sent.voice else "(default)"
@@ -574,14 +582,16 @@ Example integration with a TTS engine:
            # Speak with TTS
            tts.speak(full_text, **voice_config)
 
-   # Usage
-   script = """
-   @voice: sarah
-   Hello! Today's date is [2024-01-15]{as="date" format="mdy"}.
+    # Usage
+    script = """
+    <div voice="sarah">
+    Hello! Today's date is [2024-01-15]{as="date" format="mdy"}.
+    </div>
 
-   @voice: michael
-   Thank you for listening!
-   """
+    <div voice="michael">
+    Thank you for listening!
+    </div>
+    """
 
    tts = TTSEngine()
    process_ssmd_script(script, tts)

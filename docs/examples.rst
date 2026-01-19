@@ -662,14 +662,17 @@ Multi-Voice Dialogue Processing
    from ssmd import parse_sentences
 
    script = """
-   @voice: sarah
+   <div voice="sarah">
    Welcome to the show!
+   </div>
 
-   @voice: michael
+   <div voice="michael">
    Thanks Sarah! Great to be here.
+   </div>
 
-   @voice: sarah
+   <div voice="sarah">
    Let's get started!
+   </div>
    """
 
    for sentence in parse_sentences(script):
@@ -732,12 +735,13 @@ Custom TTS Pipeline
            """Mock TTS speak method."""
            print(f"[{voice}] {text}")
 
-   # Usage
-   tts = CustomTTS()
-   tts.process_script("""
-   @voice: sarah
-   Call [+1-555-0123]{as="telephone"} today!
-   """)
+    # Usage
+    tts = CustomTTS()
+    tts.process_script("""
+    <div voice="sarah">
+    Call [+1-555-0123]{as="telephone"} today!
+    </div>
+    """)
 
 Text Transformation Example
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -746,11 +750,11 @@ Text Transformation Example
 
    from ssmd import parse_segments
 
-   text = """
-   Call [+1-555-0123]{as="telephone"} for info.
-   [H2O]{sub="water"} is important.
-   Say [tomato]{ph="təˈmeɪtoʊ"} correctly.
-   """
+    text = """
+    Call [+1-555-0123]{as="telephone"} for info.
+    [H2O]{sub="water"} is important.
+    Say [tomato]{ipa="təˈmeɪtoʊ"} correctly.
+    """
 
    segments = parse_segments(text)
 

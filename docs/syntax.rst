@@ -212,63 +212,70 @@ Voice Directives (Block Syntax)
 
 Perfect for dialogue, podcasts, and scripts with multiple speakers:
 
-.. code-block:: python
+ .. code-block:: python
 
-   # Use @voice: name or @voice(name) for clean dialogue formatting
-   script = """
-   @voice: af_sarah
-   Welcome to Tech Talk! I'm Sarah, and today we're diving into the
-   fascinating world of text-to-speech technology.
-   ...s
+    script = """
+    <div voice="af_sarah">
+    Welcome to Tech Talk! I'm Sarah, and today we're diving into the
+    fascinating world of text-to-speech technology.
+    ...s
+    </div>
 
-   @voice: am_michael
-   And I'm Michael! We've got an amazing episode lined up. The advances
-   in neural TTS have been incredible lately.
-   ...s
+    <div voice="am_michael">
+    And I'm Michael! We've got an amazing episode lined up. The advances
+    in neural TTS have been incredible lately.
+    ...s
+    </div>
 
-   @voice: af_sarah
-   So what are we covering today?
-   """
+    <div voice="af_sarah">
+    So what are we covering today?
+    </div>
+    """
 
-   ssmd.to_ssml(script)
-   # Each voice directive creates a separate voice block in SSML
+    ssmd.to_ssml(script)
+    # Each voice directive creates a separate voice block in SSML
 
 Voice directives support all voice attributes:
 
-.. code-block:: python
+ .. code-block:: python
 
-   # Language and gender
-   multilingual = """
-   @voice: fr-FR, gender: female
-   Bonjour! Comment allez-vous aujourd'hui?
+    # Language and gender
+    multilingual = """
+    <div voice-lang="fr-FR" gender="female">
+    Bonjour! Comment allez-vous aujourd'hui?
+    </div>
 
-   @voice: en-GB, gender: male
-   Hello there! Lovely weather we're having.
+    <div voice-lang="en-GB" gender="male">
+    Hello there! Lovely weather we're having.
+    </div>
 
-   @voice: es-ES, gender: female, variant: 1
-   ¡Hola! ¿Cómo estás?
-   """
+    <div voice-lang="es-ES" gender="female" variant="1">
+    ¡Hola! ¿Cómo estás?
+    </div>
+    """
 
-Voice directive features:
+ Voice directive features:
 
-* Use ``@voice: name`` or ``@voice(name)`` syntax
-* Supports all attributes: language, gender, variant
-* Applies to all text until the next directive or paragraph break
-* Automatically detected on SSML→SSMD conversion for long voice blocks
-* Much more readable than inline annotations for dialogue
+ * Use ``<div voice="name">`` block syntax
+ * Supports all attributes: language, gender, variant
+ * Applies to all text until the next directive or paragraph break
+ * Automatically detected on SSML→SSMD conversion for long voice blocks
+ * Much more readable than inline annotations for dialogue
 
-Mixing inline and directive syntax:
+ Mixing inline and directive syntax:
 
-.. code-block:: python
+ .. code-block:: python
 
-   # Block directive for main speaker, inline for interruptions
-   text = """
-   @voice: sarah
-   Hello everyone, [but wait!]{voice="michael"} Michael interrupts...
+    # Block directive for main speaker, inline for interruptions
+    text = """
+    <div voice="sarah">
+    Hello everyone, [but wait!]{voice="michael"} Michael interrupts...
+    </div>
 
-   @voice: michael
-   Sorry, I had to jump in there!
-   """
+    <div voice="michael">
+    Sorry, I had to jump in there!
+    </div>
+    """
 
 
 Phonetic Pronunciation
