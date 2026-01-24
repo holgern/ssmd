@@ -15,32 +15,6 @@ SSMDSentence = Sentence
 SSMDSegment = Segment
 
 
-def _format_segment(segment: Segment) -> str:
-    """Format a single segment to SSMD (backward compatibility wrapper).
-
-    Args:
-        segment: Segment object to format
-
-    Returns:
-        Formatted SSMD string for this segment
-    """
-    return segment.to_ssmd().strip()
-
-
-def _format_sentence(sentence: Sentence) -> str:
-    """Format a sentence's content (backward compatibility wrapper).
-
-    This is an alias for _format_sentence_content.
-
-    Args:
-        sentence: Sentence object to format
-
-    Returns:
-        Formatted sentence text
-    """
-    return _format_sentence_content(sentence)
-
-
 def format_ssmd(sentences: list[Sentence]) -> str:
     """Format parsed SSMD sentences with proper line breaks.
 

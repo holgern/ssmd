@@ -34,8 +34,33 @@ Hello world.
 """
     doc = ssmd.Document(text, parse_yaml_header=False)
     assert doc.header is None
-    assert "---" not in doc.ssmd
-    assert doc.ssmd.strip() == "Hello world."
+    assert doc.ssmd.lstrip().startswith("---")
+    assert "languageCode" in doc.ssmd
+
+
+def test_yaml_header_parse_sentences_disabled_preserves_header():
+    text = """---
+title: Demo
+---
+Hello world.
+"""
+    sentences = ssmd.parse_sentences(text, parse_yaml_header=False, use_spacy=False)
+    assert sentences
+    combined = "\n".join(sentence.to_ssmd() for sentence in sentences)
+    assert "---" in combined
+    assert "title" in combined
+
+
+def test_yaml_header_parse_sentences_enabled_strips_header():
+    text = """---
+title: Demo
+---
+Hello world.
+"""
+    sentences = ssmd.parse_sentences(text, parse_yaml_header=True, use_spacy=False)
+    combined = "\n".join(sentence.to_ssmd() for sentence in sentences)
+    assert "---" not in combined
+    assert "Hello world." in combined
 
 
 def test_yaml_header_supports_dots_end_marker():

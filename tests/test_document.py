@@ -3,6 +3,7 @@
 import pytest
 
 from ssmd import Document
+from ssmd.utils import extract_sentences
 
 
 class TestDocumentBuilding:
@@ -326,6 +327,28 @@ class TestDocumentIteration:
         list1 = list(doc.sentences())
         list2 = list(doc.sentences())
         assert list1 == list2
+
+
+class TestSentenceExtraction:
+    """Test sentence extraction from SSML."""
+
+    def test_extract_sentences_with_attributes(self):
+        ssml = '<speak><s data-id="1">Hello</s><s foo="bar">World</s></speak>'
+        sentences = extract_sentences(ssml)
+
+        assert sentences == [
+            '<s data-id="1">Hello</s>',
+            '<s foo="bar">World</s>',
+        ]
+
+    def test_extract_sentences_paragraph_fallback(self):
+        ssml = '<speak><p class="intro">Hello</p><p>World</p></speak>'
+        sentences = extract_sentences(ssml)
+
+        assert sentences == [
+            '<p class="intro">Hello</p>',
+            "<p>World</p>",
+        ]
 
 
 class TestDocumentProperties:

@@ -175,7 +175,7 @@ def build_config_from_header(header: dict[str, Any]) -> dict[str, Any]:
 def extract_sentences(ssml: str) -> list[str]:
     """Extract sentences from SSML.
 
-    Looks for <s> tags or splits by sentence boundaries.
+    Looks for <s> tags or falls back to <p> tags or <speak> content.
 
     Args:
         ssml: SSML string
@@ -183,23 +183,50 @@ def extract_sentences(ssml: str) -> list[str]:
     Returns:
         List of SSML sentence strings
     """
-    # First try to extract <s> tags
-    s_tag_pattern = re.compile(r"<s>(.*?)</s>", re.DOTALL)
-    sentences = s_tag_pattern.findall(ssml)
 
-    if sentences:
-        return sentences
+    def _local_name(tag: str) -> str:
+        return tag.split("}")[-1]
 
-    # Fallback: extract <p> tags
-    p_tag_pattern = re.compile(r"<p>(.*?)</p>", re.DOTALL)
-    paragraphs = p_tag_pattern.findall(ssml)
+    try:
+        import xml.etree.ElementTree as ET
 
-    if paragraphs:
-        return paragraphs
+        root = ET.fromstring(ssml)
 
-    # Last resort: remove <speak> wrapper and return as single sentence
-    clean = re.sub(r"</?speak>", "", ssml).strip()
-    return [clean] if clean else []
+        s_elements = [elem for elem in root.iter() if _local_name(elem.tag) == "s"]
+        if s_elements:
+            return [ET.tostring(elem, encoding="unicode") for elem in s_elements]
+
+        p_elements = [elem for elem in root.iter() if _local_name(elem.tag) == "p"]
+        if p_elements:
+            return [ET.tostring(elem, encoding="unicode") for elem in p_elements]
+
+        parts: list[str] = []
+        if root.text:
+            parts.append(root.text)
+        for child in root:
+            parts.append(ET.tostring(child, encoding="unicode"))
+            if child.tail:
+                parts.append(child.tail)
+        clean = "".join(parts).strip()
+        return [clean] if clean else []
+    except Exception:
+        # First try to extract <s> tags (fallback regex, including attributes)
+        s_tag_pattern = re.compile(r"<s\b[^>]*>(.*?)</s>", re.DOTALL)
+        sentences = s_tag_pattern.findall(ssml)
+
+        if sentences:
+            return sentences
+
+        # Fallback: extract <p> tags
+        p_tag_pattern = re.compile(r"<p\b[^>]*>(.*?)</p>", re.DOTALL)
+        paragraphs = p_tag_pattern.findall(ssml)
+
+        if paragraphs:
+            return paragraphs
+
+        # Last resort: remove <speak> wrapper and return as single sentence
+        clean = re.sub(r"</?speak>", "", ssml).strip()
+        return [clean] if clean else []
 
 
 # Unicode private use area characters for placeholders
@@ -251,7 +278,7 @@ def escape_ssmd_syntax(
     Example:
         >>> text = "This *word* should not be emphasized"
         >>> escape_ssmd_syntax(text)
-        'This \ue000word\ue000 should not be emphasized'
+        'This \\uf000word\\uf000 should not be emphasized'
 
         >>> text = 'Visit [our site]{src="https://example.com"}'
         >>> escaped = escape_ssmd_syntax(text)
@@ -338,16 +365,16 @@ def escape_ssmd_syntax(
     if "breaks" in patterns:
         # Breaks: ...n, ...w, ...c, ...s, ...p, ...500ms, ...5s
         result = re.sub(
-            r"\.\.\.((?:[nwcsp]|\d+(?:ms|s))(?:\s|$))",
+            r"\.\.\.((?:[nwcsp]|\d+(?:ms|s)))(?=\s|$|[.!?,;:])",
             lambda m: _PLACEHOLDER_MAP["."] * 3 + m.group(1),
             result,
         )
 
     if "marks" in patterns:
         # Marks: @word
-        # Use word boundary to avoid matching @domain in emails
+        # Require whitespace boundaries to avoid matching handles or emails
         result = re.sub(
-            r"(?<!\w)@(\w+)",
+            r"(?<!\S)@(\w+)(?=\s|$)",
             lambda m: _PLACEHOLDER_MAP["@"] + m.group(1),
             result,
         )
@@ -355,7 +382,7 @@ def escape_ssmd_syntax(
     return result
 
 
-def unescape_ssmd_syntax(text: str) -> str:
+def unescape_ssmd_syntax(text: str, *, xml_safe: bool = False) -> str:
     """Remove placeholder escaping from SSMD syntax.
 
     This is used internally to replace placeholders with original characters
@@ -363,16 +390,23 @@ def unescape_ssmd_syntax(text: str) -> str:
 
     Args:
         text: Text with placeholder-escaped SSMD syntax
+        xml_safe: If True, keep XML special characters escaped when restoring
+            placeholders (e.g., ``<`` becomes ``&lt;``).
 
     Returns:
         Text with placeholders replaced by original characters
 
     Example:
-        >>> unescape_ssmd_syntax("This \ue000word\ue000 is escaped")
+        >>> unescape_ssmd_syntax("This \\uf000word\\uf000 is escaped")
         'This *word* is escaped'
     """
+    replacements = dict(_REVERSE_PLACEHOLDER_MAP)
+    if xml_safe:
+        replacements[_PLACEHOLDER_MAP["<"]] = "&lt;"
+        replacements[_PLACEHOLDER_MAP[">"]] = "&gt;"
+
     result = text
     # Replace all placeholders with their original characters
-    for placeholder, original in _REVERSE_PLACEHOLDER_MAP.items():
+    for placeholder, original in replacements.items():
         result = result.replace(placeholder, original)
     return result

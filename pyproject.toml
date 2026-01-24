@@ -6,6 +6,9 @@ build-backend = "setuptools.build_meta"
 where = ["."]
 include = ["ssmd*"]
 
+[tool.setuptools.package-data]
+ssmd = ["data/*.json", "xsampa_to_ipa.txt"]
+
 [project]
 name = "ssmd"
 description = "Speech Synthesis Markdown (SSMD) is a lightweight alternative syntax for SSML."

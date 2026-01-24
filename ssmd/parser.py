@@ -49,10 +49,10 @@ REDUCED_EMPHASIS_PATTERN = re.compile(r"(?<!_)_(?!_)([^_]+?)(?<!_)_(?!_)")
 ANNOTATION_PATTERN = re.compile(r"\[([^\]]*)\]\{([^}]*)\}")
 
 # Break pattern: ...500ms, ...2s, ...n, ...w, ...c, ...s, ...p
-BREAK_PATTERN = re.compile(r"\.\.\.(\d+(?:s|ms)|[nwcsp])")
+BREAK_PATTERN = re.compile(r"\.\.\.(\d+(?:s|ms)|[nwcsp])(?=\s|$|[.!?,;:])")
 
 # Mark pattern: @name
-MARK_PATTERN = re.compile(r"@(\w+)")
+MARK_PATTERN = re.compile(r"(?<!\S)@(\w+)(?=\s|$)")
 
 # Heading pattern: # ## ###
 HEADING_PATTERN = re.compile(r"^\s*(#{1,6})\s*(.+)$", re.MULTILINE)
@@ -110,7 +110,8 @@ def parse_ssmd(
         use_spacy: If True, use spaCy for sentence detection
         model_size: spaCy model size ("sm", "md", "lg")
         parse_yaml_header: If True, parse YAML front matter and apply
-            heading/extensions config while stripping it from the body.
+            heading/extensions config while stripping it from the body. If False,
+            YAML front matter is preserved as plain text.
         strict_parse: If True, strip unsupported features based on capabilities.
 
     Returns:
@@ -126,11 +127,12 @@ def parse_ssmd(
         parse_yaml_header as parse_yaml_front_matter,
     )
 
-    header, text = parse_yaml_front_matter(text)
-    if header and parse_yaml_header:
-        header_config = build_config_from_header(header)
-        heading_levels = header_config.get("heading_levels", heading_levels)
-        extensions = header_config.get("extensions", extensions)
+    if parse_yaml_header:
+        header, text = parse_yaml_front_matter(text)
+        if header:
+            header_config = build_config_from_header(header)
+            heading_levels = header_config.get("heading_levels", heading_levels)
+            extensions = header_config.get("extensions", extensions)
 
     # Resolve capabilities
     caps = _resolve_capabilities(capabilities)
@@ -318,11 +320,59 @@ def _parse_div_attrs(params: str) -> DirectiveAttrs:
 
 def _merge_directives(base: DirectiveAttrs, update: DirectiveAttrs) -> DirectiveAttrs:
     """Merge directive attributes for nested <div> blocks."""
+    merged_voice = _merge_voice(base.voice, update.voice)
+    merged_prosody = _merge_prosody(base.prosody, update.prosody)
+    language = update.language or base.language
     return DirectiveAttrs(
-        voice=update.voice or base.voice,
-        language=update.language or base.language,
-        prosody=update.prosody or base.prosody,
+        voice=merged_voice,
+        language=language,
+        prosody=merged_prosody,
     )
+
+
+def _merge_voice(
+    base: VoiceAttrs | None, update: VoiceAttrs | None
+) -> VoiceAttrs | None:
+    if base is None and update is None:
+        return None
+
+    merged = VoiceAttrs()
+    for field_name in ("name", "language", "gender", "variant"):
+        update_value = getattr(update, field_name) if update else None
+        if update_value in (None, ""):
+            update_value = None
+        base_value = getattr(base, field_name) if base else None
+        setattr(
+            merged, field_name, update_value if update_value is not None else base_value
+        )
+
+    if not any(
+        [merged.name, merged.language, merged.gender, merged.variant is not None]
+    ):
+        return None
+    return merged
+
+
+def _merge_prosody(
+    base: ProsodyAttrs | None,
+    update: ProsodyAttrs | None,
+) -> ProsodyAttrs | None:
+    if base is None and update is None:
+        return None
+
+    merged = ProsodyAttrs()
+    for field_name in ("volume", "rate", "pitch"):
+        update_value = getattr(update, field_name) if update else None
+        if update_value in (None, ""):
+            update_value = None
+        base_value = getattr(base, field_name) if base else None
+        setattr(
+            merged, field_name, update_value if update_value is not None else base_value
+        )
+
+    if not any([merged.volume, merged.rate, merged.pitch]):
+        return None
+    return merged
 
 
 def _split_sentences(
@@ -351,20 +401,27 @@ def _split_sentences(
         else:
             model = f"{lang_code}_core_news_{size}"
 
-        should_escape = use_spacy is not False and escape_annotations
+        should_escape = escape_annotations
         escaped_text = text
-        annotation_placeholders: list[str] = []
+        placeholder_values: list[str] = []
         placeholder_tokens: list[str] = []
         if should_escape:
             placeholder_base = 0xF100
 
-            def _replace_annotation(match: re.Match[str]) -> str:
-                annotation_placeholders.append(match.group(0))
-                placeholder = chr(placeholder_base + len(annotation_placeholders) - 1)
+            def _replace_placeholder(match: re.Match[str]) -> str:
+                placeholder_values.append(match.group(0))
+                placeholder = chr(placeholder_base + len(placeholder_values) - 1)
                 placeholder_tokens.append(placeholder)
                 return placeholder
 
-            escaped_text = re.sub(r"\[[^\]]*\]\{[^}]*\}", _replace_annotation, text)
+            escaped_text = re.sub(
+                r"\[[^\]]*\]\{[^}]*\}", _replace_placeholder, escaped_text
+            )
+            escaped_text = re.sub(
+                r"\.\.\.(?:\d+(?:s|ms)|[nwcsp])(?=\s|$|[.!?,;:])",
+                _replace_placeholder,
+                escaped_text,
+            )
 
         segments = split_text(
             escaped_text,
@@ -398,17 +455,28 @@ def _split_sentences(
             return [text]
 
         restored_sentences: list[str] = []
-        for idx, sentence in enumerate(sentences):
+        for sentence in sentences:
             restored = sentence
-            for placeholder_index, annotation in enumerate(annotation_placeholders):
+            for placeholder_index, original_value in enumerate(placeholder_values):
                 restored = restored.replace(
-                    placeholder_tokens[placeholder_index], annotation
+                    placeholder_tokens[placeholder_index], original_value
                 )
-            if idx < len(sentences) - 1:
-                restored = restored.rstrip() + "\n"
             restored_sentences.append(restored)
 
-        return restored_sentences
+        merged_sentences: list[str] = []
+        break_only_pattern = re.compile(r"^(?:\.\.\.(?:\d+(?:s|ms)|[nwcsp])\s*)+$")
+        for sentence in restored_sentences:
+            stripped = sentence.strip()
+            if stripped and break_only_pattern.match(stripped) and merged_sentences:
+                merged_sentences[-1] = merged_sentences[-1].rstrip() + " " + stripped
+            else:
+                merged_sentences.append(sentence)
+
+        if should_escape:
+            for idx, sentence in enumerate(merged_sentences[:-1]):
+                merged_sentences[idx] = sentence.rstrip() + "\n"
+
+        return merged_sentences
 
     except ImportError:
         # Fallback: simple sentence splitting
@@ -445,8 +513,8 @@ def _parse_segments(  # noqa: C901
         r"|\*[^\*]+\*"  # *moderate*
         r"|(?<![_a-zA-Z0-9])_(?!_)[^_]+?(?<!_)_(?![_a-zA-Z0-9])"  # _reduced_
         r"|\[[^\]]*\]\{[^}]+\}"  # [text]{annotation}
-        r"|\.\.\.(?:\d+(?:s|ms)|[nwcsp])"  # breaks
-        r"|@(?!voice[:(])\w+"  # marks
+        r"|\.\.\.(?:\d+(?:s|ms)|[nwcsp])(?=\s|$|[.!?,;:])"  # breaks
+        r"|(?<!\S)@(?!voice[:(])\w+(?=\s|$)"  # marks
         r")"
     )
 
@@ -848,8 +916,8 @@ def _parse_segments_for_spans(
         r"|\*[^\*]+\*"
         r"|(?<![_a-zA-Z0-9])_(?!_)[^_]+?(?<!_)_(?![_a-zA-Z0-9])"
         r"|\[[^\]]*\]\{[^}]+\}"
-        r"|\.\.\.(?:\d+(?:s|ms)|[nwcsp])"
-        r"|@(?!voice[:(])\w+"
+        r"|\.\.\.(?:\d+(?:s|ms)|[nwcsp])(?=\s|$|[.!?,;:])"
+        r"|(?<!\S)@(?!voice[:(])\w+(?=\s|$)"
         r")"
     )
 
@@ -1309,7 +1377,8 @@ def parse_sentences(
         heading_levels: Custom heading configurations
         extensions: Custom extension handlers
         parse_yaml_header: If True, parse YAML front matter and apply
-            heading/extensions config while stripping it from the body.
+            heading/extensions config while stripping it from the body. If False,
+            YAML front matter is preserved as plain text.
         strict_parse: If True, strip unsupported features based on capabilities.
 
     Returns:
@@ -1453,28 +1522,40 @@ def iter_sentences_spans(
     if not isinstance(text_or_doc, str):
         text = text_or_doc.ssmd
 
+    clean_text = parse_spans(text, preserve_whitespace=preserve_whitespace).clean_text
+    if not clean_text:
+        return []
+
     sent_texts = _split_sentences(
-        text,
+        clean_text,
         language=language,
         use_spacy=use_spacy,
         model_size=model_size,
+        escape_annotations=False,
     )
-    clean_text = parse_spans(text, preserve_whitespace=preserve_whitespace).clean_text
 
     spans: list[tuple[str, int, int]] = []
     cursor = 0
     for sent_text in sent_texts:
-        sent_clean = parse_spans(
-            sent_text,
-            preserve_whitespace=preserve_whitespace,
-        ).clean_text
-        if not sent_clean:
+        if not sent_text:
             continue
-        start = clean_text.find(sent_clean, cursor)
-        if start == -1:
+        if preserve_whitespace:
+            sentence = sent_text
+            start = cursor
+            end = start + len(sentence)
+            spans.append((sentence, start, end))
+            cursor = end
             continue
-        end = start + len(sent_clean)
-        spans.append((sent_clean, start, end))
+
+        sentence = sent_text.strip()
+        if not sentence:
+            continue
+
+        start = cursor
+        while start < len(clean_text) and clean_text[start].isspace():
+            start += 1
+        end = start + len(sentence)
+        spans.append((sentence, start, end))
         cursor = end
 
     return spans

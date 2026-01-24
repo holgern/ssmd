@@ -2,7 +2,7 @@
 
 import pytest
 
-from ssmd import Document, TTSCapabilities
+from ssmd import Document, TTSCapabilities, get_preset
 
 
 def test_capability_emphasis_disabled():
@@ -117,6 +117,14 @@ def test_preset_google():
     assert "<emphasis>" in result
     assert "<break" in result
     assert "<lang" in result
+
+
+def test_ssml_green_preset_loading():
+    """Test that ssml-green preset data loads from package data."""
+    caps = get_preset("google")
+
+    assert isinstance(caps, TTSCapabilities)
+    assert caps.ssml_green
 
 
 def test_mixed_config_and_capabilities():

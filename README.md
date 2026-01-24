@@ -26,7 +26,8 @@ pip install ssmd
 ```
 
 SSMD includes intelligent sentence detection via **phrasplit** (regex mode by default -
-fast and lightweight).
+fast and lightweight). Runtime dependencies include `phrasplit` and `pyyaml` (for YAML
+front matter parsing).
 
 ### Optional: Enhanced Accuracy with spaCy
 
@@ -685,7 +686,7 @@ Parse SSMD text into structured sentences with segments.
 - `capabilities` (TTSCapabilities | str): Filter features based on TTS engine support
 - `language` (str): Language code for sentence detection (default: "en")
 - `model_size` (str): spaCy model size - "sm", "md", "lg", "trf" (default: "sm")
-- `spacy_model` (str): Custom spaCy model name (overrides model_size)
+- `spacy_model` (str): Deprecated alias; size is inferred from the model name
 - `use_spacy` (bool): If False, use fast regex splitting instead of spaCy (default:
   True)
 
@@ -711,8 +712,8 @@ sentences = parse_sentences("Hello world. Fast mode.", use_spacy=False)
 # High quality: use large spaCy model for better accuracy
 sentences = parse_sentences("Complex text here.", model_size="lg")
 
-# Custom model: use domain-specific spaCy model
-sentences = parse_sentences("Medical text.", spacy_model="en_core_sci_md")
+# Deprecated alias (size inferred from name)
+sentences = parse_sentences("Medical text.", spacy_model="en_core_web_lg")
 ```
 
 **Sentence Detection Configuration:**

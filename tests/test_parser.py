@@ -110,6 +110,34 @@ Hello world
         assert directive.voice is not None
         assert directive.voice.name == "sarah"
 
+    def test_nested_divs_merge_voice_fields(self):
+        """Nested directives should deep-merge voice fields."""
+        text = """<div voice="Joanna">
+<div voice-lang="de-DE">
+Hallo Welt
+</div>
+</div>"""
+        blocks = parse_voice_blocks(text)
+
+        directive = blocks[0][0]
+        assert directive.voice is not None
+        assert directive.voice.name == "Joanna"
+        assert directive.voice.language == "de-DE"
+
+    def test_nested_divs_merge_prosody_fields(self):
+        """Nested directives should deep-merge prosody fields."""
+        text = """<div volume="x-loud">
+<div rate="slow">
+Hello world
+</div>
+</div>"""
+        blocks = parse_voice_blocks(text)
+
+        directive = blocks[0][0]
+        assert directive.prosody is not None
+        assert directive.prosody.volume == "x-loud"
+        assert directive.prosody.rate == "slow"
+
 
 class TestParseSegments:
     """Test segment parsing."""
@@ -141,6 +169,30 @@ class TestParseSegments:
         # At least one segment should have breaks_after
         has_break = any(len(s.breaks_after) > 0 for s in segments)
         assert has_break
+
+    def test_breaks_not_in_numeric_ranges(self):
+        """Ellipses in numeric ranges should not create breaks."""
+        text = "Price is $5...10 today."
+        segments = parse_segments(text)
+
+        combined_text = "".join(segment.text for segment in segments)
+        assert "5...10" in combined_text
+        assert all(
+            not segment.breaks_before and not segment.breaks_after
+            for segment in segments
+        )
+
+    def test_marks_not_in_emails_or_urls(self):
+        """Marks should not trigger inside emails or URLs."""
+        text = "Email me@example.com or visit https://example.com/@user"
+        segments = parse_segments(text)
+
+        combined_text = "".join(segment.text for segment in segments)
+        assert "me@example.com" in combined_text
+        assert "@user" in combined_text
+        assert all(
+            not segment.marks_before and not segment.marks_after for segment in segments
+        )
 
     def test_say_as(self):
         """Test parsing say-as annotation."""

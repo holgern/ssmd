@@ -11,6 +11,19 @@ def test_simple_text():
     assert result == "<speak><p>hello world</p></speak>"
 
 
+def test_end_to_end_snapshot():
+    """End-to-end SSMD → SSML snapshot."""
+    text = """<div voice="Joanna">
+Hello *world* ...s
+</div>"""
+    result = ssmd.to_ssml(text)
+
+    assert (
+        result == '<speak><p><voice name="Joanna">Hello <emphasis>world</emphasis>'
+        '<break strength="strong"/></voice></p></speak>'
+    )
+
+
 def test_emphasis():
     """Test emphasis conversion."""
     result = ssmd.to_ssml("hello *world*!")

@@ -83,7 +83,10 @@ To verify that SSMD is installed correctly:
 Dependencies
 ------------
 
-SSMD has minimal dependencies. The only runtime dependency is Python's standard library.
+SSMD has minimal runtime dependencies:
+
+* ``phrasplit`` - sentence detection and splitting
+* ``pyyaml`` - YAML front matter parsing
 
 Optional dependencies for development:
 

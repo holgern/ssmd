@@ -82,8 +82,8 @@ class Document:
                 - extensions (dict): Registered extension handlers
                 - sentence_model_size (str): spaCy model size for sentence
                   detection ("sm", "md", "lg", "trf"). Default: "sm"
-                - sentence_spacy_model (str): Custom spaCy model name
-                  (overrides sentence_model_size)
+                - sentence_spacy_model (str): Deprecated alias; model size is
+                  inferred from the name (overrides sentence_model_size)
                 - sentence_use_spacy (bool): If False, use fast regex splitting
                   instead of spaCy. Default: True
             capabilities: TTS capabilities (TTSCapabilities instance or
@@ -97,7 +97,8 @@ class Document:
                 Valid values: 'emphasis', 'annotations', 'breaks', 'marks',
                 'headings', 'directives'
             parse_yaml_header: If True, parse YAML front matter and store it
-                on doc.header while stripping it from the SSMD body.
+                on doc.header while stripping it from the SSMD body. If False,
+                YAML front matter is preserved as part of the content.
             strict: If True, emit warnings and apply ssml-green validation
                 rules where possible.
 
@@ -134,11 +135,12 @@ class Document:
         # Add initial content if provided
         if content:
             header_config: dict[str, Any] = {}
-            header, content = parse_yaml_front_matter(content)
-            if header is not None and parse_yaml_header:
-                self.header = header
-                header_config = build_config_from_header(header)
-            content = content.lstrip("\n")
+            if parse_yaml_header:
+                header, content = parse_yaml_front_matter(content)
+                if header is not None:
+                    self.header = header
+                    header_config = build_config_from_header(header)
+                content = content.lstrip("\n")
             if escape_syntax:
                 from ssmd.utils import escape_ssmd_syntax
 
@@ -400,7 +402,7 @@ class Document:
             if self._escape_syntax:
                 from ssmd.utils import unescape_ssmd_syntax
 
-                ssml = unescape_ssmd_syntax(ssml)
+                ssml = unescape_ssmd_syntax(ssml, xml_safe=True)
 
             # Pretty print if configured
             if pretty_print:
@@ -521,7 +523,9 @@ class Document:
         """Iterate through sentences.
 
         Yields SSML sentences one at a time, which is useful for
-        streaming TTS applications.
+        streaming TTS applications. If the SSML contains explicit ``<s>`` tags
+        (from ``auto_sentence_tags=True``), those are returned; otherwise the
+        iterator falls back to ``<p>`` tags or the full ``<speak>`` body.
 
         Args:
             as_documents: If True, yield Document objects instead of strings.

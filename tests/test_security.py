@@ -276,6 +276,30 @@ class TestSpecialCharacters:
         except ET.ParseError:
             pytest.fail("Failed to escape all special characters")
 
+    def test_literal_special_chars_in_text(self):
+        """Literal <, >, & in text should be XML-safe."""
+        result = ssmd.to_ssml("Math: 5 < 7 & 8 > 3.")
+
+        assert "&lt;" in result
+        assert "&gt;" in result
+        assert "&amp;" in result
+
+        import xml.etree.ElementTree as ET
+
+        ET.fromstring(result)
+
+    def test_special_chars_inside_markup_text(self):
+        """Text content inside SSMD markup should escape safely."""
+        result = ssmd.to_ssml("*5 < 7 & 8 > 3*")
+
+        assert "&lt;" in result
+        assert "&gt;" in result
+        assert "&amp;" in result
+
+        import xml.etree.ElementTree as ET
+
+        ET.fromstring(result)
+
 
 class TestEdgeCases:
     """Test edge cases for security."""

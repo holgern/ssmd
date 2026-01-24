@@ -140,6 +140,19 @@ class TestDocumentEscapeParameter:
         assert "<emphasis>" not in ssml
         assert "word" in ssml
 
+    def test_escape_syntax_keeps_xml_safe(self):
+        """Escaped directives should remain XML-safe in SSML output."""
+        text = '<div voice="sarah">\nHello world\n</div>'
+        doc = ssmd.Document(text, escape_syntax=True)
+        ssml = doc.to_ssml()
+
+        assert "&lt;div" in ssml
+        assert "&lt;/div&gt;" in ssml
+
+        import xml.etree.ElementTree as ET
+
+        ET.fromstring(ssml)
+
     def test_document_with_escape_syntax_false(self):
         """Document with escape_syntax=False should parse normally."""
         text = "This *word* should be emphasized"

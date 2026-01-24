@@ -76,7 +76,7 @@ Parse SSMD text into structured sentences with segments.
 * ``capabilities`` (TTSCapabilities | str): Filter features based on TTS engine support
 * ``language`` (str): Language code for sentence detection (default: ``"en"``)
 * ``model_size`` (str): spaCy model size - ``"sm"``, ``"md"``, ``"lg"``, ``"trf"`` (default: ``"sm"``)
-* ``spacy_model`` (str): Custom spaCy model name (overrides ``model_size``)
+* ``spacy_model`` (str): Deprecated alias; model size is inferred from the name
 * ``use_spacy`` (bool): If ``False``, use fast regex splitting instead of spaCy (default: ``True``)
 
 **Returns:** List of :class:`Sentence` objects (alias: :class:`SSMDSentence`)
@@ -147,16 +147,16 @@ When spaCy is installed, choose different model sizes for quality vs. speed trad
    sentences = parse_sentences("Hello. World.", model_size="trf")
    # Uses: en_core_web_trf, fr_dep_news_trf, etc.
 
-**Custom Models**
+**Deprecated ``spacy_model`` Alias**
 
-Use domain-specific or custom spaCy models:
+The ``spacy_model`` parameter is retained for backward compatibility and only infers the
+model size from the name. Prefer ``model_size`` for clarity:
 
 .. code-block:: python
 
-   # Use a custom spaCy model
    sentences = parse_sentences(
        "Technical text here.",
-       spacy_model="en_core_sci_md"  # Scientific/medical domain model
+       spacy_model="en_core_web_lg"  # infers model_size="lg"
    )
 
 **Multi-Language Support**

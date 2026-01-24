@@ -1,11 +1,6 @@
 """Tests for SSMD formatter module."""
 
-from ssmd.formatter import (
-    _format_breaks,
-    _format_segment,
-    _format_sentence,
-    format_ssmd,
-)
+from ssmd.formatter import _format_breaks, format_ssmd
 from ssmd.parser import parse_sentences
 from ssmd.parser_types import BreakAttrs, SSMDSegment, SSMDSentence
 
@@ -166,91 +161,6 @@ class TestFormatSSMD:
         assert '"' in formatted
 
 
-class TestFormatSentence:
-    """Test the _format_sentence() helper function."""
-
-    def test_empty_sentence(self):
-        """Empty sentence returns empty string."""
-        sentence = SSMDSentence(segments=[])
-        result = _format_sentence(sentence)
-        assert result == ""
-
-    def test_single_segment(self):
-        """Single segment formatted correctly."""
-        segment = SSMDSegment(text="Hello world.")
-        sentence = SSMDSentence(segments=[segment])
-
-        result = _format_sentence(sentence)
-
-        assert result == "Hello world."
-
-    def test_multiple_segments(self):
-        """Multiple segments joined with spaces."""
-        seg1 = SSMDSegment(text="Hello")
-        seg2 = SSMDSegment(text="world.")
-        sentence = SSMDSentence(segments=[seg1, seg2])
-
-        result = _format_sentence(sentence)
-
-        assert result == "Hello world."
-
-    def test_segment_with_inline_break(self):
-        """Segment with breaks_after includes inline break."""
-        seg1 = SSMDSegment(text="Hello", breaks_after=[BreakAttrs(strength="strong")])
-        seg2 = SSMDSegment(text="world.")
-        sentence = SSMDSentence(segments=[seg1, seg2])
-
-        result = _format_sentence(sentence)
-
-        assert "...s" in result
-        assert "Hello" in result
-        assert "world." in result
-        assert "Hello" in result
-        assert "world." in result
-
-    def test_sentence_level_breaks(self):
-        """Sentence with breaks_after appends to end."""
-        segment = SSMDSegment(text="Hello.")
-        sentence = SSMDSentence(
-            segments=[segment], breaks_after=[BreakAttrs(strength="strong")]
-        )
-
-        result = _format_sentence(sentence)
-
-        assert result.endswith("...s")
-
-    def test_last_segment_breaks(self):
-        """Last segment breaks_after appends to sentence."""
-        segment = SSMDSegment(text="Hello.", breaks_after=[BreakAttrs(strength="weak")])
-        sentence = SSMDSentence(segments=[segment])
-
-        result = _format_sentence(sentence)
-
-        assert "...w" in result
-
-
-class TestFormatSegment:
-    """Test the _format_segment() helper function."""
-
-    def test_plain_text(self):
-        """Plain text segment."""
-        segment = SSMDSegment(text="Hello")
-        result = _format_segment(segment)
-        assert result == "Hello"
-
-    def test_emphasis_in_text(self):
-        """Emphasis markers in text are preserved."""
-        segment = SSMDSegment(text="*important*")
-        result = _format_segment(segment)
-        assert result == "*important*"
-
-    def test_whitespace_trimmed(self):
-        """Leading/trailing whitespace trimmed."""
-        segment = SSMDSegment(text="  hello  ")
-        result = _format_segment(segment)
-        assert result == "hello"
-
-
 class TestFormatBreaks:
     """Test the _format_breaks() helper function."""
 
@@ -366,7 +276,7 @@ class TestEdgeCases:
         seg2 = SSMDSegment(text=".")
         sentence = SSMDSentence(segments=[seg1, seg2])
 
-        result = _format_sentence(sentence)
+        result = format_ssmd([sentence]).strip()
 
         # Should join properly
         assert "Hello world ." in result or "Hello world." in result
@@ -378,7 +288,7 @@ class TestEdgeCases:
         seg3 = SSMDSegment(text="world")
         sentence = SSMDSentence(segments=[seg1, seg2, seg3])
 
-        result = _format_sentence(sentence)
+        result = format_ssmd([sentence]).strip()
 
         # Empty segment should not create extra space
         assert result.count("  ") == 0  # No double spaces
@@ -430,7 +340,7 @@ class TestEdgeCases:
         seg2 = SSMDSegment(text="More")
         sentence = SSMDSentence(segments=[seg1, seg2])
 
-        result = _format_sentence(sentence)
+        result = format_ssmd([sentence]).strip()
 
         # Should have break between segments
         assert "...s" in result

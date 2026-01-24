@@ -76,6 +76,32 @@ def test_sentence_iteration_offsets_match_clean_text():
         assert clean_text[start:end] == sentence
 
 
+def test_sentence_iteration_repeated_sentences():
+    text = "Hello. Hello."
+    spans = ssmd.iter_sentences_spans(text, use_spacy=False)
+    clean_text = ssmd.parse_spans(text).clean_text
+
+    assert len(spans) == 2
+    assert spans[0][0] == "Hello."
+    assert spans[0][1] == 0
+    assert clean_text[spans[0][1] : spans[0][2]] == "Hello."
+    assert spans[1][0] == "Hello."
+    assert clean_text[spans[1][1] : spans[1][2]] == "Hello."
+
+
+def test_sentence_iteration_normalization_alignment():
+    text = "Hello   *world*. Hello   *world*."
+    spans = ssmd.iter_sentences_spans(text, use_spacy=False)
+    clean_text = ssmd.parse_spans(text).clean_text
+
+    assert clean_text == "Hello world. Hello world."
+    assert len(spans) == 2
+    assert spans[0][0] == "Hello world."
+    assert spans[1][0] == "Hello world."
+    assert clean_text[spans[0][1] : spans[0][2]] == "Hello world."
+    assert clean_text[spans[1][1] : spans[1][2]] == "Hello world."
+
+
 # ═══════════════════════════════════════════════════════════
 # GOLDEN TESTS (Phase 1)
 # ═══════════════════════════════════════════════════════════
