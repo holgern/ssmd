@@ -7,6 +7,7 @@ that can be used for TTS processing or conversion to SSML.
 import re
 from typing import TYPE_CHECKING, Any
 
+from ssmd.paragraph import Paragraph
 from ssmd.segment import Segment
 from ssmd.sentence import Sentence
 from ssmd.spans import AnnotationSpan, LintIssue, ParseSpansResult
@@ -80,7 +81,7 @@ def _normalize_text(text: str) -> str:
     return text.strip()
 
 
-def parse_ssmd(
+def parse_paragraphs(
     text: str,
     *,
     capabilities: "TTSCapabilities | str | None" = None,
@@ -92,8 +93,8 @@ def parse_ssmd(
     model_size: str | None = None,
     parse_yaml_header: bool = False,
     strict_parse: bool = False,
-) -> list[Sentence]:
-    """Parse SSMD text into a list of Sentences.
+) -> list[Paragraph]:
+    """Parse SSMD text into a list of Paragraphs.
 
     This is the main parsing function. It handles:
     - Directive blocks (<div ...> ... </div>)
@@ -115,7 +116,7 @@ def parse_ssmd(
         strict_parse: If True, strip unsupported features based on capabilities.
 
     Returns:
-        List of Sentence objects
+        List of Paragraph objects
     """
     if not text or not text.strip():
         return []
@@ -140,18 +141,20 @@ def parse_ssmd(
     # Split text into directive blocks
     directive_blocks = _split_directive_blocks(text)
 
-    sentences: list[Sentence] = []
+    paragraphs: list[Paragraph] = []
+    paragraph_index = 0
+    sentence_index = 0
 
     for directive, block_text in directive_blocks:
         # Split block into paragraphs
-        paragraphs = PARAGRAPH_PATTERN.split(block_text)
+        block_paragraphs = PARAGRAPH_PATTERN.split(block_text)
 
-        for para_idx, paragraph in enumerate(paragraphs):
+        for para_idx, paragraph in enumerate(block_paragraphs):
             paragraph = paragraph.strip()
             if not paragraph:
                 continue
 
-            is_last_paragraph = para_idx == len(paragraphs) - 1
+            is_last_paragraph = para_idx == len(block_paragraphs) - 1
 
             # Split paragraph into sentences if enabled
             if sentence_detection:
@@ -163,6 +166,8 @@ def parse_ssmd(
                 )
             else:
                 sent_texts = [paragraph]
+
+            paragraph_sentences: list[Sentence] = []
 
             for sent_idx, sent_text in enumerate(sent_texts):
                 sent_text = sent_text.strip()
@@ -186,13 +191,54 @@ def parse_ssmd(
                         language=directive.language,
                         prosody=directive.prosody,
                         is_paragraph_end=is_last_sent_in_para and not is_last_paragraph,
+                        paragraph_index=paragraph_index,
+                        sentence_index=sentence_index,
                     )
-                    sentences.append(sentence)
+                    paragraph_sentences.append(sentence)
+                    sentence_index += 1
+
+            if paragraph_sentences:
+                paragraphs.append(Paragraph(sentences=paragraph_sentences))
+                paragraph_index += 1
 
     if strict_parse and caps:
-        _filter_sentences(sentences, caps)
+        all_sentences = [
+            sentence for paragraph in paragraphs for sentence in paragraph.sentences
+        ]
+        _filter_sentences(all_sentences, caps)
 
-    return sentences
+    return paragraphs
+
+
+def parse_ssmd(
+    text: str,
+    *,
+    capabilities: "TTSCapabilities | str | None" = None,
+    heading_levels: dict | None = None,
+    extensions: dict | None = None,
+    sentence_detection: bool = True,
+    language: str = "en",
+    use_spacy: bool | None = None,
+    model_size: str | None = None,
+    parse_yaml_header: bool = False,
+    strict_parse: bool = False,
+) -> list[Paragraph]:
+    """Parse SSMD text into paragraphs (backward compatible name).
+
+    This is an alias for parse_paragraphs().
+    """
+    return parse_paragraphs(
+        text,
+        capabilities=capabilities,
+        heading_levels=heading_levels,
+        extensions=extensions,
+        sentence_detection=sentence_detection,
+        language=language,
+        use_spacy=use_spacy,
+        model_size=model_size,
+        parse_yaml_header=parse_yaml_header,
+        strict_parse=strict_parse,
+    )
 
 
 def _resolve_capabilities(
@@ -1344,6 +1390,7 @@ def _parse_voice_annotation(params: str) -> VoiceAttrs:
 # Re-export old names for compatibility
 SSMDSegment = Segment
 SSMDSentence = Sentence
+SSMDParagraph = Paragraph
 
 
 def parse_sentences(
@@ -1363,7 +1410,8 @@ def parse_sentences(
 ) -> list[Sentence]:
     """Parse SSMD text into sentences (backward compatible API).
 
-    This is an alias for parse_ssmd() with the old parameter names.
+    This is an alias for parse_paragraphs() with the old parameter names.
+    Returned sentences include paragraph_index and sentence_index metadata.
 
     Args:
         ssmd_text: SSMD formatted text to parse
@@ -1387,7 +1435,7 @@ def parse_sentences(
     model_size_value = model_size or (
         spacy_model.split("_")[-1] if spacy_model else None
     )
-    sentences = parse_ssmd(
+    paragraphs = parse_paragraphs(
         ssmd_text,
         capabilities=capabilities,
         sentence_detection=sentence_detection,
@@ -1399,6 +1447,10 @@ def parse_sentences(
         parse_yaml_header=parse_yaml_header,
         strict_parse=strict_parse,
     )
+
+    sentences = [
+        sentence for paragraph in paragraphs for sentence in paragraph.sentences
+    ]
 
     # Filter out sentences without voice if requested
     if not include_default_voice:

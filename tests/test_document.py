@@ -3,7 +3,12 @@
 import pytest
 
 from ssmd import Document
+from ssmd.parser import parse_paragraphs
 from ssmd.utils import extract_sentences
+
+
+def _sentence_item_count(doc: Document) -> int:
+    return len(list(doc.sentences()))
 
 
 class TestDocumentBuilding:
@@ -62,6 +67,15 @@ class TestDocumentBuilding:
         doc.add_paragraph("")
         assert doc.ssmd == "Hello"
 
+    def test_document_metadata(self):
+        """Test adding metadata to document."""
+        doc = Document("Hello [Franz]{voice='franz'}")
+        sentences = []
+        for sentence in doc.sentences(as_documents=True):
+            sentences.append(sentence)
+        assert len(sentences) == 1
+        assert sentences[0][0] == '<p>Hello <voice name="franz">Franz</voice></p>'
+
 
 class TestDocumentExport:
     """Test document export methods."""
@@ -104,9 +118,11 @@ class TestDocumentListInterface:
     """Test list-like interface for documents."""
 
     def test_len(self):
-        """Test __len__() returns sentence count."""
+        """Test __len__() returns paragraph count."""
         doc = Document("First. Second. Third.")
-        assert len(doc) >= 1  # At least one sentence
+        assert len(doc) == 1
+        doc.add_paragraph("New paragraph.")
+        assert len(doc) == 2
 
     def test_getitem_single(self):
         """Test getting single sentence by index."""
@@ -127,15 +143,15 @@ class TestDocumentListInterface:
     def test_setitem(self):
         """Test replacing sentence."""
         doc = Document("First. Second. Third.")
-        original_len = len(doc)
+        original_len = _sentence_item_count(doc)
         doc[0] = "Modified sentence."
-        assert len(doc) == original_len
+        assert _sentence_item_count(doc) == original_len
         assert "Modified" in doc.ssmd
 
     def test_setitem_last_sentence(self):
         """Test replacing last sentence."""
         doc = Document("First. Second. Third.")
-        last_index = len(doc) - 1
+        last_index = _sentence_item_count(doc) - 1
         if last_index >= 0:
             doc[last_index] = "Final sentence."
             assert doc.ssmd.endswith("Final sentence.")
@@ -153,15 +169,15 @@ class TestDocumentListInterface:
     def test_delitem(self):
         """Test deleting sentence."""
         doc = Document("First.\nSecond.\nThird.")
-        original_len = len(doc)
+        original_len = _sentence_item_count(doc)
         if original_len > 1:
             del doc[1]
-            assert len(doc) == original_len - 1
+            assert _sentence_item_count(doc) == original_len - 1
 
     def test_delitem_first_sentence(self):
         """Test deleting first sentence."""
         doc = Document("First.\nSecond.\nThird.")
-        if len(doc) > 1:
+        if _sentence_item_count(doc) > 1:
             del doc[0]
             assert doc.ssmd.startswith("Second")
 
@@ -210,9 +226,9 @@ class TestDocumentEditing:
     def test_remove(self):
         """Test remove() method."""
         doc = Document("First. Second. Third.")
-        original_len = len(doc)
+        original_len = _sentence_item_count(doc)
         doc.remove(0)
-        assert len(doc) == original_len - 1
+        assert _sentence_item_count(doc) == original_len - 1
 
     def test_clear(self):
         """Test clear() method."""
@@ -421,7 +437,7 @@ class TestDocumentRepresentation:
         doc = Document("First. Second.")
         repr_str = repr(doc)
         assert "Document" in repr_str
-        assert "sentences" in repr_str or "chars" in repr_str
+        assert "paragraphs" in repr_str or "chars" in repr_str
 
     def test_str(self):
         """Test __str__() returns SSMD."""
@@ -518,7 +534,7 @@ class TestDocumentEdgeCases:
     def test_delitem_only_sentence(self):
         """Test deleting the only sentence in a document."""
         doc = Document("Only sentence.")
-        if len(doc) >= 1:
+        if _sentence_item_count(doc) >= 1:
             del doc[0]
             assert doc.ssmd == ""
             assert len(doc._fragments) == 0
@@ -546,6 +562,40 @@ class TestDocumentEdgeCases:
         """Test multiline content."""
         doc = Document("Line 1\nLine 2\n\nParagraph 2")
         assert "\n" in doc.ssmd
+
+
+class TestDocumentParsing:
+    """Test parsing SSMD into Document."""
+
+    def test_parse_ssmd_basic(self):
+        """Test basic SSMD parsing."""
+        ssmd = "Hello *world*"
+        doc = Document(ssmd)
+        paragraphs = parse_paragraphs(doc.ssmd)
+        assert doc.ssmd == ssmd
+        assert len(paragraphs) == 1
+        assert len(paragraphs[0].sentences) == 1
+
+    def test_parse_ssmd_with_metadata(self):
+        """Test parsing SSMD with metadata."""
+        ssmd = "Hello [User]{voice='user_voice'}"
+        doc = Document(ssmd)
+        paragraphs = parse_paragraphs(doc.ssmd)
+        assert len(paragraphs) == 1
+        voice = paragraphs[0].sentences[0].segments[1].voice
+        assert voice is not None
+        assert voice.name == "user_voice"
+
+    def test_parse_ssmd_with_paragraph(self):
+        """Test adding metadata to document."""
+        doc = Document("Hello! \n\n How are you? I'm fine.\n")
+        sentences = list(doc.sentences(as_documents=True))
+        assert len(sentences) == 2
+        paragraphs = parse_paragraphs(doc.ssmd)
+        assert len(paragraphs) == 2
+        assert paragraphs[0].sentences[0].segments[0].text == "Hello!"
+        assert paragraphs[1].sentences[0].segments[0].text == "How are you?"
+        assert paragraphs[1].sentences[1].segments[0].text == "I'm fine."
 
 
 if __name__ == "__main__":

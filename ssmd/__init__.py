@@ -41,6 +41,7 @@ Example:
 from typing import Any
 
 from ssmd.document import Document
+from ssmd.paragraph import Paragraph
 from ssmd.ssml_parser import SSMLParser
 from ssmd.capabilities import (
     TTSCapabilities,
@@ -57,6 +58,7 @@ from ssmd.capabilities import (
     list_profiles,
 )
 from ssmd.parser import (
+    parse_paragraphs,
     parse_sentences,
     parse_segments,
     parse_voice_blocks,
@@ -68,6 +70,7 @@ from ssmd.spans import LintIssue, AnnotationSpan, ParseSpansResult
 from ssmd.parser_types import (
     SSMDSegment,
     SSMDSentence,
+    SSMDParagraph,
     VoiceAttrs,
     ProsodyAttrs,
     BreakAttrs,
@@ -170,6 +173,7 @@ __all__ = [
     "MINIMAL_CAPABILITIES",
     "FULL_CAPABILITIES",
     # Parser functions
+    "parse_paragraphs",
     "parse_sentences",
     "parse_segments",
     "parse_voice_blocks",
@@ -183,6 +187,7 @@ __all__ = [
     # New core classes
     "Segment",
     "Sentence",
+    "Paragraph",
     # Types
     "VoiceAttrs",
     "ProsodyAttrs",
@@ -201,5 +206,6 @@ __all__ = [
     # Backward compatibility aliases
     "SSMDSegment",
     "SSMDSentence",
+    "SSMDParagraph",
     "__version__",
 ]

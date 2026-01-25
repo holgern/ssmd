@@ -56,11 +56,12 @@ Quick Example
    # → Hello world!
 
    # Or use the Parser API for structured data
-   from ssmd import parse_sentences
+   from ssmd import parse_paragraphs
 
-   for sentence in parse_sentences("Hello *world*!"):
-       for seg in sentence.segments:
-           print(f"Text: {seg.text}, Emphasis: {seg.emphasis}")
+   for paragraph in parse_paragraphs("Hello *world*!"):
+       for sentence in paragraph.sentences:
+           for seg in sentence.segments:
+               print(f"Text: {seg.text}, Emphasis: {seg.emphasis}")
 
 Table of Contents
 -----------------

@@ -94,6 +94,7 @@ Parser Functions
 
 Extract structured data from SSMD text.
 
+.. autofunction:: ssmd.parse_paragraphs
 .. autofunction:: ssmd.parse_sentences
 .. autofunction:: ssmd.parse_segments
 .. autofunction:: ssmd.parse_voice_blocks

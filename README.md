@@ -109,7 +109,7 @@ text = doc.to_text()      # Plain text
 
 # Access document content
 print(doc.ssmd)           # Raw SSMD content
-print(len(doc))           # Number of sentences
+print(len(doc))           # Number of paragraphs
 ```
 
 ### TTS Streaming Integration
@@ -141,7 +141,9 @@ for i, sentence in enumerate(doc.sentences(), 1):
     # await tts_engine.wait_until_done()
 
 # Or access specific sentences
-print(f"Total sentences: {len(doc)}")
+sentence_count = len(list(doc.sentences()))
+print(f"Total sentences: {sentence_count}")
+print(f"Total paragraphs: {len(doc)}")
 print(f"First sentence: {doc[0]}")
 print(f"Last sentence: {doc[-1]}")
 ```
@@ -627,7 +629,7 @@ features or want to build custom TTS pipelines.
 ### Quick Example
 
 ```python
-from ssmd import parse_sentences
+from ssmd import parse_paragraphs
 
 script = """
 <div voice="sarah">
@@ -640,36 +642,55 @@ Thanks *Sarah*!
 </div>
 """
 
-# Parse into structured sentences
-sentences = parse_sentences(script)
+# Parse into structured paragraphs
+paragraphs = parse_paragraphs(script)
 
-for sentence in sentences:
-    # Get voice configuration
-    voice_name = sentence.voice.name if sentence.voice else "default"
+for paragraph in paragraphs:
+    for sentence in paragraph.sentences:
+        # Get voice configuration
+        voice_name = sentence.voice.name if sentence.voice else "default"
 
-    # Process each segment
-    full_text = ""
-    for seg in sentence.segments:
-        # Handle text transformations
-        if seg.say_as:
-            # Your TTS engine converts based on interpret_as
-            text = convert_say_as(seg.text, seg.say_as.interpret_as)
-        elif seg.substitution:
-            # Use substitution text instead of original
-            text = seg.substitution
-        elif seg.phoneme:
-            # Use phoneme for pronunciation
-            text = seg.text  # TTS engine handles phoneme
-        else:
-            text = seg.text
+        # Process each segment
+        full_text = ""
+        for seg in sentence.segments:
+            # Handle text transformations
+            if seg.say_as:
+                # Your TTS engine converts based on interpret_as
+                text = convert_say_as(seg.text, seg.say_as.interpret_as)
+            elif seg.substitution:
+                # Use substitution text instead of original
+                text = seg.substitution
+            elif seg.phoneme:
+                # Use phoneme for pronunciation
+                text = seg.text  # TTS engine handles phoneme
+            else:
+                text = seg.text
 
-        full_text += text
+            full_text += text
 
-    # Speak the complete sentence
-    tts.speak(full_text, voice=voice_name)
+        # Speak the complete sentence
+        tts.speak(full_text, voice=voice_name)
 ```
 
 ### Parser Functions
+
+#### `parse_paragraphs(text, **options)` → `list[Paragraph]`
+
+Parse SSMD text into structured paragraphs with sentences and segments.
+
+**Returns:** List of `Paragraph` objects.
+
+**Example:**
+
+```python
+from ssmd import parse_paragraphs
+
+paragraphs = parse_paragraphs("First sentence.\n\nSecond paragraph.")
+
+for paragraph in paragraphs:
+    for sentence in paragraph.sentences:
+        print(sentence.text)
+```
 
 #### `parse_sentences(text, **options)` → `list[Sentence]`
 
@@ -690,7 +711,8 @@ Parse SSMD text into structured sentences with segments.
 - `use_spacy` (bool): If False, use fast regex splitting instead of spaCy (default:
   True)
 
-**Returns:** List of `Sentence` objects (alias: `SSMDSentence`)
+**Returns:** List of `Sentence` objects (alias: `SSMDSentence`). Each sentence includes
+`paragraph_index` and `sentence_index` for document ordering.
 
 **Example:**
 
@@ -800,6 +822,14 @@ for voice, text in blocks:
 
 ### Data Structures
 
+#### `Paragraph` (alias: `SSMDParagraph`)
+
+Represents a paragraph containing sentences.
+
+**Attributes:**
+
+- `sentences` (list[Sentence]): List of sentences in the paragraph
+
 #### `Sentence` (alias: `SSMDSentence`)
 
 Represents a complete sentence with voice context.
@@ -809,6 +839,8 @@ Represents a complete sentence with voice context.
 - `segments` (list[Segment]): List of text segments
 - `voice` (VoiceAttrs | None): Voice configuration
 - `is_paragraph_end` (bool): Whether sentence ends a paragraph
+- `paragraph_index` (int): Zero-based paragraph index for this sentence
+- `sentence_index` (int): Zero-based sentence index within the document
 - `breaks_after` (list[BreakAttrs]): Pauses after the sentence
 
 #### `Segment` (alias: `SSMDSegment`)
@@ -1068,7 +1100,7 @@ Main document container for building and managing TTS content.
 
 **List-like Interface:**
 
-- `len(doc)` → Number of sentences
+- `len(doc)` → Number of paragraphs
 - `doc[i]` → Get sentence by index (SSML)
 - `doc[i] = text` → Replace sentence
 - `del doc[i]` → Delete sentence
@@ -1113,11 +1145,12 @@ async def read_document(content: str, tts: TTSEngine):
     """Read an SSMD document sentence by sentence."""
     doc = Document(content, config={'auto_sentence_tags': True})
 
-    print(f"Reading document with {len(doc)} sentences...")
+    sentence_count = len(list(doc.sentences()))
+    print(f"Reading document with {len(doc)} paragraphs...")
 
-    for i in range(len(doc)):
+    for i in range(sentence_count):
         sentence = doc[i]
-        print(f"[{i+1}/{len(doc)}] Speaking...")
+        print(f"[{i+1}/{sentence_count}] Speaking...")
         await tts.speak(sentence)
         await tts.wait_until_done()
 

@@ -9,6 +9,7 @@ Import from ssmd.types, ssmd.segment, and ssmd.sentence instead.
 """
 
 # Re-export types from new locations for backward compatibility
+from ssmd.paragraph import Paragraph
 from ssmd.segment import Segment
 from ssmd.sentence import Sentence
 from ssmd.types import (
@@ -24,6 +25,7 @@ from ssmd.types import (
 # Backward compatibility aliases
 SSMDSegment = Segment
 SSMDSentence = Sentence
+SSMDParagraph = Paragraph
 
 __all__ = [
     # Types
@@ -37,7 +39,9 @@ __all__ = [
     # Classes
     "Segment",
     "Sentence",
+    "Paragraph",
     # Backward compatibility aliases
     "SSMDSegment",
     "SSMDSentence",
+    "SSMDParagraph",
 ]

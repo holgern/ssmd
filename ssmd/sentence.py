@@ -31,6 +31,8 @@ class Sentence:
         language: Language directive for the sentence
         prosody: Prosody directive for the sentence
         is_paragraph_end: True if sentence ends with paragraph break
+        paragraph_index: Zero-based paragraph index for this sentence
+        sentence_index: Zero-based sentence index within the document
         breaks_after: Pauses after the sentence
     """
 
@@ -39,6 +41,8 @@ class Sentence:
     language: str | None = None
     prosody: ProsodyAttrs | None = None
     is_paragraph_end: bool = False
+    paragraph_index: int = 0
+    sentence_index: int = 0
     breaks_after: list[BreakAttrs] = field(default_factory=list)
 
     def to_ssml(

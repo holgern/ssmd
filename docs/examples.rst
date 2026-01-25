@@ -208,11 +208,12 @@ Sentence-by-Sentence Processing
    # Create document with automatic sentence splitting
    doc = Document(document_text, auto_sentence_tags=True)
 
-   print(f"Total sentences: {len(doc)}")
+   sentence_count = len(list(doc.sentences()))
+   print(f"Total sentences: {sentence_count}")
 
    # Stream sentences
    for i, sentence_doc in enumerate(doc.sentences(as_documents=True), 1):
-       print(f"\n[{i}/{len(doc)}]")
+       print(f"\n[{i}/{sentence_count}]")
        engine.speak(sentence_doc.to_ssml())
 
    print("\nPlayback complete!")
@@ -233,9 +234,10 @@ Async TTS Streaming
 
    async def stream_document(doc):
        engine = AsyncTTSEngine()
+       sentence_count = len(list(doc.sentences()))
 
        for i, sentence_doc in enumerate(doc.sentences(as_documents=True), 1):
-           print(f"\n[Sentence {i}/{len(doc)}]")
+           print(f"\n[Sentence {i}/{sentence_count}]")
            await engine.speak(sentence_doc.to_ssml())
 
    async def main():

@@ -4,7 +4,8 @@ from collections.abc import Iterator
 from typing import TYPE_CHECKING, Any, overload
 
 from ssmd.formatter import format_ssmd
-from ssmd.parser import parse_sentences
+from ssmd.paragraph import Paragraph
+from ssmd.parser import parse_paragraphs, parse_sentences
 from ssmd.utils import (
     build_config_from_header,
     extract_sentences,
@@ -126,6 +127,7 @@ class Document:
         self._capabilities_obj: TTSCapabilities | None = None  # Resolved capabilities
         self._cached_ssml: str | None = None
         self._cached_sentences: list[str] | None = None
+        self._cached_paragraphs: list[Paragraph] | None = None
         self._escape_syntax = escape_syntax
         self._escape_patterns = escape_patterns
         self._strict = strict
@@ -563,20 +565,35 @@ class Document:
     # ═══════════════════════════════════════════════════════════
 
     def __len__(self) -> int:
-        """Return number of sentences in the document.
+        """Return number of paragraphs in the document.
 
         Returns:
-            Number of sentences
+            Number of paragraphs
 
         Example:
-            >>> doc = ssmd.Document("First. Second. Third.")
+            >>> doc = ssmd.Document("First paragraph.\n\nSecond paragraph.")
             >>> len(doc)
-            3
+            2
         """
-        if self._cached_sentences is None:
-            ssml = self.to_ssml()
-            self._cached_sentences = extract_sentences(ssml)
-        return len(self._cached_sentences)
+        if self._cached_paragraphs is None:
+            # Get sentence detection config
+            model_size = self._config.get("sentence_model_size")
+            spacy_model = self._config.get("sentence_spacy_model")
+            use_spacy = self._config.get("sentence_use_spacy")
+            model_size_value = model_size or (
+                spacy_model.split("_")[-1] if spacy_model else None
+            )
+
+            self._cached_paragraphs = parse_paragraphs(
+                self.ssmd,
+                capabilities=self._get_capabilities(),
+                heading_levels=self._config.get("heading_levels"),
+                extensions=self._config.get("extensions"),
+                sentence_detection=False,
+                use_spacy=use_spacy,
+                model_size=model_size_value,
+            )
+        return len(self._cached_paragraphs)
 
     @overload
     def __getitem__(self, index: int) -> str: ...
@@ -950,6 +967,7 @@ class Document:
         """Invalidate cached SSML and sentences."""
         self._cached_ssml = None
         self._cached_sentences = None
+        self._cached_paragraphs = None
 
     def __repr__(self) -> str:
         """String representation of document.
@@ -958,13 +976,13 @@ class Document:
             Representation string
 
         Example:
-            >>> doc = ssmd.Document("Hello. World.")
+            >>> doc = ssmd.Document("Hello.\n\nWorld.")
             >>> repr(doc)
-            'Document(2 sentences, 13 chars)'
+            'Document(2 paragraphs, 13 chars)'
         """
         try:
-            num_sentences = len(self)
-            return f"Document({num_sentences} sentences, {len(self.ssmd)} chars)"
+            num_paragraphs = len(self)
+            return f"Document({num_paragraphs} paragraphs, {len(self.ssmd)} chars)"
         except Exception:
             return f"Document({len(self.ssmd)} chars)"
 

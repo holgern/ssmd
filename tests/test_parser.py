@@ -4,6 +4,7 @@ import pytest
 
 from ssmd import (
     iter_sentences_spans,
+    parse_paragraphs,
     parse_segments,
     parse_sentences,
     parse_spans,
@@ -358,6 +359,19 @@ Hello from Michael
         # First sentence should be marked as paragraph end
         assert any(s.is_paragraph_end for s in sentences)
 
+    def test_sentence_indexes(self):
+        """Test paragraph_index and sentence_index assignment."""
+        text = "First sentence. Second sentence.\n\nThird sentence."
+        sentences = parse_sentences(text, sentence_detection=True, use_spacy=False)
+
+        assert len(sentences) == 3
+        assert sentences[0].paragraph_index == 0
+        assert sentences[0].sentence_index == 0
+        assert sentences[1].paragraph_index == 0
+        assert sentences[1].sentence_index == 1
+        assert sentences[2].paragraph_index == 1
+        assert sentences[2].sentence_index == 2
+
     def test_no_sentence_detection(self):
         """Test disabling sentence detection."""
         text = "Hello. How are you?"
@@ -416,6 +430,20 @@ Sarah speaks
 
         # Should skip intro text
         assert all(s.voice is not None for s in sentences)
+
+
+class TestParseParagraphs:
+    """Test paragraph parsing."""
+
+    def test_paragraph_structure(self):
+        text = "First sentence. Second sentence.\n\nThird sentence."
+        paragraphs = parse_paragraphs(text, sentence_detection=True, use_spacy=False)
+
+        assert len(paragraphs) == 2
+        assert len(paragraphs[0].sentences) == 2
+        assert len(paragraphs[1].sentences) == 1
+        assert paragraphs[0].sentences[0].paragraph_index == 0
+        assert paragraphs[1].sentences[0].paragraph_index == 1
 
 
 class TestIntegration:

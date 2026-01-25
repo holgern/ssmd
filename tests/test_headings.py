@@ -3,7 +3,7 @@
 import pytest
 
 from ssmd import Document, to_ssml
-from ssmd.parser import parse_ssmd
+from ssmd.parser import parse_paragraphs
 from ssmd.types import DEFAULT_HEADING_LEVELS
 
 
@@ -246,13 +246,15 @@ class TestHeadingSegmentParsing:
 
     def test_heading_segment_breaks_before(self):
         """Test that heading segments have breaks_before populated."""
-        sentences = parse_ssmd("# Test Heading", heading_levels=DEFAULT_HEADING_LEVELS)
+        paragraphs = parse_paragraphs(
+            "# Test Heading", heading_levels=DEFAULT_HEADING_LEVELS
+        )
 
         # Should have at least one sentence
-        assert len(sentences) > 0
+        assert len(paragraphs) > 0
 
         # Get segments from the first sentence
-        segments = sentences[0].segments
+        segments = paragraphs[0].sentences[0].segments
         assert len(segments) > 0
 
         # The heading segment should have breaks_before
@@ -262,25 +264,31 @@ class TestHeadingSegmentParsing:
 
     def test_heading_segment_breaks_after(self):
         """Test that heading segments have breaks_after populated."""
-        sentences = parse_ssmd("# Test Heading", heading_levels=DEFAULT_HEADING_LEVELS)
+        paragraphs = parse_paragraphs(
+            "# Test Heading", heading_levels=DEFAULT_HEADING_LEVELS
+        )
 
         # The heading segment should have breaks_after
-        heading_seg = sentences[0].segments[0]
+        heading_seg = paragraphs[0].sentences[0].segments[0]
         assert len(heading_seg.breaks_after) > 0
         assert heading_seg.breaks_after[0].time == "300ms"
 
     def test_heading_segment_emphasis(self):
         """Test that heading segments have correct emphasis."""
-        sentences = parse_ssmd("# Test Heading", heading_levels=DEFAULT_HEADING_LEVELS)
+        paragraphs = parse_paragraphs(
+            "# Test Heading", heading_levels=DEFAULT_HEADING_LEVELS
+        )
 
-        heading_seg = sentences[0].segments[0]
+        heading_seg = paragraphs[0].sentences[0].segments[0]
         assert heading_seg.emphasis == "strong"
 
     def test_level_2_heading_segment(self):
         """Test level 2 heading segment properties."""
-        sentences = parse_ssmd("## Level 2", heading_levels=DEFAULT_HEADING_LEVELS)
+        paragraphs = parse_paragraphs(
+            "## Level 2", heading_levels=DEFAULT_HEADING_LEVELS
+        )
 
-        heading_seg = sentences[0].segments[0]
+        heading_seg = paragraphs[0].sentences[0].segments[0]
         assert heading_seg.text == "Level 2"
         assert heading_seg.emphasis == "moderate"
         assert len(heading_seg.breaks_before) > 0
@@ -290,9 +298,11 @@ class TestHeadingSegmentParsing:
 
     def test_level_3_heading_segment(self):
         """Test level 3 heading segment properties."""
-        sentences = parse_ssmd("### Level 3", heading_levels=DEFAULT_HEADING_LEVELS)
+        paragraphs = parse_paragraphs(
+            "### Level 3", heading_levels=DEFAULT_HEADING_LEVELS
+        )
 
-        heading_seg = sentences[0].segments[0]
+        heading_seg = paragraphs[0].sentences[0].segments[0]
         assert heading_seg.text == "Level 3"
         # Level 3 doesn't have emphasis in default config, only pauses
         assert heading_seg.emphasis is False

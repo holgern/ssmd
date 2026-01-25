@@ -24,7 +24,7 @@ each feature individually instead of generating a complete SSML document.
 
 .. code-block:: python
 
-    from ssmd import parse_sentences
+    from ssmd import parse_paragraphs
 
     script = """
     <div voice="sarah">
@@ -36,35 +36,46 @@ each feature individually instead of generating a complete SSML document.
     </div>
     """
 
-    # Parse into structured sentences
-   for sentence in parse_sentences(script):
-       # Get voice configuration
-       voice_name = sentence.voice.name if sentence.voice else "default"
+    # Parse into structured paragraphs
+   for paragraph in parse_paragraphs(script):
+       for sentence in paragraph.sentences:
+           # Get voice configuration
+           voice_name = sentence.voice.name if sentence.voice else "default"
 
-       # Build complete text from segments
-       full_text = ""
-       for seg in sentence.segments:
-           # Handle text transformations
-           if seg.say_as:
-               text = convert_say_as(seg.text, seg.say_as.interpret_as)
-           elif seg.substitution:
-               text = seg.substitution
-           elif seg.phoneme:
-               text = seg.text  # TTS engine handles phoneme
-           else:
-               text = seg.text
-           full_text += text
+           # Build complete text from segments
+           full_text = ""
+           for seg in sentence.segments:
+               # Handle text transformations
+               if seg.say_as:
+                   text = convert_say_as(seg.text, seg.say_as.interpret_as)
+               elif seg.substitution:
+                   text = seg.substitution
+               elif seg.phoneme:
+                   text = seg.text  # TTS engine handles phoneme
+               else:
+                   text = seg.text
+               full_text += text
 
-       # Speak with TTS engine
-       tts.speak(full_text, voice=voice_name)
+           # Speak with TTS engine
+           tts.speak(full_text, voice=voice_name)
 
 Parser Functions
 ----------------
 
+parse_paragraphs
+~~~~~~~~~~~~~~~~
+
+Parse SSMD text into structured paragraphs with sentences and segments.
+
+.. autofunction:: ssmd.parse_paragraphs
+
+**Returns:** List of :class:`Paragraph` objects.
+
 parse_sentences
 ~~~~~~~~~~~~~~~
 
-Parse SSMD text into structured sentences with segments.
+Parse SSMD text into structured sentences with segments. This is a convenience
+wrapper that flattens the paragraphs returned by :func:`parse_paragraphs`.
 
 .. autofunction:: ssmd.parse_sentences
 
@@ -79,7 +90,8 @@ Parse SSMD text into structured sentences with segments.
 * ``spacy_model`` (str): Deprecated alias; model size is inferred from the name
 * ``use_spacy`` (bool): If ``False``, use fast regex splitting instead of spaCy (default: ``True``)
 
-**Returns:** List of :class:`Sentence` objects (alias: :class:`SSMDSentence`)
+**Returns:** List of :class:`Sentence` objects (alias: :class:`SSMDSentence`). Each
+sentence includes ``paragraph_index`` and ``sentence_index`` metadata.
 
 **Example:**
 
@@ -237,6 +249,19 @@ Parse SSMD text into segments without sentence grouping.
 Data Structures
 ---------------
 
+Paragraph (alias: SSMDParagraph)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Represents a paragraph containing sentences.
+
+.. autoclass:: ssmd.Paragraph
+   :members:
+   :undoc-members:
+
+**Attributes:**
+
+* ``sentences`` (list[Sentence]): List of sentences in the paragraph
+
 Sentence (alias: SSMDSentence)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -251,6 +276,8 @@ Represents a complete sentence with voice context and segments.
 * ``segments`` (list[Segment]): List of text segments making up the sentence
 * ``voice`` (VoiceAttrs | None): Voice configuration for this sentence
 * ``is_paragraph_end`` (bool): Whether this sentence ends a paragraph
+* ``paragraph_index`` (int): Zero-based paragraph index for this sentence
+* ``sentence_index`` (int): Zero-based sentence index within the document
 * ``breaks_after`` (list[BreakAttrs]): Breaks after the sentence
 
 Segment (alias: SSMDSegment)
