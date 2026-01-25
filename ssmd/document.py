@@ -8,7 +8,6 @@ from ssmd.paragraph import Paragraph
 from ssmd.parser import parse_paragraphs, parse_sentences
 from ssmd.utils import (
     build_config_from_header,
-    extract_sentences,
     format_xml,
 )
 from ssmd.utils import (
@@ -17,6 +16,7 @@ from ssmd.utils import (
 
 if TYPE_CHECKING:
     from ssmd.capabilities import TTSCapabilities
+    from ssmd.sentence import Sentence
 
 
 class Document:
@@ -131,6 +131,7 @@ class Document:
         self._escape_syntax = escape_syntax
         self._escape_patterns = escape_patterns
         self._strict = strict
+        self._parse_yaml_header = parse_yaml_header
         self.header: dict[str, Any] | None = None
         self.warnings: list[str] = []
 
@@ -431,8 +432,13 @@ class Document:
             return raw_ssmd
 
         # Parse into sentences and format with proper line breaks
-        sentences = parse_sentences(raw_ssmd)
-        return format_ssmd(sentences).rstrip("\n")
+        sentences = self._parse_sentence_objects()
+        formatted = format_ssmd(sentences).rstrip("\n")
+        if self._escape_syntax:
+            from ssmd.utils import unescape_ssmd_syntax
+
+            formatted = unescape_ssmd_syntax(formatted)
+        return formatted
 
     def to_text(self) -> str:
         """Export document to plain text (strips all markup).
@@ -445,12 +451,16 @@ class Document:
             >>> doc.to_text()
             'Hello world!'
         """
-        ssmd_content = self.ssmd
-        sentences = parse_sentences(ssmd_content)
+        sentences = self._parse_sentence_objects()
         text_parts = []
         for sentence in sentences:
             text_parts.append(sentence.to_text())
-        return " ".join(text_parts)
+        text = " ".join(text_parts)
+        if self._escape_syntax:
+            from ssmd.utils import unescape_ssmd_syntax
+
+            text = unescape_ssmd_syntax(text)
+        return text
 
     # ═══════════════════════════════════════════════════════════
     # PROPERTIES
@@ -522,12 +532,10 @@ class Document:
     # ═══════════════════════════════════════════════════════════
 
     def sentences(self, as_documents: bool = False) -> "Iterator[str | Document]":
-        """Iterate through sentences.
+        """Iterate through sentence-level SSML chunks.
 
-        Yields SSML sentences one at a time, which is useful for
-        streaming TTS applications. If the SSML contains explicit ``<s>`` tags
-        (from ``auto_sentence_tags=True``), those are returned; otherwise the
-        iterator falls back to ``<p>`` tags or the full ``<speak>`` body.
+        Sentences are always returned as explicit ``<s>``-wrapped SSML fragments
+        so the streaming interface remains stable regardless of paragraph tags.
 
         Args:
             as_documents: If True, yield Document objects instead of strings.
@@ -545,13 +553,10 @@ class Document:
             ...     ssml = sentence_doc.to_ssml()
             ...     ssmd = sentence_doc.to_ssmd()
         """
-        if self._cached_sentences is None:
-            ssml = self.to_ssml()
-            self._cached_sentences = extract_sentences(ssml)
+        self._populate_sentence_cache()
 
-        for sentence in self._cached_sentences:
+        for sentence in self._cached_sentences or []:
             if as_documents:
-                # Create a Document from this SSML sentence
                 yield Document.from_ssml(
                     sentence,
                     config=self._config,
@@ -560,40 +565,70 @@ class Document:
             else:
                 yield sentence
 
+    def paragraphs(self, as_documents: bool = False) -> "Iterator[str | Document]":
+        """Iterate through paragraph-level SSML chunks.
+
+        Paragraphs are returned with ``<p>`` tags when supported by capabilities.
+
+        Args:
+            as_documents: If True, yield Document objects instead of strings.
+
+        Yields:
+            SSML paragraph strings (str), or Document objects if as_documents=True
+        """
+        self._populate_paragraph_cache()
+        capabilities = self._get_capabilities()
+        extensions = self._config.get("extensions")
+        auto_sentence_tags = self._config.get("auto_sentence_tags", False)
+        paragraph_enabled = not capabilities or capabilities.paragraph
+
+        for paragraph in self._cached_paragraphs or []:
+            sentence_parts: list[str] = []
+            for sentence in paragraph.sentences:
+                sentence_parts.append(
+                    sentence.to_ssml(
+                        capabilities=capabilities,
+                        extensions=extensions,
+                        wrap_sentence=auto_sentence_tags,
+                        warnings=self.warnings if self._strict else None,
+                    )
+                )
+            content = " ".join(part for part in sentence_parts if part).strip()
+            if not content:
+                continue
+            paragraph_ssml = f"<p>{content}</p>" if paragraph_enabled else content
+            if self._escape_syntax:
+                from ssmd.utils import unescape_ssmd_syntax
+
+                paragraph_ssml = unescape_ssmd_syntax(paragraph_ssml, xml_safe=True)
+
+            if as_documents:
+                yield Document.from_ssml(
+                    paragraph_ssml,
+                    config=self._config,
+                    capabilities=self._capabilities,
+                )
+            else:
+                yield paragraph_ssml
+
     # ═══════════════════════════════════════════════════════════
     # LIST-LIKE INTERFACE (operates on SSML sentences)
     # ═══════════════════════════════════════════════════════════
 
     def __len__(self) -> int:
-        """Return number of paragraphs in the document.
+        """Return number of sentences in the document.
 
         Returns:
-            Number of paragraphs
+            Number of sentences
 
         Example:
-            >>> doc = ssmd.Document("First paragraph.\n\nSecond paragraph.")
+            >>> doc = ssmd.Document("First sentence. Second sentence.")
             >>> len(doc)
             2
         """
-        if self._cached_paragraphs is None:
-            # Get sentence detection config
-            model_size = self._config.get("sentence_model_size")
-            spacy_model = self._config.get("sentence_spacy_model")
-            use_spacy = self._config.get("sentence_use_spacy")
-            model_size_value = model_size or (
-                spacy_model.split("_")[-1] if spacy_model else None
-            )
-
-            self._cached_paragraphs = parse_paragraphs(
-                self.ssmd,
-                capabilities=self._get_capabilities(),
-                heading_levels=self._config.get("heading_levels"),
-                extensions=self._config.get("extensions"),
-                sentence_detection=False,
-                use_spacy=use_spacy,
-                model_size=model_size_value,
-            )
-        return len(self._cached_paragraphs)
+        if self._cached_sentences is not None:
+            return len(self._cached_sentences)
+        return len(self._parse_sentence_objects())
 
     @overload
     def __getitem__(self, index: int) -> str: ...
@@ -619,10 +654,8 @@ class Document:
             >>> doc[-1]  # Last sentence SSML
             >>> doc[0:2]  # First two sentences
         """
-        if self._cached_sentences is None:
-            ssml = self.to_ssml()
-            self._cached_sentences = extract_sentences(ssml)
-        return self._cached_sentences[index]
+        self._populate_sentence_cache()
+        return (self._cached_sentences or [])[index]
 
     def __setitem__(self, index: int, value: str) -> None:
         """Replace sentence at index.
@@ -640,12 +673,11 @@ class Document:
             >>> doc = ssmd.Document("First. Second. Third.")
             >>> doc[0] = "Modified first sentence."
         """
-        if self._cached_sentences is None:
-            ssml = self.to_ssml()
-            self._cached_sentences = extract_sentences(ssml)
+        self._populate_sentence_cache()
 
+        sentences = self._cached_sentences or []
         self._rebuild_from_sentence_ssml(
-            self._cached_sentences,
+            sentences,
             replacement_index=index,
             replacement_ssmd=value,
         )
@@ -663,14 +695,11 @@ class Document:
             >>> doc = ssmd.Document("First. Second. Third.")
             >>> del doc[1]  # Remove second sentence
         """
-        if self._cached_sentences is None:
-            ssml = self.to_ssml()
-            self._cached_sentences = extract_sentences(ssml)
+        self._populate_sentence_cache()
 
+        sentences = self._cached_sentences or []
         remaining_sentences = [
-            sentence_ssml
-            for i, sentence_ssml in enumerate(self._cached_sentences)
-            if i != index
+            sentence_ssml for i, sentence_ssml in enumerate(sentences) if i != index
         ]
         self._rebuild_from_sentence_ssml(remaining_sentences)
 
@@ -948,6 +977,76 @@ class Document:
         self._separators = new_separators
         self._invalidate_cache()
 
+    def _sentence_detection_config(
+        self,
+    ) -> tuple[str | None, str | None, bool | None, str | None]:
+        model_size = self._config.get("sentence_model_size")
+        spacy_model = self._config.get("sentence_spacy_model")
+        use_spacy = self._config.get("sentence_use_spacy")
+        model_size_value = model_size or (
+            spacy_model.split("_")[-1] if spacy_model else None
+        )
+        return model_size, spacy_model, use_spacy, model_size_value
+
+    def _parse_sentence_objects(self) -> list["Sentence"]:
+        model_size, spacy_model, use_spacy, _ = self._sentence_detection_config()
+        return parse_sentences(
+            self.ssmd,
+            capabilities=self._get_capabilities(),
+            model_size=model_size,
+            spacy_model=spacy_model,
+            use_spacy=use_spacy,
+            heading_levels=self._config.get("heading_levels"),
+            extensions=self._config.get("extensions"),
+            parse_yaml_header=self._parse_yaml_header,
+            strict_parse=self._strict,
+        )
+
+    def _parse_paragraph_objects(self) -> list[Paragraph]:
+        _, _, use_spacy, model_size_value = self._sentence_detection_config()
+        return parse_paragraphs(
+            self.ssmd,
+            capabilities=self._get_capabilities(),
+            heading_levels=self._config.get("heading_levels"),
+            extensions=self._config.get("extensions"),
+            use_spacy=use_spacy,
+            model_size=model_size_value,
+            parse_yaml_header=self._parse_yaml_header,
+            strict_parse=self._strict,
+        )
+
+    def _populate_sentence_cache(self) -> None:
+        if self._cached_sentences is not None:
+            return
+
+        capabilities = self._get_capabilities()
+        extensions = self._config.get("extensions")
+        sentence_objects = self._parse_sentence_objects()
+        sentence_ssml: list[str] = []
+        for sentence in sentence_objects:
+            sentence_ssml.append(
+                sentence.to_ssml(
+                    capabilities=capabilities,
+                    extensions=extensions,
+                    wrap_sentence=True,
+                    warnings=self.warnings if self._strict else None,
+                )
+            )
+
+        if self._escape_syntax:
+            from ssmd.utils import unescape_ssmd_syntax
+
+            sentence_ssml = [
+                unescape_ssmd_syntax(sentence, xml_safe=True)
+                for sentence in sentence_ssml
+            ]
+
+        self._cached_sentences = sentence_ssml
+
+    def _populate_paragraph_cache(self) -> None:
+        if self._cached_paragraphs is None:
+            self._cached_paragraphs = self._parse_paragraph_objects()
+
     def _get_capabilities(self) -> "TTSCapabilities | None":
         """Get resolved TTSCapabilities object.
 
@@ -976,13 +1075,13 @@ class Document:
             Representation string
 
         Example:
-            >>> doc = ssmd.Document("Hello.\n\nWorld.")
+            >>> doc = ssmd.Document("Hello.\nWorld.")
             >>> repr(doc)
-            'Document(2 paragraphs, 13 chars)'
+            'Document(2 sentences, 13 chars)'
         """
         try:
-            num_paragraphs = len(self)
-            return f"Document({num_paragraphs} paragraphs, {len(self.ssmd)} chars)"
+            num_sentences = len(self)
+            return f"Document({num_sentences} sentences, {len(self.ssmd)} chars)"
         except Exception:
             return f"Document({len(self.ssmd)} chars)"
 

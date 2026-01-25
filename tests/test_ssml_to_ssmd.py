@@ -271,6 +271,19 @@ class TestSSMLToSSMD:
         result = ssmd.from_ssml(ssml)
         assert result.strip() == '[Hello]{voice="Joanna"}'
 
+    def test_voice_attribute_with_quotes(self):
+        """Quoted SSML attributes should round-trip safely."""
+        ssml = (
+            '<speak><voice name="He said &quot;hi&quot; and it\'s fine">'
+            "Hello"
+            "</voice></speak>"
+        )
+        result = ssmd.from_ssml(ssml)
+        assert "voice=" in result
+
+        roundtrip = ssmd.to_ssml(result)
+        assert "He said &quot;hi&quot;" in roundtrip
+
     def test_voice_language_gender(self):
         """Test voice with language and gender."""
         ssml = '<speak><voice language="fr-FR" gender="female">Bonjour</voice></speak>'

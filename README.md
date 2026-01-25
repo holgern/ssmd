@@ -109,7 +109,8 @@ text = doc.to_text()      # Plain text
 
 # Access document content
 print(doc.ssmd)           # Raw SSMD content
-print(len(doc))           # Number of paragraphs
+print(len(doc))           # Number of sentences
+print(len(list(doc.paragraphs())))  # Number of paragraphs
 ```
 
 ### TTS Streaming Integration
@@ -143,7 +144,7 @@ for i, sentence in enumerate(doc.sentences(), 1):
 # Or access specific sentences
 sentence_count = len(list(doc.sentences()))
 print(f"Total sentences: {sentence_count}")
-print(f"Total paragraphs: {len(doc)}")
+print(f"Total paragraphs: {len(list(doc.paragraphs()))}")
 print(f"First sentence: {doc[0]}")
 print(f"Last sentence: {doc[-1]}")
 ```
@@ -1100,7 +1101,7 @@ Main document container for building and managing TTS content.
 
 **List-like Interface:**
 
-- `len(doc)` → Number of paragraphs
+- `len(doc)` → Number of sentences
 - `doc[i]` → Get sentence by index (SSML)
 - `doc[i] = text` → Replace sentence
 - `del doc[i]` → Delete sentence
@@ -1110,6 +1111,7 @@ Main document container for building and managing TTS content.
 
 - `sentences()` → Iterator yielding SSML sentences
 - `sentences(as_documents=True)` → Iterator yielding Document objects
+- `paragraphs()` → Iterator yielding SSML paragraphs
 
 **Editing Methods:**
 
@@ -1145,8 +1147,8 @@ async def read_document(content: str, tts: TTSEngine):
     """Read an SSMD document sentence by sentence."""
     doc = Document(content, config={'auto_sentence_tags': True})
 
-    sentence_count = len(list(doc.sentences()))
-    print(f"Reading document with {len(doc)} paragraphs...")
+    sentence_count = len(doc)
+    print(f"Reading document with {sentence_count} sentences...")
 
     for i in range(sentence_count):
         sentence = doc[i]

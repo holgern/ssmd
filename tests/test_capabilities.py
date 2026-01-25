@@ -60,6 +60,27 @@ def test_capability_audio_disabled():
     assert "sound" in result
 
 
+def test_capability_extension_support():
+    """Test that extensions respect capability support."""
+    doc = Document(
+        '[secret]{ext="whisper"} [plain]{ext="custom"}', capabilities="polly"
+    )
+    result = doc.to_ssml()
+
+    assert "<amazon:effect" in result
+    assert "plain" in result
+    assert "custom" not in result
+
+
+def test_capability_extension_minimal():
+    """Test extensions are dropped for minimal capabilities."""
+    doc = Document('[secret]{ext="whisper"}', capabilities="minimal")
+    result = doc.to_ssml()
+
+    assert "<amazon:effect" not in result
+    assert "secret" in result
+
+
 def test_capability_substitution_disabled():
     """Test that substitution tags are stripped when not supported."""
     caps = TTSCapabilities(substitution=False)
@@ -69,6 +90,14 @@ def test_capability_substitution_disabled():
     # Should strip sub tags
     assert "<sub" not in result
     assert "H2O" in result
+
+
+def test_to_text_respects_capabilities():
+    """Plain text output should respect strict capabilities."""
+    caps = TTSCapabilities(substitution=False)
+    doc = Document('[H2O]{sub="water"}', capabilities=caps, strict=True)
+
+    assert doc.to_text() == "H2O"
 
 
 def test_preset_espeak():

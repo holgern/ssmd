@@ -59,6 +59,7 @@ from ssmd.capabilities import (
 )
 from ssmd.parser import (
     parse_paragraphs,
+    parse_ssmd,
     parse_sentences,
     parse_segments,
     parse_voice_blocks,
@@ -174,6 +175,7 @@ __all__ = [
     "FULL_CAPABILITIES",
     # Parser functions
     "parse_paragraphs",
+    "parse_ssmd",
     "parse_sentences",
     "parse_segments",
     "parse_voice_blocks",

@@ -7,6 +7,7 @@ from typing import Any
 from ssmd.formatter import format_ssmd
 from ssmd.parser import parse_sentences
 from ssmd.ssml_conversions import SSML_BREAK_STRENGTH_MAP
+from ssmd.utils import format_ssmd_attr
 
 
 class SSMLParser:
@@ -45,6 +46,12 @@ class SSMLParser:
             config: Optional configuration dictionary
         """
         self.config = config or {}
+
+    def _format_attr(self, key: str, value: str) -> str:
+        return format_ssmd_attr(key, value)
+
+    def _format_attrs(self, pairs: list[tuple[str, str]]) -> str:
+        return " ".join(self._format_attr(key, value) for key, value in pairs)
 
     def to_ssmd(self, ssml: str) -> str:
         """Convert SSML to SSMD format.
@@ -242,13 +249,13 @@ class SSMLParser:
         annotations = []
 
         if volume:
-            annotations.append(f'volume="{volume}"')
+            annotations.append(self._format_attr("volume", volume))
 
         if rate:
-            annotations.append(f'rate="{rate}"')
+            annotations.append(self._format_attr("rate", rate))
 
         if pitch:
-            annotations.append(f'pitch="{pitch}"')
+            annotations.append(self._format_attr("pitch", pitch))
 
         if not annotations:
             return content
@@ -287,13 +294,14 @@ class SSMLParser:
         is_multiline = "\n" in content.strip() or len(content.strip()) > 80
         if element.findall("p"):
             is_multiline = True
+        lang_attr = self._format_attr("lang", escaped_lang)
         if is_multiline:
             return (
-                f'<div lang="{escaped_lang}">{{DIRECTIVE_NEWLINE}}'
+                f"<div {lang_attr}>{{DIRECTIVE_NEWLINE}}"
                 f"{content.strip()}{{DIRECTIVE_NEWLINE}}</div>"
             )
 
-        return f'[{content}]{{lang="{escaped_lang}"}}'
+        return f"[{content}]{{{lang_attr}}}"
 
     def _process_voice(self, element: ET.Element) -> str:
         """Convert <voice> to directive or annotation syntax.
@@ -328,13 +336,13 @@ class SSMLParser:
             # Use block directive syntax for multi-line voice blocks
             parts = []
             if name:
-                parts.append(f'voice="{name}"')
+                parts.append(self._format_attr("voice", name))
             if language:
-                parts.append(f'voice-lang="{language}"')
+                parts.append(self._format_attr("voice-lang", language))
             if gender:
-                parts.append(f'gender="{gender}"')
+                parts.append(self._format_attr("gender", gender))
             if variant:
-                parts.append(f'variant="{variant}"')
+                parts.append(self._format_attr("variant", variant))
 
             if parts:
                 attrs = " ".join(parts)
@@ -347,16 +355,16 @@ class SSMLParser:
         # Use inline annotation syntax
         if name:
             # Simple name-only format
-            return f'[{content}]{{voice="{name}"}}'
+            return f"[{content}]{{{self._format_attr('voice', name)}}}"
         else:
             # Complex format with language/gender/variant
             parts = []
             if language:
-                parts.append(f'voice-lang="{language}"')
+                parts.append(self._format_attr("voice-lang", language))
             if gender:
-                parts.append(f'gender="{gender}"')
+                parts.append(self._format_attr("gender", gender))
             if variant:
-                parts.append(f'variant="{variant}"')
+                parts.append(self._format_attr("variant", variant))
 
             if parts:
                 annotation = " ".join(parts)
@@ -378,7 +386,8 @@ class SSMLParser:
         ph = element.get("ph", "")
 
         # Use explicit format: [text]{ph="value" alphabet="type"}
-        return f'[{content}]{{ph="{ph}" alphabet="{alphabet}"}}'
+        attrs = self._format_attrs([("ph", ph), ("alphabet", alphabet)])
+        return f"[{content}]{{{attrs}}}"
 
     def _process_substitution(self, element: ET.Element) -> str:
         """Convert <sub> to [text]{sub="alias"}.
@@ -393,7 +402,7 @@ class SSMLParser:
         alias = element.get("alias", "")
 
         if alias:
-            return f'[{content}]{{sub="{alias}"}}'
+            return f"[{content}]{{{self._format_attr('sub', alias)}}}"
 
         return content
 
@@ -412,12 +421,12 @@ class SSMLParser:
         detail_attr = element.get("detail")
 
         # Build annotation string
-        parts = [f'as="{interpret_as}"']
+        parts = [self._format_attr("as", interpret_as)]
 
         if format_attr:
-            parts.append(f'format="{format_attr}"')
+            parts.append(self._format_attr("format", format_attr))
         if detail_attr:
-            parts.append(f'detail="{detail_attr}"')
+            parts.append(self._format_attr("detail", detail_attr))
 
         annotation = " ".join(parts)
 
@@ -490,7 +499,7 @@ class SSMLParser:
         if has_desc_tag and content_text:
             pairs.append(("alt", content_text))
 
-        annotation = " ".join([f'{key}="{value}"' for key, value in pairs])
+        annotation = self._format_attrs([(key, str(value)) for key, value in pairs])
 
         if description:
             return f"[{description}]{{{annotation}}}"
@@ -534,7 +543,7 @@ class SSMLParser:
         ext_name = effect_map.get(name, name)
 
         if ext_name:
-            return f'[{content}]{{ext="{ext_name}"}}'
+            return f"[{content}]{{{self._format_attr('ext', ext_name)}}}"
 
         return content
 

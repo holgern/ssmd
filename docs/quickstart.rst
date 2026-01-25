@@ -114,7 +114,8 @@ Exporting Documents
 
    # Access properties
    print(doc.ssmd)           # Raw SSMD content
-   print(len(doc))           # Number of paragraphs
+   print(len(doc))           # Number of sentences
+   print(len(list(doc.paragraphs())))  # Number of paragraphs
 
 TTS Streaming
 -------------
@@ -145,7 +146,7 @@ Iterate through documents sentence-by-sentence for TTS:
    # Access specific sentences
    sentence_count = len(list(doc.sentences()))
    print(f"Total sentences: {sentence_count}")
-   print(f"Total paragraphs: {len(doc)}")
+   print(f"Total paragraphs: {len(list(doc.paragraphs()))}")
    print(f"First: {doc[0]}")
    print(f"Last: {doc[-1]}")
 

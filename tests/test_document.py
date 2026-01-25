@@ -74,7 +74,7 @@ class TestDocumentBuilding:
         for sentence in doc.sentences(as_documents=True):
             sentences.append(sentence)
         assert len(sentences) == 1
-        assert sentences[0][0] == '<p>Hello <voice name="franz">Franz</voice></p>'
+        assert sentences[0][0] == '<s>Hello <voice name="franz">Franz</voice></s>'
 
 
 class TestDocumentExport:
@@ -86,6 +86,27 @@ class TestDocumentExport:
         ssml = doc.to_ssml()
         assert "<speak>" in ssml
         assert "<emphasis>world</emphasis>" in ssml
+
+    def test_to_ssml_directive_paragraph_boundaries(self):
+        """Directive blocks should not merge paragraphs."""
+        ssmd = """<div voice="sarah">
+Hello there.
+</div>
+
+<div voice="michael">
+Goodbye now.
+</div>"""
+        doc = Document(ssmd)
+        ssml = doc.to_ssml()
+        assert ssml.count("<p>") == 2
+
+    def test_pretty_print_no_xml_declaration(self):
+        """Pretty print should avoid XML declaration."""
+        doc = Document("Hello world.")
+        doc.config = {"pretty_print": True}
+        ssml = doc.to_ssml()
+        assert not ssml.lstrip().startswith("<?xml")
+        assert ssml.lstrip().startswith("<speak")
 
     def test_to_ssmd(self):
         """Test to_ssmd() export."""
@@ -118,11 +139,11 @@ class TestDocumentListInterface:
     """Test list-like interface for documents."""
 
     def test_len(self):
-        """Test __len__() returns paragraph count."""
-        doc = Document("First. Second. Third.")
-        assert len(doc) == 1
-        doc.add_paragraph("New paragraph.")
-        assert len(doc) == 2
+        """Test __len__() returns sentence count."""
+        doc = Document("First.\nSecond.\nThird.")
+        assert len(doc) == 3
+        doc.add_paragraph("Fourth sentence.")
+        assert len(doc) == 4
 
     def test_getitem_single(self):
         """Test getting single sentence by index."""
@@ -327,7 +348,14 @@ class TestDocumentIteration:
         doc = Document("First. Second.")
         for sentence in doc.sentences():
             assert isinstance(sentence, str)
-            assert "<speak>" in sentence or sentence  # SSML format
+            assert "<s>" in sentence or "</s>" in sentence
+
+    def test_paragraphs_returns_strings(self):
+        """Test paragraphs() returns SSML paragraphs."""
+        doc = Document("First paragraph.\n\nSecond paragraph.")
+        paragraphs = list(doc.paragraphs())
+        assert len(paragraphs) == 2
+        assert all("<p>" in paragraph or paragraph for paragraph in paragraphs)
 
     def test_sentences_as_documents(self):
         """Test sentences(as_documents=True)."""
@@ -588,14 +616,14 @@ class TestDocumentParsing:
 
     def test_parse_ssmd_with_paragraph(self):
         """Test adding metadata to document."""
-        doc = Document("Hello! \n\n How are you? I'm fine.\n")
+        doc = Document("Hello! \n\n How are you... 'I'm fine.'\n")
         sentences = list(doc.sentences(as_documents=True))
-        assert len(sentences) == 2
+        assert len(sentences) == 3
         paragraphs = parse_paragraphs(doc.ssmd)
         assert len(paragraphs) == 2
         assert paragraphs[0].sentences[0].segments[0].text == "Hello!"
-        assert paragraphs[1].sentences[0].segments[0].text == "How are you?"
-        assert paragraphs[1].sentences[1].segments[0].text == "I'm fine."
+        assert paragraphs[1].sentences[0].segments[0].text == "How are you..."
+        assert paragraphs[1].sentences[1].segments[0].text == "'I'm fine.'"
 
 
 if __name__ == "__main__":

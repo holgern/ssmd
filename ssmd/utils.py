@@ -30,6 +30,18 @@ def unescape_xml(text: str) -> str:
     return html.unescape(text)
 
 
+def format_ssmd_attr(key: str, value: str) -> str:
+    """Format a key/value pair for SSMD annotations."""
+    raw_value = str(value)
+    quote = "'" if '"' in raw_value and "'" not in raw_value else '"'
+    escaped = raw_value.replace("\\", "\\\\")
+    if quote == '"':
+        escaped = escaped.replace('"', '\\"')
+    else:
+        escaped = escaped.replace("'", "\\'")
+    return f"{key}={quote}{escaped}{quote}"
+
+
 def format_xml(xml_text: str, pretty: bool = True) -> str:
     """Format XML with optional pretty printing.
 
@@ -47,7 +59,11 @@ def format_xml(xml_text: str, pretty: bool = True) -> str:
         from xml.dom import minidom
 
         dom = minidom.parseString(xml_text)
-        return dom.toprettyxml(indent="  ", encoding=None)
+        formatted = dom.toprettyxml(indent="  ", encoding=None)
+        lines = [line for line in formatted.splitlines() if line.strip()]
+        if lines and lines[0].startswith("<?xml"):
+            lines = lines[1:]
+        return "\n".join(lines)
     except Exception:
         # Fallback: return as-is if parsing fails
         return xml_text
@@ -146,6 +162,10 @@ def _normalize_extensions(
                 value = config
             if not isinstance(value, str):
                 continue
+            if "{text}" not in value:
+                raise ValueError(
+                    f"Extension template for '{name}' must include '{{text}}'."
+                )
 
             def _handler(text: str, template: str = value) -> str:
                 return template.replace("{text}", text)

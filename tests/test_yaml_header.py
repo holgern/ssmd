@@ -1,5 +1,7 @@
 """Tests for YAML header parsing in SSMD."""
 
+import pytest
+
 import ssmd
 
 
@@ -100,3 +102,15 @@ extensions:
     assert "extensions" in doc.header
     ssml = doc.to_ssml()
     assert "Heading One" in ssml
+
+
+def test_yaml_header_extension_requires_text_placeholder():
+    text = """---
+extensions:
+  - custom:
+      value: "<custom></custom>"
+---
+Hello world.
+"""
+    with pytest.raises(ValueError, match="must include '\\{text\\}'"):
+        ssmd.Document(text, parse_yaml_header=True)

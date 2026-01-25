@@ -20,6 +20,7 @@ from ssmd.types import (
     SayAsAttrs,
     VoiceAttrs,
 )
+from ssmd.utils import format_ssmd_attr
 
 if TYPE_CHECKING:
     from ssmd.capabilities import TTSCapabilities
@@ -335,10 +336,16 @@ class Segment:
 
         # Apply extension
         if self.extension:
-            ext_handlers = {**DEFAULT_EXTENSIONS, **(extensions or {})}
-            handler = ext_handlers.get(self.extension)
-            if handler:
-                content = handler(content)
+            if capabilities and not capabilities.supports_extension(self.extension):
+                if warnings is not None:
+                    warnings.append(
+                        f"extension '{self.extension}' not supported, dropping"
+                    )
+            else:
+                ext_handlers = {**DEFAULT_EXTENSIONS, **(extensions or {})}
+                handler = ext_handlers.get(self.extension)
+                if handler:
+                    content = handler(content)
 
         return content
 
@@ -476,7 +483,10 @@ class Segment:
             sl = _escape_xml_attr(audio.sound_level)
             attrs.append(f'soundLevel="{sl}"')
 
-        desc = f"<desc>{self.text}</desc>" if self.text else ""
+        desc = ""
+        if self.text:
+            desc_text = _escape_xml_text(self.text)
+            desc = f"<desc>{desc_text}</desc>"
         alt = _escape_xml_text(audio.alt_text) if audio.alt_text else ""
 
         return f"<audio {' '.join(attrs)}>{desc}{alt}</audio>"
@@ -576,7 +586,7 @@ class Segment:
 
     def _format_annotation_pairs(self, pairs: list[tuple[str, str]]) -> str:
         """Format annotation key/value pairs."""
-        return " ".join([f'{key}="{value}"' for key, value in pairs])
+        return " ".join([format_ssmd_attr(key, value) for key, value in pairs])
 
     def _prosody_to_ssmd_pairs(self, prosody: ProsodyAttrs) -> list[tuple[str, str]]:
         """Convert prosody to annotation pairs."""

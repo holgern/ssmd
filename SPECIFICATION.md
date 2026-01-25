@@ -874,11 +874,11 @@ Speaking styles for Google Cloud TTS can be configured in the YAML-Header:
 ---
 extensions:
    - cheerful
-      value: lambda text: f'<google:style name="cheerful">{text}</google:style>'
+      value: '<google:style name="cheerful">{text}</google:style>'
    - calm
-      value: lambda text: f'<google:style name="calm">{text}</google:style>'
+      value: '<google:style name="calm">{text}</google:style>'
    - empathetic
-      value: lambda text: f'<google:style name="empathetic">{text}</google:style>'
+      value: '<google:style name="empathetic">{text}</google:style>'
 ...
 ```
 
@@ -914,9 +914,9 @@ Extensions can be registered via YAML configuration:
 ---
 extensions:
    - whisper
-      value: lambda text: f'<amazon:effect name="whispered">{text}</amazon:effect>'
+      value: '<amazon:effect name="whispered">{text}</amazon:effect>'
    - robotic
-      value: lambda text: f'<voice-transformation type="robot">{text}</voice-transformation>'
+      value: '<voice-transformation type="robot">{text}</voice-transformation>'
 ...
 ```
 

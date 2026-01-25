@@ -145,7 +145,8 @@ def parse_paragraphs(
     paragraph_index = 0
     sentence_index = 0
 
-    for directive, block_text in directive_blocks:
+    for block_index, (directive, block_text) in enumerate(directive_blocks):
+        is_last_block = block_index == len(directive_blocks) - 1
         # Split block into paragraphs
         block_paragraphs = PARAGRAPH_PATTERN.split(block_text)
 
@@ -155,6 +156,7 @@ def parse_paragraphs(
                 continue
 
             is_last_paragraph = para_idx == len(block_paragraphs) - 1
+            paragraph_boundary = not is_last_paragraph or not is_last_block
 
             # Split paragraph into sentences if enabled
             if sentence_detection:
@@ -190,7 +192,7 @@ def parse_paragraphs(
                         voice=directive.voice,
                         language=directive.language,
                         prosody=directive.prosody,
-                        is_paragraph_end=is_last_sent_in_para and not is_last_paragraph,
+                        is_paragraph_end=is_last_sent_in_para and paragraph_boundary,
                         paragraph_index=paragraph_index,
                         sentence_index=sentence_index,
                     )

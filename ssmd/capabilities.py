@@ -489,6 +489,9 @@ def get_preset(name: str) -> TTSCapabilities:
     preset_name = name.lower()
     ssml_green_caps = _load_ssml_green_preset(preset_name)
     if ssml_green_caps is not None:
+        preset = PRESETS.get(preset_name)
+        if preset and preset.extensions:
+            ssml_green_caps.extensions = preset.extensions.copy()
         return ssml_green_caps
 
     if preset_name not in PRESETS:

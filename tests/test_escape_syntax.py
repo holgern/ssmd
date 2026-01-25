@@ -165,6 +165,18 @@ class TestDocumentEscapeParameter:
         doc = ssmd.Document(text)  # No escape_syntax parameter
         assert "<emphasis>" in doc.to_ssml()
 
+    def test_document_to_ssmd_unescapes(self):
+        """to_ssmd should restore escaped syntax."""
+        text = "Literal *stars* and [brackets]{noop}"
+        doc = ssmd.Document(text, escape_syntax=True)
+        assert doc.to_ssmd() == text
+
+    def test_document_to_text_unescapes(self):
+        """to_text should restore escaped syntax."""
+        text = "Literal *stars* and @marker"
+        doc = ssmd.Document(text, escape_syntax=True)
+        assert doc.to_text() == text
+
     def test_markdown_link_escaped(self):
         """Markdown links should not trigger audio/annotation."""
         text = '[Click here]{src="https://example.com"}'

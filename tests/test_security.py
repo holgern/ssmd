@@ -105,6 +105,13 @@ class TestXMLInjectionPrevention:
         assert "<script>" not in result
         assert "&lt;script&gt;" in result
 
+    def test_audio_desc_injection(self):
+        """Test that audio descriptions are escaped."""
+        result = ssmd.to_ssml('[<break time="10s"/>]{src="sound.mp3"}')
+
+        assert "<break" not in result
+        assert '&lt;break time="10s"/&gt;' in result
+
     def test_say_as_interpret_injection(self):
         """Test that say-as interpret-as is escaped."""
         # Use ssmd.to_ssml convenience function
