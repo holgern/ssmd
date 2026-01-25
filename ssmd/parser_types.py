@@ -8,6 +8,19 @@ Deprecated: This module is provided for backward compatibility.
 Import from ssmd.types, ssmd.segment, and ssmd.sentence instead.
 """
 
+from __future__ import annotations
+
+import sys
+import warnings
+
+if not getattr(sys, "_ssmd_suppress_parser_types_warning", False):
+    warnings.warn(
+        "ssmd.parser_types is deprecated; import from ssmd.types, ssmd.segment, or "
+        "ssmd.sentence instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+
 # Re-export types from new locations for backward compatibility
 from ssmd.paragraph import Paragraph
 from ssmd.segment import Segment

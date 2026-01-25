@@ -81,6 +81,7 @@ class Document:
                 - auto_sentence_tags (bool): Auto-wrap sentences (default: False)
                 - heading_levels (dict): Custom heading configurations
                 - extensions (dict): Registered extension handlers
+                - namespaces (dict): XML namespaces to add to the <speak> tag
                 - sentence_model_size (str): spaCy model size for sentence
                   detection ("sm", "md", "lg", "trf"). Default: "sm"
                 - sentence_spacy_model (str): Deprecated alias; model size is
@@ -177,7 +178,7 @@ class Document:
         from ssmd.ssml_parser import SSMLParser
 
         parser = SSMLParser(config or {})
-        ssmd_content = parser.to_ssmd(ssml)
+        ssmd_content = parser.to_ssmd(ssml, capabilities=capabilities)
         return cls(ssmd_content, config, capabilities, parse_yaml_header=False)
 
     @classmethod
@@ -354,6 +355,8 @@ class Document:
                 extensions=extensions,
             )
 
+            namespaces = self._collect_namespaces(sentences, extensions, capabilities)
+
             # Build SSML from sentences
             ssml_parts: list[str] = []
             paragraph_parts: list[str] = []
@@ -393,12 +396,17 @@ class Document:
 
             # Wrap in <speak> tags if configured
             if output_speak_tag:
-                if "amazon:" in ssml and "xmlns:amazon" not in ssml:
-                    ssml = (
-                        f'<speak xmlns:amazon="https://amazon.com/ssml">{ssml}</speak>'
-                    )
-                else:
-                    ssml = f"<speak>{ssml}</speak>"
+                if (
+                    "amazon:" in ssml
+                    and "amazon" not in namespaces
+                    and "xmlns:amazon" not in ssml
+                ):
+                    namespaces = {
+                        **namespaces,
+                        "amazon": "https://amazon.com/ssml",
+                    }
+                namespace_attrs = self._format_namespace_attrs(namespaces)
+                ssml = f"<speak{namespace_attrs}>{ssml}</speak>"
 
             # Unescape placeholders AFTER generating SSML
             # (restore original characters in output)
@@ -966,9 +974,13 @@ class Document:
                 if replacement_ssmd is not None:
                     new_fragments.append(replacement_ssmd)
                 else:
-                    new_fragments.append(parser.to_ssmd(sentence_ssml))
+                    new_fragments.append(
+                        parser.to_ssmd(sentence_ssml, capabilities=self._capabilities)
+                    )
             else:
-                new_fragments.append(parser.to_ssmd(sentence_ssml))
+                new_fragments.append(
+                    parser.to_ssmd(sentence_ssml, capabilities=self._capabilities)
+                )
 
             if i < len(sentences) - 1:
                 new_separators.append("\n")
@@ -1061,6 +1073,41 @@ class Document:
             elif isinstance(self._capabilities, TTSCapabilities):
                 self._capabilities_obj = self._capabilities
         return self._capabilities_obj
+
+    def _collect_namespaces(
+        self,
+        sentences: list["Sentence"],
+        extensions: dict | None,
+        capabilities: "TTSCapabilities | None",
+    ) -> dict[str, str]:
+        namespaces: dict[str, str] = dict(self._config.get("namespaces") or {})
+
+        from ssmd.segment import DEFAULT_EXTENSIONS
+
+        ext_handlers = {**DEFAULT_EXTENSIONS, **(extensions or {})}
+        used_extensions = {
+            segment.extension
+            for sentence in sentences
+            for segment in sentence.segments
+            if segment.extension
+        }
+        for extension_name in used_extensions:
+            if capabilities and not capabilities.supports_extension(extension_name):
+                continue
+            handler = ext_handlers.get(extension_name)
+            handler_namespaces = getattr(handler, "namespaces", None)
+            if handler_namespaces:
+                namespaces.update(handler_namespaces)
+
+        return namespaces
+
+    def _format_namespace_attrs(self, namespaces: dict[str, str]) -> str:
+        if not namespaces:
+            return ""
+        attrs = " ".join(
+            f'xmlns:{prefix}="{uri}"' for prefix, uri in sorted(namespaces.items())
+        )
+        return f" {attrs}"
 
     def _invalidate_cache(self) -> None:
         """Invalidate cached SSML and sentences."""

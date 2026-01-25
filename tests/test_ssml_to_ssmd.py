@@ -1,5 +1,7 @@
 """Tests for SSML to SSMD conversion."""
 
+import xml.etree.ElementTree as ET
+
 import pytest
 
 import ssmd
@@ -20,6 +22,12 @@ class TestSSMLToSSMD:
         ssml = "<speak><emphasis>Hello</emphasis> world</speak>"
         result = ssmd.from_ssml(ssml)
         assert result.strip() == "*Hello* world"
+
+    def test_emphasis_with_capabilities(self):
+        """Capabilities strip unsupported emphasis on reverse conversion."""
+        ssml = "<speak><emphasis>Hello</emphasis></speak>"
+        result = ssmd.from_ssml(ssml, capabilities="espeak")
+        assert result.strip() == "Hello"
 
     def test_emphasis_strong(self):
         """Test strong emphasis conversion."""
@@ -117,6 +125,20 @@ class TestSSMLToSSMD:
         result = ssmd.from_ssml(ssml)
         assert result.strip() == '[12/31/2024]{as="date" format="mdy"}'
 
+    def test_say_as_detail_with_quotes_and_braces(self):
+        """Say-as detail values should be quoted safely."""
+        ssml = (
+            '<speak><say-as interpret-as="characters" detail=\'a"b{c}\'>'
+            "abc"
+            "</say-as></speak>"
+        )
+        result = ssmd.from_ssml(ssml)
+        assert "detail='a\"b\\{c\\}'" in result
+
+        roundtrip = ssmd.to_ssml(result)
+        ET.fromstring(roundtrip)
+        assert 'detail="a&quot;b{c}"' in roundtrip
+
     def test_audio(self):
         """Test audio tag conversion."""
         ssml = '<speak><audio src="sound.mp3">Alternative text</audio></speak>'
@@ -181,6 +203,16 @@ class TestSSMLToSSMD:
         )
         result = ssmd.from_ssml(ssml)
         assert result.strip() == '[secret]{ext="whisper"}'
+
+    def test_non_amazon_effect_passthrough(self):
+        """Non-Amazon effect tags should be ignored."""
+        ssml = (
+            '<speak xmlns:custom="https://example.com/custom">'
+            '<custom:effect name="boom">Hello</custom:effect>'
+            "</speak>"
+        )
+        result = ssmd.from_ssml(ssml)
+        assert result.strip() == "Hello"
 
     def test_complex_nested(self):
         """Test complex nested markup."""
@@ -283,6 +315,16 @@ class TestSSMLToSSMD:
 
         roundtrip = ssmd.to_ssml(result)
         assert "He said &quot;hi&quot;" in roundtrip
+
+    def test_voice_attribute_ampersand_roundtrip(self):
+        """Ampersands in attributes should stay unescaped in SSMD."""
+        ssml = '<speak><voice name="R&amp;D">Hello</voice></speak>'
+        result = ssmd.from_ssml(ssml)
+        assert result.strip() == '[Hello]{voice="R&D"}'
+
+        roundtrip = ssmd.to_ssml(result)
+        ET.fromstring(roundtrip)
+        assert "R&amp;D" in roundtrip
 
     def test_voice_language_gender(self):
         """Test voice with language and gender."""

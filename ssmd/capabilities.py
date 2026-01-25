@@ -4,6 +4,7 @@ This module defines which SSML features are supported by various TTS engines
 and provides capability-based filtering for SSMD processing.
 """
 
+import importlib.resources as resources
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -379,9 +380,8 @@ def _flatten_ssml_green(data: dict[str, Any]) -> dict[str, bool]:
     return flat
 
 
-def load_ssml_green_platform(path: str | Path) -> TTSCapabilities:
-    data = json.loads(Path(path).read_text(encoding="utf-8"))
-    flat = _flatten_ssml_green(data)
+def _load_ssml_green_data(data: str) -> TTSCapabilities:
+    flat = _flatten_ssml_green(json.loads(data))
 
     emphasis = flat.get("elements››level (optional)", True)
     if emphasis:
@@ -437,6 +437,10 @@ def load_ssml_green_platform(path: str | Path) -> TTSCapabilities:
     return caps
 
 
+def load_ssml_green_platform(path: str | Path) -> TTSCapabilities:
+    return _load_ssml_green_data(Path(path).read_text(encoding="utf-8"))
+
+
 # Preset lookup
 PRESETS: dict[str, TTSCapabilities] = {
     "espeak": ESPEAK_CAPABILITIES,
@@ -467,11 +471,17 @@ def _load_ssml_green_preset(name: str) -> TTSCapabilities | None:
     file_name = SSML_GREEN_FILES.get(name)
     if not file_name:
         return None
+    try:
+        data_path = resources.files("ssmd").joinpath("data", file_name)
+        if data_path.is_file():
+            return _load_ssml_green_data(data_path.read_text(encoding="utf-8"))
+    except Exception:
+        pass
     data_dir = Path(__file__).parent / "data"
     file_path = data_dir / file_name
-    if not file_path.exists():
-        return None
-    return load_ssml_green_platform(file_path)
+    if file_path.exists():
+        return load_ssml_green_platform(file_path)
+    return None
 
 
 def get_preset(name: str) -> TTSCapabilities:

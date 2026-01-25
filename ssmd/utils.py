@@ -35,6 +35,7 @@ def format_ssmd_attr(key: str, value: str) -> str:
     raw_value = str(value)
     quote = "'" if '"' in raw_value and "'" not in raw_value else '"'
     escaped = raw_value.replace("\\", "\\\\")
+    escaped = escaped.replace("{", "\\{").replace("}", "\\}")
     if quote == '"':
         escaped = escaped.replace('"', '\\"')
     else:

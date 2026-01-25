@@ -38,6 +38,7 @@ Example:
             tts_engine.speak(sentence)
 """
 
+import sys
 from typing import Any
 
 from ssmd.document import Document
@@ -68,6 +69,9 @@ from ssmd.parser import (
     lint,
 )
 from ssmd.spans import LintIssue, AnnotationSpan, ParseSpansResult
+
+_prev_warning_state = getattr(sys, "_ssmd_suppress_parser_types_warning", False)
+sys._ssmd_suppress_parser_types_warning = True
 from ssmd.parser_types import (
     SSMDSegment,
     SSMDSentence,
@@ -79,7 +83,9 @@ from ssmd.parser_types import (
     AudioAttrs,
     PhonemeAttrs,
 )
-from ssmd.segment import Segment
+
+sys._ssmd_suppress_parser_types_warning = _prev_warning_state
+from ssmd.segment import ExtensionHandler, Segment
 from ssmd.sentence import Sentence
 from ssmd.types import (
     HeadingConfig,
@@ -138,11 +144,17 @@ def to_text(ssmd_text: str, *, parse_yaml_header: bool = False, **config: Any) -
     return Document(ssmd_text, config, parse_yaml_header=parse_yaml_header).to_text()
 
 
-def from_ssml(ssml_text: str, **config: Any) -> str:
+def from_ssml(
+    ssml_text: str,
+    *,
+    capabilities: "TTSCapabilities | str | None" = None,
+    **config: Any,
+) -> str:
     """Convert SSML to SSMD format (convenience function).
 
     Args:
         ssml_text: SSML XML string
+        capabilities: Optional TTS capabilities (preset name or object)
         **config: Optional configuration parameters
 
     Returns:
@@ -154,7 +166,7 @@ def from_ssml(ssml_text: str, **config: Any) -> str:
         '*Hello* world'
     """
     parser = SSMLParser(config)
-    return parser.to_ssmd(ssml_text)
+    return parser.to_ssmd(ssml_text, capabilities=capabilities)
 
 
 __all__ = [
@@ -188,6 +200,7 @@ __all__ = [
     "unescape_ssmd_syntax",
     # New core classes
     "Segment",
+    "ExtensionHandler",
     "Sentence",
     "Paragraph",
     # Types

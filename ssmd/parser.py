@@ -47,7 +47,7 @@ MODERATE_EMPHASIS_PATTERN = re.compile(r"\*([^\*]+)\*")
 REDUCED_EMPHASIS_PATTERN = re.compile(r"(?<!_)_(?!_)([^_]+?)(?<!_)_(?!_)")
 
 # Annotation pattern: [text]{key="value"}
-ANNOTATION_PATTERN = re.compile(r"\[([^\]]*)\]\{([^}]*)\}")
+ANNOTATION_PATTERN = re.compile(r"\[([^\]]*)\]\{((?:\\.|[^}])*)\}")
 
 # Break pattern: ...500ms, ...2s, ...n, ...w, ...c, ...s, ...p
 BREAK_PATTERN = re.compile(r"\.\.\.(\d+(?:s|ms)|[nwcsp])(?=\s|$|[.!?,;:])")
@@ -463,7 +463,7 @@ def _split_sentences(
                 return placeholder
 
             escaped_text = re.sub(
-                r"\[[^\]]*\]\{[^}]*\}", _replace_placeholder, escaped_text
+                r"\[[^\]]*\]\{(?:\\.|[^}])*\}", _replace_placeholder, escaped_text
             )
             escaped_text = re.sub(
                 r"\.\.\.(?:\d+(?:s|ms)|[nwcsp])(?=\s|$|[.!?,;:])",
@@ -560,7 +560,7 @@ def _parse_segments(  # noqa: C901
         r"\*\*[^\*]+\*\*"  # **strong**
         r"|\*[^\*]+\*"  # *moderate*
         r"|(?<![_a-zA-Z0-9])_(?!_)[^_]+?(?<!_)_(?![_a-zA-Z0-9])"  # _reduced_
-        r"|\[[^\]]*\]\{[^}]+\}"  # [text]{annotation}
+        r"|\[[^\]]*\]\{(?:\\.|[^}])+\}"  # [text]{annotation}
         r"|\.\.\.(?:\d+(?:s|ms)|[nwcsp])(?=\s|$|[.!?,;:])"  # breaks
         r"|(?<!\S)@(?!voice[:(])\w+(?=\s|$)"  # marks
         r")"
@@ -963,7 +963,7 @@ def _parse_segments_for_spans(
         r"\*\*[^\*]+\*\*"
         r"|\*[^\*]+\*"
         r"|(?<![_a-zA-Z0-9])_(?!_)[^_]+?(?<!_)_(?![_a-zA-Z0-9])"
-        r"|\[[^\]]*\]\{[^}]+\}"
+        r"|\[[^\]]*\]\{(?:\\.|[^}])+\}"
         r"|\.\.\.(?:\d+(?:s|ms)|[nwcsp])(?=\s|$|[.!?,;:])"
         r"|(?<!\S)@(?!voice[:(])\w+(?=\s|$)"
         r")"

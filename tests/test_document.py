@@ -1,8 +1,10 @@
 """Test Document class features - building, editing, and advanced methods."""
 
+import xml.etree.ElementTree as ET
+
 import pytest
 
-from ssmd import Document
+from ssmd import Document, ExtensionHandler
 from ssmd.parser import parse_paragraphs
 from ssmd.utils import extract_sentences
 
@@ -86,6 +88,34 @@ class TestDocumentExport:
         ssml = doc.to_ssml()
         assert "<speak>" in ssml
         assert "<emphasis>world</emphasis>" in ssml
+
+    def test_extension_namespaces(self):
+        """Extension tags should declare namespaces on <speak>."""
+        doc = Document('[secret]{ext="whisper"}')
+        ssml = doc.to_ssml()
+        ET.fromstring(ssml)
+        assert "xmlns:amazon" in ssml
+
+    def test_custom_extension_namespace_registry(self):
+        """Custom extension handlers can register namespaces."""
+
+        def custom_handler(text: str) -> str:
+            return f"<custom:effect>{text}</custom:effect>"
+
+        doc = Document(
+            '[hello]{ext="custom"}',
+            config={
+                "extensions": {
+                    "custom": ExtensionHandler(
+                        custom_handler,
+                        namespaces={"custom": "https://example.com/custom"},
+                    )
+                }
+            },
+        )
+        ssml = doc.to_ssml()
+        ET.fromstring(ssml)
+        assert "xmlns:custom" in ssml
 
     def test_to_ssml_directive_paragraph_boundaries(self):
         """Directive blocks should not merge paragraphs."""

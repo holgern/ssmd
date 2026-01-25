@@ -4,6 +4,7 @@ A Segment represents a portion of text with specific formatting and processing
 attributes. Segments are combined to form sentences.
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -49,10 +50,32 @@ LANGUAGE_DEFAULTS = {
 }
 
 
+AMAZON_SSML_NAMESPACE = "https://amazon.com/ssml"
+
+
+@dataclass(frozen=True)
+class ExtensionHandler:
+    handler: Callable[[str], str]
+    namespaces: dict[str, str] = field(default_factory=dict)
+
+    def __call__(self, text: str) -> str:
+        return self.handler(text)
+
+
+def _amazon_effect_handler(effect_name: str) -> ExtensionHandler:
+    def _handler(text: str) -> str:
+        return f'<amazon:effect name="{effect_name}">{text}</amazon:effect>'
+
+    return ExtensionHandler(
+        handler=_handler,
+        namespaces={"amazon": AMAZON_SSML_NAMESPACE},
+    )
+
+
 # Default extension handlers
 DEFAULT_EXTENSIONS = {
-    "whisper": lambda text: f'<amazon:effect name="whispered">{text}</amazon:effect>',
-    "drc": lambda text: f'<amazon:effect name="drc">{text}</amazon:effect>',
+    "whisper": _amazon_effect_handler("whispered"),
+    "drc": _amazon_effect_handler("drc"),
 }
 
 

@@ -2,12 +2,15 @@
 
 import re
 import xml.etree.ElementTree as ET
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from ssmd.formatter import format_ssmd
 from ssmd.parser import parse_sentences
 from ssmd.ssml_conversions import SSML_BREAK_STRENGTH_MAP
 from ssmd.utils import format_ssmd_attr
+
+if TYPE_CHECKING:
+    from ssmd.capabilities import TTSCapabilities
 
 
 class SSMLParser:
@@ -53,11 +56,23 @@ class SSMLParser:
     def _format_attrs(self, pairs: list[tuple[str, str]]) -> str:
         return " ".join(self._format_attr(key, value) for key, value in pairs)
 
-    def to_ssmd(self, ssml: str) -> str:
+    def _wrap_directive(self, content: str, attrs: str) -> str:
+        content = content.strip()
+        return f"<div {attrs}>{{DIRECTIVE_NEWLINE}}{content}{{DIRECTIVE_NEWLINE}}</div>"
+
+    def _element_namespace(self, element: ET.Element) -> str | None:
+        if element.tag.startswith("{"):
+            return element.tag.split("}")[0][1:]
+        return None
+
+    def to_ssmd(
+        self, ssml: str, *, capabilities: "TTSCapabilities | str | None" = None
+    ) -> str:
         """Convert SSML to SSMD format.
 
         Args:
             ssml: SSML XML string
+            capabilities: Optional TTS capabilities (preset name or object)
 
         Returns:
             SSMD markdown string with proper formatting (each sentence on new line)
@@ -96,7 +111,11 @@ class SSMLParser:
         )
 
         # Parse into sentences and format with proper line breaks
-        sentences = parse_sentences(result.strip())
+        sentences = parse_sentences(
+            result.strip(),
+            capabilities=capabilities,
+            strict_parse=capabilities is not None,
+        )
         return format_ssmd(sentences)
 
     def _process_element(self, element: ET.Element) -> str:
@@ -109,6 +128,7 @@ class SSMLParser:
             SSMD formatted string
         """
         tag = element.tag.split("}")[-1]  # Remove namespace if present
+        namespace = self._element_namespace(element)
 
         # Handle different SSML tags
         if tag == "speak":
@@ -140,7 +160,7 @@ class SSMLParser:
             return self._process_audio(element)
         elif tag == "mark":
             return self._process_mark(element)
-        elif "amazon:effect" in element.tag or tag == "effect":
+        elif tag == "effect" and namespace == "https://amazon.com/ssml":
             return self._process_amazon_effect(element)
         else:
             # Unknown tag - just process children
@@ -189,7 +209,7 @@ class SSMLParser:
             return f"_{content}_"
         elif level == "none":
             # Level "none" is rare - use explicit annotation
-            return f'[{content}]{{emphasis="none"}}'
+            return f"[{content}]{{{self._format_attr('emphasis', 'none')}}}"
         else:  # moderate or default
             return f"*{content}*"
 
@@ -246,29 +266,26 @@ class SSMLParser:
         if not any([volume, rate, pitch]):
             return content
 
-        annotations = []
+        pairs: list[tuple[str, str]] = []
 
         if volume:
-            annotations.append(self._format_attr("volume", volume))
+            pairs.append(("volume", volume))
 
         if rate:
-            annotations.append(self._format_attr("rate", rate))
+            pairs.append(("rate", rate))
 
         if pitch:
-            annotations.append(self._format_attr("pitch", pitch))
+            pairs.append(("pitch", pitch))
 
-        if not annotations:
+        if not pairs:
             return content
 
+        attrs = self._format_attrs(pairs)
         is_multiline = "\n" in content.strip() or len(content.strip()) > 80
         if is_multiline:
-            attrs = " ".join(annotations)
-            return (
-                f"<div {attrs}>{{DIRECTIVE_NEWLINE}}"
-                f"{content.strip()}{{DIRECTIVE_NEWLINE}}</div>"
-            )
+            return self._wrap_directive(content, attrs)
 
-        return f"[{content}]{{{' '.join(annotations)}}}"
+        return f"[{content}]{{{attrs}}}"
 
     def _process_language(self, element: ET.Element) -> str:
         """Convert <lang> to directive or inline annotation.
@@ -279,8 +296,6 @@ class SSMLParser:
         Returns:
             SSMD language syntax
         """
-        from ssmd.segment import _escape_xml_attr
-
         content = self._process_children(element)
         lang = element.get("{http://www.w3.org/XML/1998/namespace}lang") or element.get(
             "lang"
@@ -290,16 +305,12 @@ class SSMLParser:
             return content
 
         simplified = self.STANDARD_LOCALES.get(lang, lang)
-        escaped_lang = _escape_xml_attr(simplified)
         is_multiline = "\n" in content.strip() or len(content.strip()) > 80
         if element.findall("p"):
             is_multiline = True
-        lang_attr = self._format_attr("lang", escaped_lang)
+        lang_attr = self._format_attr("lang", simplified)
         if is_multiline:
-            return (
-                f"<div {lang_attr}>{{DIRECTIVE_NEWLINE}}"
-                f"{content.strip()}{{DIRECTIVE_NEWLINE}}</div>"
-            )
+            return self._wrap_directive(content, lang_attr)
 
         return f"[{content}]{{{lang_attr}}}"
 
@@ -346,11 +357,7 @@ class SSMLParser:
 
             if parts:
                 attrs = " ".join(parts)
-                content = content.strip()
-                return (
-                    f"<div {attrs}>{{DIRECTIVE_NEWLINE}}"
-                    f"{content}{{DIRECTIVE_NEWLINE}}</div>"
-                )
+                return self._wrap_directive(content, attrs)
 
         # Use inline annotation syntax
         if name:
