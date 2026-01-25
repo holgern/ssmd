@@ -38,7 +38,6 @@ Example:
             tts_engine.speak(sentence)
 """
 
-import sys
 from typing import Any
 
 from ssmd.document import Document
@@ -69,9 +68,6 @@ from ssmd.parser import (
     lint,
 )
 from ssmd.spans import LintIssue, AnnotationSpan, ParseSpansResult
-
-_prev_warning_state = getattr(sys, "_ssmd_suppress_parser_types_warning", False)
-sys._ssmd_suppress_parser_types_warning = True
 from ssmd.parser_types import (
     SSMDSegment,
     SSMDSentence,
@@ -83,8 +79,6 @@ from ssmd.parser_types import (
     AudioAttrs,
     PhonemeAttrs,
 )
-
-sys._ssmd_suppress_parser_types_warning = _prev_warning_state
 from ssmd.segment import ExtensionHandler, Segment
 from ssmd.sentence import Sentence
 from ssmd.types import (

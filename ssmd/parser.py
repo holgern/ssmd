@@ -995,12 +995,7 @@ def _parse_segments_for_spans(
                     annotation_match.group(2).strip()
                 )
                 warnings.extend(attr_warnings)
-                if attrs_override is not None:
-                    attrs_override = {
-                        k: v for k, v in attrs_override.items() if v != ""
-                    }
-                if attrs_override is None:
-                    attrs_override = {}
+                attrs_override = {k: v for k, v in attrs_override.items() if v != ""}
                 attrs_override = _annotated_attrs_to_tagged(attrs_override)
 
         current_segments = [segment for segment, _ in segments]

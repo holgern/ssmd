@@ -98,7 +98,7 @@ def parse_yaml_header(text: str) -> tuple[dict[str, Any] | None, str]:
     body_text = "\n".join(lines[end_index + 1 :]).lstrip("\n")
 
     try:
-        import yaml
+        import yaml  # type: ignore[import-untyped]
     except ImportError as exc:
         raise RuntimeError("pyyaml is required for YAML header parsing") from exc
 
@@ -110,7 +110,7 @@ def parse_yaml_header(text: str) -> tuple[dict[str, Any] | None, str]:
 
 
 def _normalize_heading_levels(
-    levels: list[dict[str, Any]],
+    levels: list[Any],
 ) -> dict[int, list[tuple[str, str | dict[str, str]]]]:
     heading_levels: dict[int, list[tuple[str, str | dict[str, str]]]] = {}
     for entry in levels:
@@ -148,7 +148,7 @@ def _normalize_heading_levels(
 
 
 def _normalize_extensions(
-    entries: list[dict[str, Any]],
+    entries: list[Any],
 ) -> dict[str, Callable[[str], str]]:
     extensions: dict[str, Callable[[str], str]] = {}
     for entry in entries:
@@ -168,7 +168,9 @@ def _normalize_extensions(
                     f"Extension template for '{name}' must include '{{text}}'."
                 )
 
-            def _handler(text: str, template: str = value) -> str:
+            template = value
+
+            def _handler(text: str, template: str = template) -> str:
                 return template.replace("{text}", text)
 
             extensions[str(name)] = _handler

@@ -472,7 +472,7 @@ def _load_ssml_green_preset(name: str) -> TTSCapabilities | None:
     if not file_name:
         return None
     try:
-        data_path = resources.files("ssmd").joinpath("data", file_name)
+        data_path = resources.files("ssmd").joinpath("data").joinpath(file_name)
         if data_path.is_file():
             return _load_ssml_green_data(data_path.read_text(encoding="utf-8"))
     except Exception:
